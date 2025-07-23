@@ -1,0 +1,133 @@
+Associate Cyber Security Analyst – 4 Roles Available!
+Engineering | Design & Assurance | Strategy & Governance | Management Team
+ 
+At Insignia Financial, we’re not just dreaming about the future of wealth management — we’re making it happen. With over 2.2 million customers and $321.8 billion in funds under management, we’re transforming how Australians grow and protect their money through smarter technology and simpler, more meaningful experiences.
+
+
+As one of the country’s largest wealth and retirement businesses, we help Australians plan for and live well in retirement, with Technology as the backbone of our business. Cyber security sits right at the heart of that, keeping our platforms safe and trusted. With increasing demand for secure digital experiences, we’re investing heavily in our cyber future, including growing the next generation of cyber experts.
+
+
+Cyber Launchpad is our new, purpose-built Associate Analyst program designed to give early-career cyber professionals a serious start in cyber. We have four specialist roles, where you’ll get hands-on experience, tailored mentoring, and structured learning in a real-world enterprise environment. You’ll be embedded in our core domains, work alongside seasoned experts, and help protect the financial future of millions of Australians.
+
+Join a culture that’s diverse, inclusive, and built to help you succeed — this is your chance to build a career that actually makes a difference.
+
+
+About the Program
+
+We’re hiring four full-time Associate Cyber Security Analysts to join our Cyber Security teams in:
+
+Engineering – Gain hands-on experience managing security platforms, monitoring live environments, triaging incidents, and improving threat detection across enterprise systems.
+
+Design & Assurance – Learn how to embed security into software delivery pipelines and cloud platforms, working on DevSecOps practices, automation, and secure design.
+
+Strategy & Governance – Build expertise in cyber risk, compliance, policies, and governance frameworks that guide security at scale across the organisation.
+
+Cyber Security Management Team – Have breadth across all core cyber domains, working directly with the GM Cyber Security and wider leadership team to support key initiatives and build broad, strategic insight into how cyber operates.
+
+ 
+
+Role 1: Associate Cyber Security Analyst – Engineering
+
+In this opportunity you will get hands-on with the systems that keep our business secure. Supporting the deployment, management, and fine-tuning of critical security platforms, from intrusion detection and endpoint protection to cloud-native tooling and data loss prevention.
+
+You’ll actively contribute to monitoring and maintaining live environments, help triage incidents, and learn how to optimise security telemetry for threat detection. It’s the perfect fit for someone who loves learning by doing, and who wants to deepen their understanding of how enterprise security really works.
+
+
+What you’ll bring:
+
+A passion for cyber and an eagerness to get hands-on with tools and systems
+
+Some foundational knowledge in networking, operating systems, or IT troubleshooting
+
+An analytical mindset — someone who spots issues and wants to get to the root cause
+
+Confidence to ask questions, work through challenges, and grow with feedback
+
+Bonus points if you’ve dabbled in home labs, online courses, or self-led projects
+
+You’ll be based in Melbourne or Sydney, embedded in a supportive team with direct 1:1 mentoring from your manager. You’ll have access to tool-specific training, knowledge-sharing sessions, and a growing engineering community that values curiosity and continuous learning.
+
+
+Role 2: Associate Cyber Security Analyst – Design & Assurance
+In this role you you’ll be embedded in a fast-moving, hands-on team shaping how security is designed and delivered into real tech solutions. Think DevSecOps, secure software pipelines, container security, and cloud platforms.
+
+You’ll be learning from some of the best in the business, supported by curated training, live tool demos, and internal workshops — all while building technical depth through hands-on experience. You’ll work on real-world challenges like embedding security into software delivery pipelines, using automation tools to identify and fix vulnerabilities, supporting threat modelling and risk assessments, and learning how to secure modern platforms from code to cloud.
+
+
+What we’re looking for:
+
+A keen interest in software security, with a naturally curious mindset and a drive to learn fast
+
+Some familiarity with coding, GitHub, or CI/CD concepts
+
+Not afraid to try, fail, ask questions, and try again
+
+A communicator who collaborates well and thinks critically
+
+Being based in either Melbourne or Sydney, you’ll join a collaborative team with strong mentoring from senior professionals across the Design & Assurance domain. You'll get exposure to other areas like Security Architecture and Control Verification, plus access to curated training on platforms like Pluralsight and LinkedIn Learning. Expect live demos, technical workshops, and the chance to hear from industry experts — all designed to help you grow from the ground up.
+
+ 
+
+Role 3: Associate Cyber Security Analyst – Strategy & Governance
+This role gives you exposure to the frameworks, policies, and risk practices that guide how we run cyber across the business. You’ll work with experienced advisors on everything from compliance and reporting to awareness and governance programs, seeing how decisions are made at scale. You’ll be supported by a highly experienced team, with steady exposure to enterprise-level work and the chance to build a solid foundation in one of the most transferable areas of cyber.
+
+In this role you’ll help develop and maintain policies, assist with risk assessments, contribute to audit and compliance activities, and support enterprise-wide awareness initiatives. You’ll also get hands-on with reporting, dashboards, and governance documentation — building practical knowledge of frameworks.
+
+
+What we’re looking for:
+
+Clear communicator, confident working with a range of stakeholders
+
+Strong organiser with attention to detail — especially with documentation and data
+
+Interest in how cyber risk, compliance, and governance work in large organisations
+
+Background in business, IT, law, or policy is a plus — but not essential if you’re sharp, curious, and willing to learn
+
+Being based in either Melbourne or Sydney, be part of a close-knit governance team with deep expertise in enterprise risk and compliance. You’ll get structured training and mentoring, the chance to shadow experienced advisors, and real ownership as your confidence grows. This is a great fit for someone who enjoys problem-solving, clear communication, and wants to understand how cybersecurity is managed.
+
+
+Role 4: Associate Cyber Security Analyst – Management Team
+
+This role gives you broad exposure across all cyber domains by working directly with our GM Cyber Security, James Ng, and the Cyber Security Leadership Team. You’ll support coordination, project management, vendor engagement, and help drive key initiatives across the enterprise as well as engineering, assurance, strategy, and operations.
+
+You’ll be embedded in the leadership function, gaining insight into how cyber operates at a strategic level, while building practical skills in project delivery, communication, and stakeholder management.
+
+
+What we’re looking for:
+
+Organised, proactive, and willing to take initiative
+
+Confident communicator, comfortable working with stakeholders at all levels
+
+Self-starter, with evidence of independent learning or side projects
+
+Curious about cyber, with a strong interest in leadership, coordination, and gaining broad experience
+
+This role is based in Melbourne, with close collaboration alongside the GM Cyber Security and senior leaders, offering a unique opportunity to develop a broad and wide-ranging skill set across the cyber function.
+
+
+Why join Cyber Launchpad at Insignia Financial?
+
+Structured onboarding and development roadmap
+
+1:1 coaching and mentoring with senior leaders
+
+Access to curated learning: Pluralsight, LinkedIn Learning, tool demos
+
+Opportunities to contribute from day one
+
+A strong peer cohort and an inclusive, diverse team culture
+
+Real projects. Real accountability. Real learning.
+
+
+Whether you're a recent grad, career switcher, or self-taught learner - we want to hear from you! Passion, curiosity, proactiveness, and drive matter more than a perfect CV.
+
+Salary range: $80,000 - $87,000 including superannuation
+
+Apply now!!
+In your application, make sure to let us know what excites you, and elaborate on your relevant skills, experience, and interests.
+Our application process for these roles will involve a range of application questions, followed by video screening questions for shortlisted candidates.
+We will also be holding assessment centers in both Sydney and Melbourne, which will allow you the opportunity to meet some of our team and demonstrate your skills, experience, and passion in a practical setting.
+Applications close Sunday 3rd August 2025.

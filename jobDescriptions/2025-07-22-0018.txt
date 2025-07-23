@@ -1,0 +1,74 @@
+Join Our Cybersecurity Team – Operational Technology (OT) Focus
+
+Are you passionate about securing critical infrastructure and industrial systems? We’re looking for a skilled and driven Cybersecurity Specialist (OT Focus) to join our team and play a key role in protecting our operational technology environments.
+
+ 
+
+About the Role
+
+As part of our growing cybersecurity team, you’ll focus on the unique challenges of OT/ICS (Industrial Control Systems) security. From network segmentation and threat detection to policy enforcement and incident response, you’ll help secure the technology that keeps our operations running.
+
+This is an exciting opportunity to work in a high-impact role with cross-functional teams, making a real difference in our organisation’s cyber resilience.
+
+ 
+
+Key Responsibilities
+
+Assess, design, and implement security controls for OT environments (SCADA, DCS, PLCs, HMIs).
+
+Conduct risk assessments and vulnerability scans in OT networks.
+
+Collaborate with various stakeholders to align security practices.
+
+Monitor OT security systems, investigate anomalies, and lead incident response.
+
+Ensure compliance with relevant standards and regulations (e.g., IEC 62443, NERC CIP, ISO/ISA 27001).
+
+ 
+
+Required Qualifications
+
+Education: Bachelor's degree in Cybersecurity, Computer Science, Electrical Engineering, or a related field.
+
+Experience:
+
+3–5+ years in cybersecurity with at least 2 years in OT/ICS environments.
+
+Experience with industrial network protocols (Modbus, DNP3, OPC, etc.) and architectures.
+
+Familiarity with threat modeling and risk management in OT settings.
+
+ 
+
+Preferred Certifications
+
+Desirable:
+
+ISA/IEC 62443 Cybersecurity Certificate(s)
+
+Offensive Security Certified Professional (OSCP) or equivalent penetration testing certification.
+
+Certified Information Systems Security Professional (CISSP)
+
+Certified Information Security Manager (CISM)
+
+CompTIA Security+, Network+, or CySA+
+
+ 
+
+What We Offer
+
+A chance to shape OT security strategy and architecture
+
+Professional development and certification support
+
+A collaborative and mission-driven team
+
+Flexible work arrangements and competitive benefits
+
+Employer questions
+Your application will include the following questions:
+Which of the following statements best describes your right to work in Australia?
+How many years' experience do you have as a Cyber Security Engineer?
+Have you completed a Certified Information Systems Security Professional (CISSP) certification?
+Which of the following cybersecurity certifications have you completed?

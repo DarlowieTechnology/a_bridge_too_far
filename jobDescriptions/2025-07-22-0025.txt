@@ -1,0 +1,73 @@
+VicTrack is the custodial owner of Victoria’s rail transport land, assets and infrastructure. We work to protect and grow the value of the portfolio, to support a thriving transport system and make travel and living better for all Victorians. With much of our asset portfolio dedicated to rail transport – our land, infrastructure, trams, trains and telecommunication networks – our focus is on strategic asset management and supporting the delivery of better transport solutions.
+
+When you join VicTrack, you'll become part of an organisation that celebrates the diverse backgrounds, perspectives, and life experiences of our people. We are committed to fostering a workplace that mirrors the diverse communities we serve. Everyone is welcome to apply for a role at VicTrack and we encourage open discussions about any adjustments you might need during the recruitment process or within the role. If you have a disability or specific access requirements, please let us know how we can offer you additional support.
+
+Benefits
+
+Free travel on all public transport – Trains | Trams | V/Line
+17.5% leave loading
+1 x Extra day off (EDO) per month
+Flexible work environment | hybrid work – 2 x office days / 3 x work from home
+Stable work environment - Victorian Government state-owned enterprise 
+16 weeks paid parental leave (36 unpaid) 
+Comprehensive health & wellness programs
+Free access to on-site gym and end of trip facilities 
+Training and development opportunities to help you grow and develop your career
+The challenges of our fast-growing sector put our people at the front of some of Victoria’s most exciting projects in telecommunications, property development and project delivery – with job opportunities as diverse as our organisation. 
+
+The Role
+
+The Cyber Security Assurance & Reporting Specialist is responsible for leading and conducting the cyber security assurance activities across VicTrack providing technical security expertise to ensure that existing and new ICT systems, services and products meet the security compliance requirements. The role is responsible for conducting various audit and monitoring the effectiveness of implemented security controls and determining deviations from acceptable configurations, policy, or standards, and providing expertise in risk treatment management and compliance requirements for internal and external reviews. 
+
+The Cyber Security Assurance & Reporting Specialist will also develop cyber security reporting tailored for various internal stakeholders to provide a view of cyber security posture through a risk and compliance lens.
+
+Key accountabilities/functions:
+
+Assurance: Audit, Compliance and Testing, including: 
+
+Lead and manage the Cyber Security Compliance Assurance program and schedule, the scope of which includes meeting cyber security related obligations, internal assessments, and facilitating audits and assurance of cyber security activities and objectives. 
+Lead the monitoring of the effectiveness of implemented security controls to maintain compliance with internal and external security policies and standards. 
+Drive the coordination, monitoring and evaluation including tracking, collating, and analysing data on security assurance activities (e.g. vulnerability management, penetration testing, account management and audits). 
+Conducting control assurance testing of the cyber security controls in line with regulatory requirements and advise on corrective measures.  
+Liaise with internal stakeholders to ensure alignment with between Cyber Security Assurance and Enterprise Assurance activities to fulfill the requirements of the Enterprise Assurance Program. 
+Manage the penetration testing program, and report to management and track test findings and remediation. 
+Work closely with operations teams to ensure that systems are properly protected, and security baselines are applied correctly. 
+Lead and participate in information security audits, security reviews and risk assessments, to minimise risk exposure and ensure VicTrack is in continuous compliance. 
+Reporting: Cyber Security Metrics and Dashboards, including: 
+
+Collate cybersecurity metrics from various sources, including vulnerability management and security awareness platforms, and utilising this data to produce comprehensive cybersecurity reports. 
+Provide regular reporting while improving the internal processes to promote consistent evaluations, automation, and reporting of metrics. 
+Prepare and present comprehensive cyber security reports and dashboards to management and key stakeholders, offering insights and recommendations based on cybersecurity testing results, as well as updates on program status, compliance, and operational risk posture.
+Qualifications: 
+
+A bachelor’s degree or diploma in Information Technology (IT), computer science, software engineering, information systems, cybersecurity, data science or related technology field. 
+In addition to the above technical background, to be certified for this position, the incumbent must have one or more of the following audit and assurance certifications or equivalent certification: 
+
+•    ISO/IEC 27001 Lead Auditor
+•    Certified Information Systems Auditor (CISA) from ISACA (Information Systems Audit and Control Association) 
+•    Certified in Risk and Information Systems Control (CRISC) from ISACA (Information Systems Audit and Control Association) 
+•    Certification in Risk Management Assurance (CRMA) from IIA (Institute of Internal Auditors)
+Knowledge and experience: 
+
+A minimum 5 years’ experience working in a cyber security role, including audit, assurance, compliance and broader cyber security governance, risk and compliance (GRC) activities that provide a sound understanding of cyber security practices. 
+Demonstrated capability to perform tasks independently or collaboratively within a team, fostering inclusive and effective relationships while contributing to a constructive team environment. 
+Working knowledge of the Victorian Government compliance requirements and other security frameworks and standards such as VPDSF, Australian Government PSPF, NIST, Essential 8 and ISO/IEC 27001. 
+Experience with delivering cyber assurance activities across various security technologies, including technologies such as firewalls and network based cyber security controls, intrusion detection systems, anti-malware, EDR/XDR systems, web and cloud-based cyber security controls, modern identity security systems, log management, and content filtering. 
+Experience with developing cyber security metrics and dashboard reporting that provide management and other stakeholders with visibility of cyber security posture and practices. 
+Proficient in using Microsoft Power BI to ingest data feeds, design and produce effective reports and visually informative dashboards. 
+Experience in identity and access management principles as well as coordinating penetration testing and vulnerability scans. 
+Experience managing stakeholder communication, including developing and executing communication plans, preparing and delivering reports and presentations, and facilitating meetings and workshops. 
+Experience writing executive reports and dashboards. 
+Knowledge of various IT domains, such as infrastructure, software, data, security, cloud, etc, obtained through previous technical hands-on roles or project experience. 
+Experience and knowledge working in project teams under direction from project managers.
+To Apply
+
+***PLEASE ONLY SUBMIT YOUR RESUME AND/OR COVER LETTER IN PDF FORMAT
+
+If you are interested in this exciting opportunity with us, please click apply and submit your resume in PDF format only. All applications are strictly confidential.
+
+We are proud to be recognised by WORK180 as an employer of choice for women. Explore the WORK180 website to learn about our benefits and policies. Research shows that 60% of women and underrepresented groups may decide not to proceed, even after drafting an application. We believe diversity strengthens every team, so even if you don't meet every qualification, we still encourage you to apply!
+
+Offer of employment is strictly subject to successful background (pre-employment screening) and criminal history check. VicTrack is an equal opportunity and human rights employer.
+
+Closing Date: 16/08/25 

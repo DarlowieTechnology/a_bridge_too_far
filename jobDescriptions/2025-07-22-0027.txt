@@ -1,0 +1,37 @@
+About Kinetic IT:
+
+We are recognised market leaders in the delivery of high-quality technology solutions to large public, private, and government organisations. As an Australian-owned company, we take a lot of pride in delivering exceptional service that exceeds our customers’ expectations and positively contributing to our industry and community.  We hire for the long term and have a strong focus on training and developing our employees.  Everyday our 1,500+ amazing crew come to Kinetic IT not just to work but be challenged, grow and be part of something bigger.
+
+About the role:
+
+We’re on the lookout for an experienced Security Analyst to join our growing Security Operations Centre (SOC) team at Kinetic IT. This role plays a vital part in delivering high-quality cyber security services to one of our key national customers. You’ll be operating within a developing SOC environment, with opportunities for career development and growth as the team matures and evolves.
+
+This role blends technical hands-on SOC work with stakeholder engagement and process improvement activities. You’ll also work alongside our wider cyber teams in across Australia. The role requires an active NV1 clearance to be selected as a successful applicant.
+
+Duties and responsibilities:
+
+Monitor and respond to cyber security events using Microsoft Sentinel SIEM and SOAR tools
+Act as a key escalation point for Level 1 and junior Level 2 analysts and act as a technical leader, mentoring junior analysts
+Assist with process review, documentation uplift, and GRC artefact generation
+Participate in the enhancement of detection engineering and alerting rules
+Collaborate with internal teams including the Service Desk, Architecture, and Cyber teams
+Use Azure DevOps to manage tasks, track security-related work items, document process improvements, and collaborate with internal teams for greater transparency and coordination across cyber operations
+Maintain high security operational standards and contribute to the overall SOC maturity uplift
+Participate in on-call support rotation once every 3 weeks
+We are looking for someone with:
+
+4+ years of experience in Cyber Security, ideally in a SOC or security operations context
+Solid understanding of Cloud Security, particularly across Microsoft environments
+Experience working with Microsoft Sentinel SIEM, including detection and alert engineering
+Familiarity with SOAR tools and automated response processes
+Knowledge of Azure DevOps and ServiceNow
+Strong interpersonal skills with experience mentoring or guiding junior team members
+Comfortable working both independently and collaboratively
+Process-oriented mindset with experience in GRC documentation and compliance frameworks
+The Kinetic IT Difference:
+
+Kinetic IT recognises the experience and performance of our crew is intricately bound to the achievement of enduring organisational success.  We provide opportunities for growth and development and recognising both individual and teamwork contribution to achieving our company’s goals. We seek to promote fair, competitive, and equitable reward and recognition practices which fosters a diverse and inclusive workplace. As a Kinetic IT crew member, you will enjoy:
+
+An organisation that provides continuous growth through supporting your certification aspirations and taking on new roles internally. 
+Paid parental leave, flexible working and other benefits tailored to your individual circumstances.
+A friendly and all-inclusive organisational culture.

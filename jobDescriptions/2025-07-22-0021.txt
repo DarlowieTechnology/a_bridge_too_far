@@ -1,0 +1,36 @@
+
+Take full control of security tools and shape how they protect a global business.
+
+You won’t just be tuning and monitoring, you’ll take the lead on decision-making across email, endpoint, network, DLP, IDS and IPS platforms. You’ll build real expertise in penetration testing while influencing the broader cyber approach.
+
+You’ll also work directly with developers and network architects to embed security across systems, not just react to threats.
+
+And because you’ll be the only dedicated cyber specialist, you’ll gain hands-on experience across every layer of the stack, without needing to hand off critical areas to others.
+
+What you'll do:
+
+You’ll manage the full lifecycle of security tools, from tuning and maintenance to performance monitoring and incident response. You’ll work closely with development and network teams to embed security controls and take the lead on penetration test remediation.
+
+You’ll also own the implementation and reporting of security measures, giving you the chance to shape how effectiveness is measured and improved.
+
+What you'll need
+At least 3 years of experience in cyber security, managing applications like WAF, email, or DLP
+A tertiary degree in Cyber Security, plus at least one certification such as AWS Certified Security Specialty, Azure Security Engineer Associate, CISSP, CompTIA Security+ or CEH
+Strong knowledge of networking and familiarity with cloud environments (AWS, Azure), O365/M365, and industry-leading security tools like Darktrace, Cisco AnyConnect and AWS security services
+About the company
+
+This global insights business has been shaping critical industry research and market intelligence for over 50 years. With a global footprint, they empower professionals worldwide with data-driven decision-making tools.
+
+You’ll join a forward-thinking team driving digital innovation across enterprise systems, with exposure to global stakeholders and meaningful projects that make an impact.
+
+Please click the ‘Apply’ button.
+About the recruiter
+
+Employer questions
+Your application will include the following questions:
+Which of the following statements best describes your right to work in Australia?
+How many years' experience do you have as a Cyber Security Engineer?
+Which of the following cybersecurity certifications have you completed?
+Have you completed a Certified Information Systems Security Professional (CISSP) certification?
+What's your expected annual base salary?
+How much notice are you required to give your current employer?

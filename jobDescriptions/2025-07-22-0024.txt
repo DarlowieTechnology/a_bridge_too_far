@@ -1,0 +1,59 @@
+Salt have partnered with a leading technology company in the energy space that is on the lookout for a Security Operations Engineer to join their growing Melbourne team!
+
+They are a global business that have expanded their operations from the UK into Australia and their SaaS platform is revolutionising the energy industry, enabling energy retailers and their customers to lower their energy bills and carbon footprint.
+
+
+The successful candidate will be joining the company's internal Security Operations Team as the first team member to be based in Australia. They are looking to add other Security Operations team members to the team in Australia after this hire.
+
+To start off, you'd be working closely with an experienced Security Operations Engineer in their UK team, as well as their Security Engineers in the UK. There will also be Platform and TechOps team members across both the Australian and the UK team that you'd be partnering with from day one in this role.
+
+This Energy Tech Company are continuing to scale their Melbourne team rapidly. Currently, they have 100+ team members in their Melbourne office and globally this business has 600+ employees.
+
+
+What's in it for you?
+
+Work for a leading Energy Tech Company
+Do meaningful work and have a positive impact on society!
+Have a huge impact as the first Security Operations Team member hired in Australia
+Grow as this company grows - great learning and development opportunities as well as accelerated career progression that comes with joining a high-growth tech company!
+Tackle security challenges head-on and play a key role in ensuring this company and its customers are secure
+Collaborative company culture where idea sharing is encouraged
+Great salary package on offer - 120k - 150k + Super
+Hybrid working arrangement, 2-3 days in office per week out of their Melbourne CBD office
+26 days of annual leave
+Annual Discretionary Bonus
+
+What you'll bring?
+
+Professional experience in a SecOps / SecOps-related role focused in the areas of prevention, detection and response
+Strong fundamental knowledge of IT Infrastructure - how it works and how to make it secure
+Hands on experience with Endpoint Detection and Response (EDR) tools. This company use CrowdStrike as their EDR tool
+Hands-on experience with Security Information and Event Management (SIEM) systems, helping you proactively detect and respond to threats.
+A solid understanding of incident response procedures and industry best practices, ensuring you're ready to tackle security challenges head-on.
+Familiarity with vulnerability management tools and cloud-native security tools. This company are currently using the likes of AWS Guard Duty, AWS Inspector, Google Cloud Security Command Center, Datadog and Github Security.
+Experience in navigating cloud tools and environments (AWS)
+Automation skills are a nice to have - scripting experience in any language where you've helped to make security operations processes more efficient
+Go-getter attitude where you take initiative, ownership and responsibility
+Strong analytical and problem-solving ability
+Excellent communication and collaboration skills
+Experience working in a fast-paced technology-driven environment
+Growth mindset where you're looking to continue to accelerate your learning and career
+
+What you'll be doing?
+
+Implementing and maintaining detection tooling
+Developing and tuning monitoring tools (alert tuning)
+Joining the Security Operations Team, you'll be collaborating with other Security Operations team members, Cyber Security Squad team members (like Security Engineers), as well as other teams including but not limited to; Platform and TechOps Teams
+Utilising Endpoint Detection and Response (EDR) tools like CrowdStrike as well as a Security Information and Event Management (SIEM) system, helping you to proactively detect and respond to threats
+Monitoring vulnerability dashboards
+Identifying any vulnerabilities and working with teams to remediate them before they become an issue
+Utilsing Cloud Security Posture Management (CSPM) solutions
+Taking charge of triaging
+Investigating incidents and performing root cause analysis
+Working with the Cyber Security Squad to perform penetration tests
+Keeping up to date with the latest in cyber security threats and technologies through training and conferences, sharing your insights with the wider team
+Facilitating incident response procedures and ensuring industry best practices are adhered to
+Navigating cloud tools and environments
+Using automation tools to streamline processes
+Reviewing security controls and conducting internal audits, addressing areas for improvement
+Adding value to the overall technology environment and security culture within the company

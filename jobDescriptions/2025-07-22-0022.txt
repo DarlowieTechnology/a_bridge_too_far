@@ -1,0 +1,35 @@
+About the company
+
+A well established MSSP growing their team sizes
+In scale up mode and uplifting capability
+Location flexible in Australia, collaborative culture
+
+About the role
+This is a newly created in a managed SOC team, predominantly this role will be focused on security analyst work for their clients. You will act as an escalation point for the more junior analysts and work on investigation and remediation of security incidents. To be successful in this role, you will need prior experience in a SOC, ideally from an MSP environment and across a wide variety of systems and technologies.
+
+This is a team with incredible retention rates, great culture internally and no requirement for working outside of 9-5 hours.
+
+Culture / Benefits
+
+Scale up MSSP environment
+Opportunity to uplift your technical skills broadly
+Current hours are 9am to 5pm (or thereabouts)
+High allowances for training along with a great manager
+
+Duties
+
+Tier 2 and above Security Analyst work
+Broad client mix across SME, mid market and enterprise
+Act as escalation point for more junior analyst team
+Team mentoring and skill uplift as required for less senior analysts
+
+Skills and experience
+
+To be successful in this role, you will need to have experience as a Security Analyst
+Prior experience as an escalation point in a SOC
+Strong skills with a SIEM platform - could be Splunk, Elastic, Sumo or others
+Broad technical exposure across security products and platforms
+Strong fundamental skills in IT infrastructure and Networking technologies
+Ability to assist in Incident Response of Threat Intelligence as required
+Excellent Communication skills - written and verbal
+Industry certifications are highly regarded

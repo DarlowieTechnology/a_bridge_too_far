@@ -1,0 +1,77 @@
+Senior Detection & Response Analyst, MDR
+ R9711
+ Melbourne, Australia
+We are looking for people with a passion for investigation and forensic analysis to join our Managed Detection and Response (MDR) Melbourne SOC team. As a Senior Detection & Response Analyst, you will utilise Rapid7's advanced tools to investigate and triage security events and work side-by-side with Rapid7's Incident Response Consultants to investigate incidents ranging from commodity malware to sophisticated threat actors. As an experienced SOC analyst you will have the opportunity to impact this team while building your career and expertise with a globally recognised cyber security company.
+
+About the Team
+Rapid7 MDR is built from the ground up to bring motivated and passionate security talent face to face with emerging threats, practical challenges, and malicious activity at scale. Our MDR service uses an impact-driven mindset to focus efforts on effective solutions, encouraging personal and technical innovation within the SOC. MDR provides 24/7/365 monitoring, threat hunting, incident response, and more with a focus on endpoint detection and behavioral intelligence.
+
+About the Role
+
+As a Rapid7 MDR Senior Detection and Response Analyst, you are a subject matter expert in the operations of the Rapid7 Managed Detection and Response Security Operations Center. You excel at conducting alert triage and investigation, forensic artifact analysis, and using the tools at your disposal to get the answers you need with the data you have. And, if you do not have that data, you know who to ask and what to ask for to get it. You will assist with incident response engagements and prepare professionally written client deliverables, and speak to clients about the deliverables. You are continuously reviewing operational processes for improvement, and are not afraid to be the change needed to improve them. You will seek mentoring opportunities for other analysts, and impart your knowledge to the SOC at large, when needed. 
+
+In addition to live response, the MDR SOC also performs threat hunting on a monthly basis. Threat hunting is performed in an effort to identify unknown threats in a customer environment. In the event of a security incident that rises to the level of a Remote Incident Response engagement, you may be tasked with performing investigation tasks related to the investigation. In this circumstance you will focus on helping a team track threat actor actions across an environment by examining forensic artefacts.
+
+.
+
+In this role, you will:
+
+Utilise Rapid7's world-class software and threat intelligence to identify potential compromises in customer environments as necessary.
+
+Conduct investigations into a variety of malicious activity on workstations, servers, and in the cloud. You will investigate all levels of incidents, including Incident Response engagements in which you will provide analysis assistance to Rapid7's Incident Response team.
+
+Write Incident Reports for each minor incident investigation you complete, which follow MITRE's ATT&CK Framework and include your own forensic, malware, and root-cause analysis.
+
+Communicate with Customer Advisors regarding investigation findings, Requests For Information from clients, and remediation and mitigation recommendations.
+
+Communicate with other analysts to share new intelligence regarding tactics, techniques, and trends utilised by threat actors.
+
+Provide continuous input to Rapid7's Threat Intelligence and Detection Engineering team regarding new detection opportunities.
+
+Assist in customer engagement opportunities pertaining to the function of your role in the MDR service as necessary.
+
+The skills you’ll bring include:
+
+Minimum 5 years of experience in a cybersecurity related position (SOC and/or SIEM analysis experience preferred)
+
+Deep understanding of core operating system concepts in Windows, MacOS/Darwin, and Linux. 
+
+An understanding of investigative methodology and the incident response lifecycle, cyber killchain, etc:
+
+Knowing what questions to ask to begin an investigation and, regardless of tech stack, know where to look to answer them.
+
+A fundamental understanding of how threat actors utilize tactics such as lateral movement, privilege escalation, defense evasion, persistence, command and control, and exfiltration
+
+Willingness to work on a shift schedule, including evenings and a Saturday or Sunday
+
+The Rapid7 MDR SOC has a shift rotation which requires analysts to work a 4:3 10 hour shift schedule after a 90 day onboarding and training period. The shifts are from Sunday-Wednesday and Wednesday-Saturday.
+
+Practical experience gained through CTF and HTB challenges, as well as personal or professional usage of common penetration testing tools such as Mimikatz, Metasploit modules, BloodHound, etc.
+
+Experience with hands-on analysis of forensic artifacts and/or malware samples
+
+Passion for cybersecurity and for continuous learning and growth
+
+Problem solving, critical thinking, ingenuity
+
+A keen curiosity and excitement to learn 
+
+Effective communication skills to allow for cross-functional collaboration within the SOC and between departments
+
+Dedication to putting each customer’s needs and concerns at the forefront of all decision making.
+
+We know that the best ideas and solutions come from multi-dimensional teams. That’s because these teams reflect a variety of backgrounds and professional experiences. If you are excited about this role and feel your experience can make an impact, please don’t be shy - apply today.
+
+About Rapid7
+At Rapid7, we are on a mission to create a secure digital world for our customers, our industry, and our communities. We do this by embracing tenacity, passion, and collaboration to challenge what’s possible and drive extraordinary impact.
+ 
+
+Here, we’re building a dynamic workplace where everyone can have the career experience of a lifetime. We challenge ourselves to grow to our full potential. We learn from our missteps and celebrate our victories. We come to work every day to push boundaries in cybersecurity and keep our 10,000 global customers ahead of whatever’s next.
+ 
+
+Join us and bring your unique experiences and perspectives to tackle some of the world’s biggest security challenges.
+
+#LI-PB1
+
+Security and Compliance
+Rapid7 is committed to keeping customers secure. As a first line of defense, all employees are expected to uphold the highest standards of security and privacy, ensuring the protection of sensitive information and compliance with relevant regulations.

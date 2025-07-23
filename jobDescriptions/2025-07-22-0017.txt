@@ -1,0 +1,102 @@
+Accenture is a global professional services company with leading capabilities in digital, cloud and security. Combining unmatched experience and specialized skills across more than 40 industries, we offer Strategy and Consulting, Technology and Operations services and Accenture Song — all powered by the world’s largest network of Advanced Technology and Intelligent Operations centers. Our 801,000 people deliver on the promise of technology and human ingenuity every day, serving clients in more than 120 countries. We embrace the power of change to create value and shared success for our clients, people, shareholders, partners and communities. Visit us at www.accenture.com.
+
+Join Accenture and help transform leading organisations and communities around the world.  The sheer scale of our capabilities and client engagements and the way we collaborate, operate and deliver value provides an unparalleled opportunity to grow and advance.  Choose Accenture and make delivering innovative work part of your extraordinary career. 
+
+  
+
+Responsibilities: 
+
+As an Oracle Database Administrator, you will support the establishment and ongoing management of infrastructure managed services for the client. Your responsibilities will include: 
+
+Service Establishment & Transition: 
+
+Assist in gathering and reviewing information related to the implementation and operation of the client’s existing Oracle database environments. 
+
+Participate in workshops to understand existing Oracle platforms and prepare for database operations transition. 
+
+Contribute to the creation of key database operations documentation (e.g., System Understanding Documents, Standard Operating Procedures). 
+
+Support the team in ensuring readiness for database operations go-live in line with the service establishment plan and schedule. 
+
+Ongoing Database Administration & Operations: 
+
+Perform routine Oracle DBA tasks, including: 
+
+Monitoring and health checks 
+
+Database backups 
+
+Performance tuning and management 
+
+Availability and capacity management 
+
+Installation, configuration, and patching 
+
+Routine administration and maintenance 
+
+Resolving production and non-production incidents with minimal downtime or performance impact 
+
+Managing backlog of database-related tickets and service requests 
+
+Maintain comprehensive documentation for database platforms, processes, and procedures. 
+
+Support efforts to align database operations with DevOps and Agile principles. 
+
+Assist in automating database management and operational tasks. 
+
+Collaborate with other DBAs and infrastructure teams (compute, storage, network, datacentre, and public cloud). 
+
+Ensure security best practices are followed to meet federal government compliance standards. 
+
+Stay updated with industry trends and technologies to contribute to continuous improvement and innovation. 
+
+Provide input on current database platforms for public cloud migration projects. 
+
+Knowledge of MSSQL database administration desirable, but not a requirement 
+
+Qualifications: 
+
+Around 3 years of experience in Oracle database administration, both on-premises and in public cloud (preferably Oracle Cloud or AWS RDS for Oracle). 
+
+Familiarity with IT Service Management (ITSM) and ITIL frameworks. ITIL v4 certification is preferred or must be obtained within 8 weeks of starting the role. 
+
+Strong troubleshooting and problem-solving skills. 
+
+Good written and verbal communication skills for stakeholder engagement and technical documentation. 
+
+Ability to work independently as well as collaboratively within a team. 
+
+Detail-oriented mindset with a commitment to quality and continuous improvement. 
+
+
+This role is ideal for someone looking to build on their database administration experience and grow within a structured service delivery environment. 
+
+Benefits of working at Accenture:
+
+18 weeks paid parental leave
+
+Long & short-term career break opportunities
+
+Structured career development program
+
+Local and international career opportunities.
+
+Certified as a Family Inclusive Workplace™
+
+Flexible Work Arrangements - centered around Accenture’s Truly Human ethos and our commitment to supporting the health and wellbeing of our people.
+
+We are proud to be in the top 3 of last year’s Diversity & Inclusion Index!
+
+#LI_GM
+
+Additional Requirements:
+
+
+Security Clearance Requirement: Given the secure nature of this role, we are seeking candidates who are Australian Citizens with an active security clearance.
+
+This requirement ensures that all team members are cleared to handle sensitive information and contribute to maintaining the highest standards of security in our operations.
+
+On-call and Shift Expectations: Our positions are primarily focused on managed services, meaning you will be responsible for maintaining and improving our clients' IT systems (Applications and Infrastructure). Flexibility and adaptability are key, as you may be required to work in shifts to provide continuous support. Additionally, you may need to be on call to address incidents promptly and perform after-hours deployment activities as needed. Your ability to effectively manage these responsibilities will be crucial to ensuring the seamless operation of our services and client satisfaction 
+
+
+We are a WORK180 Endorsed Employer, to see our benefits and policies click here. 

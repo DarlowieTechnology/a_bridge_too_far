@@ -1,0 +1,72 @@
+At SEEK, we serve a noble purpose: to help people live more fulfilling and productive working 
+lives and to help organisations succeed.
+
+By joining us, you’ll be part of a multi-national technology business that is far-reaching 
+with a start-up working culture that focuses on a set of collaborative values and appreciates 
+dynamic cultures. SEEK is a place where potential meets possibility – it’s where your career 
+aspiration and our purpose can make great things happen.
+
+Why join us?
+
+Be part of a multi-national tech company with strong core values to help us solve complex 
+challenges for our customers while building a flexible, exciting career – one that could take you anywhere.
+
+We’re looking for people who thrive in dynamic teams and enjoy tackling regular new 
+challenges in a large-scale, modern, and agile environment. As one of Asia Pacific’s 
+largest tech companies, you’ll contribute to multi-lingual systems, solving high-impact
+ problems to the benefit of millions of people within the region.
+
+Be part of a fast-growing company with a strong culture and clear purpose,
+ innovation and strong investment in responsible AI. SEEK offers you the opportunity
+   to be involved in impactful work and be part of a great team. Expect a great investment in 
+   your career development with access to workshops, conferences and courses while you work
+     alongside seasoned experts.
+
+Job Description
+About the role
+
+As a Security Engineer at SEEK, you'll be part of a fast-paced and supportive environment 
+where you can make a real difference. You'll work on complex challenges that have a direct 
+impact on people's lives, helping us evolve our business and reach new heights.
+
+This is a delivery-oriented role, focused on performing penetration testing, code review and 
+supporting red team related activities. Reporting to the Head of Offensive Security you will 
+be working closely with the other offensive security team members on a variety of projects 
+and initiatives.
+
+Responsibilities
+
+Execute web application, network, mobile and API penetration tests. 
+Analyze results, create detailed reports, and present findings to stakeholders. 
+Develop scripts and small tools to automate testing and vulnerability identification. 
+Able to provide feedback on findings on penetration tests. 
+Participate in mentoring and training as identified. 
+Qualifications
+Skills and experience
+
+Essential Qualifications, Skills, and Experience
+
+3+ years working in an offensive security role.
+Well versed in Web application and API security.
+Proficient with a range of testing tools (e.g., Burp Suite Pro, Metasploit).
+Basic exploit writing skills.
+Proficient in at least one programming language (Typescript, JavaScript).
+Basic proficiency in databases and Linux/Windows/ system administration.
+OSCP/GPEN/Crest CRT
+Other Qualifications, Skills and Experience
+
+Proficient with software development tools (git, vscode, etc).
+Experience with secure or offensive code review preferred.
+Published research, exploits and vulnerabilities (CVEs).
+Excellent communication skills
+Additional Information
+Perks and benefits
+
+At SEEK we offer:
+
+Support of flexible working, including a mix of office and work from home days depending on your role
+SEEK is committed to preparing for the impacts of climate change and the transition to a 
+low-carbon future, and manages its environmental impacts including on climate change.
+The opportunity to work from anywhere for up to 4 weeks per financial year
+Frequent events including sports days, year-end party, hackathon, and trivia
+Casual dress every day

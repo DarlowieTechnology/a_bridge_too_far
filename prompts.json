@@ -1,0 +1,18 @@
+[
+    {
+        "name":  "products",
+        "value": "Use the following job description in square brackets to answer the question at the end. \n[\n%s\n]\n What are the products found in job description? Output only the list. Encode output as JSON array."
+    },
+    {
+        "name":  "technologies",
+        "value": "Use the following job description in square brackets to answer the question at the end. \n[\n%s\n]\n What are the technologies found in job description? Output only the list. Encode output as JSON array."
+    },
+    {
+        "name":  "role",
+        "value": "Use the following job description in square brackets to answer the question at the end. \n[\n%s\n]\n What is the single role that matches job description better than other roles? Output only the name of the role. Encode output as JSON array."
+    },
+    {
+        "name":  "certifications",
+        "value": "Use the following job description in square brackets to answer the question at the end. \n[\n%s\n]\n What are the certifications found in in job description? Output only the list. Encode output as JSON array."
+    }
+]

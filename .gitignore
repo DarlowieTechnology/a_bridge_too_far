@@ -201,3 +201,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# some local test things
+testprompts.json
+test.toml
+taxonomy.db
+/testJD
+/sqliteData

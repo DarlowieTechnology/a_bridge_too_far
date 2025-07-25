@@ -1,0 +1,37 @@
+bout the job
+Senior Cloud Security Consultant – Melbourne (Hybrid)
+
+Cybersecurity | Cloud | GRC | Consulting
+
+
+
+Join a fast-growing, deeply technical cybersecurity consultancy that’s helping some of Australia’s top enterprise and mid-market organisations build secure cloud environments and uplift their security maturity.
+
+
+We’re hiring a Senior Cloud Security Consultant to join a high-performing team delivering cutting-edge security assessments, cloud transformation projects, and presales advisory across a range of leading-edge technologies and frameworks.
+
+
+This is a hybrid Melbourne-based role with a strong focus on cloud engineering, security consulting, and GRC (especially Essential Eight and NIST CSF). You’ll split your time between delivery and presales activities – from running capability assessments and leading workshops, to implementing cloud security tools and working alongside customers to strengthen their environment.
+
+
+What You’ll Be Doing:
+Lead and deliver security maturity assessments and remediation planning engagements (e.g., E8, NIST CSF).
+Advise clients on cloud security architecture, identity governance, endpoint protection and risk management best practices.
+Deploy and operationalise cloud security and posture management solutions in enterprise cloud environments.
+Contribute to presales engagements, customer workshops, and proof-of-value sessions with a focus on value-driven consulting.
+Work closely with a collaborative and experienced team across technical consulting, architecture, and SOC capabilities.
+
+
+What We’re Looking For:
+Strong experience in security consulting – particularly around security frameworks, GRC, and maturity uplift programs.
+Proven background in cloud engineering or architecture, ideally across Microsoft Azure, with exposure to conditional access, endpoint controls (e.g., WDAC, Intune), Entra ID, and E8-aligned controls.
+Familiarity with deploying or supporting cloud security tooling in production environments.
+Excellent client-facing communication skills, with the ability to present complex security concepts clearly to both technical and business stakeholders.
+Experience in a consulting or presales capacity is essential – this role involves both delivery and commercial influence.
+
+
+Bonus Points For:
+Exposure to compliance automation tools or CSPM platforms.
+Experience delivering vCISO-style engagements.
+Familiarity with MDR or SOC service models.
+Awareness of DevSecOps, IaC, or CI/CD environments.

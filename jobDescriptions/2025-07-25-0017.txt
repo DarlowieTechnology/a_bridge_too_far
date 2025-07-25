@@ -1,0 +1,39 @@
+Senior Cybersecurity Engineer for Local Council in Melbourne's South-Eastern suburbs
+
+Your new company
+
+A local council based in the leafy Melbourne South-Eastern suburbs is looking to recruit a Senior Cybersecurity Engineer for a 1-year fixed-term contract, commencing ASAP. The organisation promotes a collaborative and supportive work environment and offers exposure to leading technologies. This will be the perfect opportunity for someone who has gained experience with a broad range of security and infrastructure vendors and who would like to further enhance their skill set by contributing to a SOC transformation project.
+
+Your new role
+
+In this challenging and rewarding position, you will be responsible for:
+
+Lead the end-to-end migration from Splunk to Palo Alto XSIAM, including log source onboarding, detection logic redesign, platform configuration, and playbook enhancement to support future MDR integration.
+Drive the deployment and optimisation of Cortex XDR, ensuring comprehensive EDR coverage, policy refinement, and advanced alert triage capabilities.
+Integrate and validate telemetry across key security platforms, including Palo Alto NGFWs, Azure AD, Microsoft 365 Defender Suite, Netskope DLP, Darktrace, and Qualys VM.
+Operationalise threat intelligence feeds from ACSC, Threat IQ, and AusCERT, driving actionable insights and coordinating timely responses to intelligence alerts.
+Apply the MITRE ATT&CK framework (Level 3 maturity) for detection mapping, coverage analysis, and visualisation via ATT&CK Navigator.
+Leverage AI-driven detection and triage features within XSIAM and XDR to minimise false positives and accelerate incident response.
+Investigate alerts across multiple platforms, including XSIAM, Cortex XDR, Darktrace, Netskope DLP, and Proofpoint phishing submissions.
+What you'll need to succeed
+
+To be successful in this role, you will have:
+
+Designed and supported a broad range of IT infrastructure and cybersecurity systems in large enterprise environments, including SIEM, IDS/IPS, VM, PAM, PIM, IAM, WAF, and other security technologies.
+Maintained hands-on expertise with Palo Alto XSIAM, Cortex XDR, Splunk, and SentinelOne.
+Tuned detections and managed integrations across Azure AD, Microsoft 365 Defender, Microsoft Sentinel, Netskope, Darktrace, Intune, and Qualys.
+Aligned detection logic with MITRE ATT&CK (Level 3 maturity), identifying and mapping coverage gaps.
+Performed vulnerability scanning, management, and assessment using industry-standard tools and processes.
+Worked with SOAR platforms, KQL queries, and API integrations to automate and enhance security operations.
+Applied deep understanding of core networking protocols and services, including TCP/IP, DNS, DHCP, VLANs, and NAT.
+Leveraged AI-driven SOC tooling, Copilot-assisted scripting, and automated enrichment workflows to improve efficiency and response times.
+Secured and monitored cloud-based services hosted in AWS and Microsoft Azure
+A current and valid Victorian Driving licence.
+Tertiary qualifications e.g. A degree or Diploma in an Information Technology related or Computer Science related field, as well as extensive relevant industry experience, is required.
+What you'll get in return
+
+Get to work for an organisation that gives back to their local community. This inclusive organisation drives ongoing learning and continuous improvement. Offering an excellent salary package, this Council will be well-aligned with someone that prides themselves on a commitment to integrity, teamwork and respect. Do not miss out!
+
+What you need to do now
+
+If you're interested in this role or know of someone who may be, please forward an updated CV to Catherine.OBryen@hays.com.au.

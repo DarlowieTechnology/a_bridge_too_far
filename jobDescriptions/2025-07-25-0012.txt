@@ -1,0 +1,32 @@
+Security Tester – Federal Government Contract | 12 Months | Canberra
+ Australian Citizenship Mandatory | Baseline Clearance Required
+ We are seeking an experienced Security Tester to join a Federal Government client on a 12-month contract based in Canberra. This role is focused on testing the security of infrastructure and applications, ensuring compliance with standards and best practices.
+ Key Responsibilities:
+Design, develop, and document test plans, cases, and scripts for infrastructure components (e.g. networks, servers, storage).
+Ensure systems meet security standards and compliance requirements.
+Implement automation strategies and tools to streamline testing processes.
+Analyse test results and work with engineers to resolve identified issues.
+Collaborate with infrastructure and application teams to communicate testing progress and outcomes.
+Maintain detailed documentation of test procedures and results.
+Stay current with new technologies and testing methodologies.
+Essential Criteria: You must address the criteria in a one-page pitch (up to 5,000 characters):
+Demonstrated experience in:
+Endpoint security testing
+Web and application security testing
+Server and network security testing
+Offensive security testing
+Penetration testing
+Additionally, you must have:
+Strong attention to detail and the ability to communicate effectively with various audiences
+Applied knowledge of security testing methodologies, including automation
+Hands-on experience with infrastructure components such as servers, networks, storage, firewalls, virtualisation, and cloud platforms
+A strong understanding of the ISM cyber security framework and compliance standards
+Ability to quickly diagnose issues and deliver effective solutions
+Excellent collaboration and communication skills across technical and non-technical teams
+A willingness to learn and adapt to new tools and technologies
+Location: Canberra
+ Contract Length: 12 months
+ Clearance: Baseline (minimum)
+ Citizenship: Australian Citizenship is mandatory
+ For further details, contact Sumeet at (02) 6113 7534
+

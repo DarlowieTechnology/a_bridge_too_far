@@ -1,6 +1,41 @@
 {
   "originFile": "jobDescriptions\\2025-07-22-0002.txt",
   "dict_of_results": {
-    "questions": []
+    "position": {
+      "results": [
+        "Cybersecurity consulting services and support to clients, including assessing and advising on technical and process-based controls for all environments."
+      ]
+    },
+    "activity": {
+      "results": [
+        "Perform Red and Purple Team assessments, including end-to-end adversarial emulation of cyber attacks against customer organizations, and other technical cyber assessments including external engagement, web application, mobile and wireless security testing.",
+        "Expand the team’s capabilities through tool creation, research on offensive techniques, incorporation of threat actor intelligence, internal presentations and knowledge sharing.",
+        "Develop reports and presentations for technical and executive audiences, and act as a trusted advisor to C-level, security leaders and customer stakeholders.",
+        "Collaborate with internal teams to expand capabilities to deliver value to clients."
+      ]
+    },
+    "certifications": {
+      "results": [
+        "OSCE, OSEP, OSEE, OSCP, CCSAS"
+      ]
+    },
+    "product": {
+      "results": [
+        "Mitre attack and attacker tools",
+        "Endpoint Detection and Response (EDR)",
+        "IDS",
+        "IPS"
+      ]
+    },
+    "methodology": {
+      "results": [
+        "Mitre attack and attacker tools",
+        "Endpoint Detection and Response (EDR)",
+        " IDS, IPS",
+        "threat intelligence analysis",
+        "source code review",
+        "reverse engineering"
+      ]
+    }
   }
 }

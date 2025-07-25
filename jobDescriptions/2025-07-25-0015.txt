@@ -1,0 +1,51 @@
+We Are Fujitsu
+
+We use technology to make happier lives. We are a global leader in technology and business solutions that transform organisations and the world around us. We have a long heritage of bringing innovation and expertise, continuously working to contribute to the growth of society and our customers.
+ 
+
+
+
+
+About the Role
+
+We are looking for NV1 or NV2 ICT Administrator to support the design, implementation, and operation of observability systems within a Defence environment. The role is responsible for deploying and maintaining monitoring tools, with a primary focus on Elastic Stack and OpenText Operations Bridge Manager (OBM) to provide real-time observability across IT infrastructure and applications.
+
+
+
+
+Responsibilities and Accountabilities:
+
+Design, implement, and maintain observability systems using Elastic Stack and OBM.
+Develop procedures and tools to enhance the management and support of monitoring environments.
+Set up and configure Elasticsearch, Logstash, Kibana, and Operations Bridge Manager (OBM), including component installation and integration.
+Collect, analyze, and visualize metrics, logs, traces, and events from various systems to ensure full-stack observability.
+Design and maintain dashboards, alerts, and reports tailored for IT operations, development, and security teams.
+Monitor system performance proactively, identify bottlenecks, and optimize configurations for efficiency and scalability.
+Provide technical support, issue resolution, and collaborate with other teams for continuous improvement.
+Implement and manage security configurations including authentication, authorization, and encryption.
+Maintain detailed documentation on configurations, procedures, and troubleshooting steps.
+Stay current with trends, features, and best practices in monitoring and observability technologies.
+
+
+
+
+
+
+Requirements and Experience:
+
+Bachelor’s degree in Computer Science, Information Systems, or a related field (or equivalent experience).
+Proven experience in a Monitoring and Observability-focused ICT role.
+Hands-on experience with Elastic Stack (Elasticsearch, Logstash, Kibana) and Operations Bridge Manager.
+Strong understanding of IT infrastructure (Linux, Windows, networks, cloud platforms like Azure, etc.).
+Scripting and automation skills (Python, Bash, Ansible, etc.).
+Strong analytical and troubleshooting capabilities.
+Excellent communication and collaboration skills.
+Primary work location is Mitchell, ACT.
+Occasional access to other Defence sites within Canberra may be required.
+Remote work is subject to prior approval by the Director.
+Standard business hours apply: 08:00 – 18:00 AET.
+
+
+Security Clearance:
+
+Must have NV1 or ability to obtain NV2 security clearance.

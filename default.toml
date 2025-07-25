@@ -1,4 +1,4 @@
-prompts = "prompts.json"
+prompts = "agentprompts.json"
 input_folder = "jobDescriptions"
 database_name = "taxonomy.db"
-sqlite = "sqliteData"
+sqlite_datapath = "sqliteData"

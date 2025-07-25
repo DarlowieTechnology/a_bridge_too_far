@@ -1,0 +1,72 @@
+Cyber Security Consultant
+Melbourne, Victoria, Australia and 2 more
+Job Description
+• Exciting opportunity to be part of our growth transformation  
+• Looking for candidates with experience in MSP/MSSP
+• Open to candidates from Sydney/ Melbourne or Brisbane
+
+OUR STORY  
+
+FUJIFILM have a proud history of providing innovative products and services that contribute to the advancement of culture, science, technology and industry, as well as improved health and environmental protection in society. We are dedicated to achieving a sustainable society and ensuring a better world for future generations. Employees are ambassadors for living and breathing our Shared Values.  
+
+THE OPPORTUNITY  
+
+We have two permanent full-time opportunities available for a Cyber Security Consultant to join our Fujifilm IT Services division.
+
+Reporting to the Cyber Security Practice Manager, your main responsibility will be to provide expert-level cybersecurity advisory and technical leadership across governance, risk, and compliance (GRC), managed security services, and the Microsoft security ecosystem. This role is instrumental in helping clients strengthen their security posture through practical, risk-aligned advice and the delivery of managed security services including but not limited to EDR, SIEM, Email Security, SSE, and vulnerability management. It will also play a role in driving internal capability uplift, thought leadership, and ensuring consistent, high-quality service delivery across the portfolio.    
+
+If you have experience working for an MSP / MSSP or Big 4 consulting companies, then we would love to hear from you!
+
+Please note – We are open to candidates from Sydney/ Melbourne or Brisbane.
+
+Key Responsibilities:
+ 
+• Manage and operate key security technologies including Endpoint Detection and Response (EDR), SIEM, Email Security, and Secure Service Edge (SSE). Conduct regular vulnerability assessments and work closely with client IT teams to coordinate timely remediation. Lead incident response efforts, especially within Microsoft 365 environments, covering all phases from detection to recovery.
+• Utilise Governance, Risk & Compliance (GRC) platforms to assess, monitor, and report on clients’ cybersecurity maturity levels against industry frameworks. Lead gap assessments, risk analyses, control reviews, and policy evaluations to support clients in achieving regulatory compliance and strengthening their security posture.
+• Provide expert guidance and implementation support across the Microsoft security ecosystem, including Entra ID, Intune, Microsoft Defender (Endpoint & Cloud), Microsoft Purview, and M365 compliance features. Help clients enhance identity management, endpoint protection, cloud security, and data governance.
+• Design and implement tailored cybersecurity programs aligned with client business goals and security frameworks. Define strategic roadmaps, security controls, and risk mitigation plans to ensure robust and scalable security practices.
+• Act as a trusted virtual Chief Information Security Officer (vCISO) for designated clients, delivering ongoing strategic oversight, leadership, and cybersecurity direction. Guide clients through complex security challenges and oversee the execution of cybersecurity initiatives.
+• Lead regular security briefings and prepare executive-level reports that communicate key risks, metrics, and insights. Engage with client leadership teams and boards to provide clear, actionable advice on cybersecurity threats, trends, and priorities.
+
+Skills & Qualifications: 
+  
+• Extensive experience working in cyber security with a focus on GRC and Managed Security Services and excellent understanding of Australia Privacy Law.
+• A demonstrated track record of providing impactful client outcomes through high-quality delivery
+• Strong experience in applying a strategic mindset and understanding how engagements fit into a broader business context
+• Experience identifying opportunities and helping qualify and sell engagements
+• Strong people leadership qualities, including personal presence and the ability to engage with senior client stakeholders
+• Ability to communicate ideas and concepts with structure, clarity, and precision
+• Skill in leading client meetings and presenting findings with confidence and presence
+• Strong knowledge of security frameworks such as Essential 8, ISO 27001, NIST, RFFR, SMB1001, APRA CPS 234, PCI-DSS, GDPR etc.
+
+Certifications
+
+• Microsoft Certifications such as SC-100, 200, 300 and AZ500
+• Other certifications such as CISA, CISM, CISSP
+
+BENEFITS:  
+
+• 12 weeks full pay parental leave  
+• In house training and development and Generous Educational Assistance policy  
+• Diverse Career Development opportunities  
+• Employee Discounts through our “Gold Pass” rewards platform  
+• Income Protection and Life Insurance  
+• Salary Packaging & Novated Leasing available  
+
+OUR COMMITMENT  
+
+Diversity & Inclusion  
+
+Respecting diversity is the foundation of everything that we do at FBAU.  
+
+This allows us to Instill Trust and Collaborate through honest and fair Communication and helps cultivate an environment of Growth and Innovation.  
+
+We strongly encourage applicants from key communities including Aboriginal and Torres Strait Islanders, LGBTIQ+ people, and people living with disabilities.  
+
+Vaccination Policy  
+
+The (FBAU) COVID-19 Vaccination Policy requires employees to be fully vaccinated against COVID-19. Appropriate evidence that you are fully vaccinated against COVID-19 must be provided upon commencement with FBAU.  
+
+If this sounds like the role for you, please click the below “Apply Now” button and kickstart your application.  
+
+For further info you can also contact our Talent Acquisition team at FBAUrecruitment@fujifilm.com.  

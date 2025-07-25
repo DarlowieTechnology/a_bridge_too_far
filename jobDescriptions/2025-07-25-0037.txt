@@ -1,0 +1,61 @@
+Work options: Hybrid
+
+About Us
+
+We’re known for being the country’s most popular rewards program, helping Australian’s get more of what they value beyond the checkout. And through our extended network of partnerships with other nationally recognised brands, we make every day simpler, easier and more rewarding for our members. Plus, we’re also the winner of Canstar Blue's 2023 and 2024 Most Satisfied Customer award for Rewards Programs.
+
+But, we're more than the card you carry around in your wallet or the app on your phone! Our diverse team is located all over Australia, and our incredible office is located right in the heart of Melbourne CBD. Staying true to our flexible working policy and people-centric culture, we ensure all our team members are set up to work remotely across Australia. We are outcomes-focused, and everything we do is aligned with our core principles - Own, Act and Inspire. 
+
+Your Team
+
+We've already built a pretty amazing team, but we're not looking for more of the same. Our day-to-day is made stronger when we surround ourselves with people who are different, like you.
+
+Your Role
+
+This is a 12-month full-time fixed-term contract.
+
+The key areas of accountability in the role are:
+
+Responsible in implementing various AWS security initiatives to enhance the security posture of Flybuys' AWS environment. This includes deploying and configuring security services, and ensuring compliance with security policies.
+Utilise AWS security services to detect, investigate, and remediate security issues. Implement automated controls to efficiently address potential vulnerabilities and maintain a robust security posture.
+Build and manage services that detect and automate the mitigation of cybersecurity threats across the AWS infrastructure, including advanced persistent threats.
+Collaborate closely with the Cloud and Application Delivery Teams to ensure the implementation of the best security practices. This involves integrating security measures into the cloud infrastructure and application delivery processes, conducting regular risk assessments, and developing mitigation strategies.
+Responsible for provisioning, supporting, and continuously improving the security of cloud infrastructure and application hosting solutions.
+Provide guidance to application teams on employing the best security practices for application development, in line with AWS Security Best Practices.
+Continuous Improvement:
+
+Identify opportunities to prevent security issues and enhance the security posture in Flybuys' AWS environment.
+Continuously improve security processes and frameworks to ensure robust security measures are in place.
+Recommend and implement improvements to AWS Security services, including identifying potential enhancements, integrating new security technologies, and optimising configurations for better performance and an improved security posture.
+Enablement:
+
+Enable the security team by providing the necessary tools, resources, and training to enhance their capabilities.
+Collaborate with the Cloud and Application Teams to ensure that security measures are integrated into the cloud infrastructure and that any changes to the AWS platform are aligned with security requirements.
+Contribute security education programs to raise awareness and improve security practices across the organisation.
+Your Experience
+
+Tertiary qualification in information technology or equivalent industry experience.
+5+ years experience working in a AWS Security Engineer role or similar.
+Strong experience with AWS cloud services, including the automation and orchestration of various cloud environments throughout the software delivery lifecycle (SDLC).
+Solid experience in utilising AWS security tools such as AWS Security Hub, AWS WAF, AWS Systems Manager, AWS GuardDuty, AWS Config, and AWS CloudTrail etc to detect, investigate, and remediate security issues.
+Hands-on experience managing AWS infrastructure and platform services using Cloudformation, preferable using AWS CDK
+Development experience in at least one language like Python, Golang, TypeScript or similar.
+Hands-on experience using Agile Tools like Atlassian JIRA, Confluence.
+Good understanding of CI/CD toolset like Gitlab CI and git-based workflow.
+Experience building cloud infrastructure pipelines, automation and release process.
+Experience in complex, large-team technical environments requiring prompt resolution and strategic actions.
+AWS Certified Security - Specialty (Preferred)
+Your Benefits!
+
+We offer our valued team members a stack of exclusive benefits! To name a few...
+
+Flybuysflex | work from anywhere, measured on outcomes
+Two well-being days per year!
+Volunteer leave
+Ongoing learning & development programs and opportunities
+My Coles and Wesfarmers team member discount card
+Be Well Programs – Mind/Body/Soul
+Quarterly All Team events
+Hybrid social events
+New starter kit merchandise 
+Be You, With Us. Apply today!

@@ -1,0 +1,47 @@
+About the job
+Introduction
+
+A career in IBM Consulting is rooted by long-term relationships and close collaboration with clients across the globe. You'll work with visionaries across multiple industries to improve the hybrid cloud and AI journey for the most innovative and valuable companies in the world. Your ability to accelerate impact and make meaningful change for your clients is enabled by our strategic partner ecosystem and our robust technology platforms across the IBM portfolio; including Software and Red Hat. Curiosity and a constant quest for knowledge serve as the foundation to success in IBM Consulting. In your role, you'll be encouraged to challenge the norm, investigate ideas outside of your role, and come up with creative solutions resulting in ground breaking impact for a wide network of clients. Our culture of evolution and empathy centers on long-term career growth and development opportunities in an environment that embraces your unique skills and experience.
+
+Your Role And Responsibilities
+
+As a Security Consultant, you will be a key advisor for IBM’s clients, analysing business requirements to design and implement the best security solutions for their needs. You will apply your technical skills to find the balance between enabling and securing the client's organisation with the cognitive solutions that are making IBM the fastest growing enterprise security business in the world.
+
+Responsibilities & Duties
+
+Engage with clients to understand their business needs and objectives related to identity, access, and privileged access management.
+Assess clients' existing systems, processes, and infrastructure to identify gaps and opportunities for Digital Identity and PAM integration.
+Design and architect Privileged Access Management (PAM) solutions tailored to meet clients' requirements.
+Collaborate with technical teams to ensure successful implementation, configuration, and customization of PAM products.
+Conduct workshops and training sessions for client stakeholders to educate them on PAM functionalities, governance, and best practices.
+Provide guidance and support to clients throughout the project lifecycle, including troubleshooting, issue resolution, and ongoing operational support.
+Document project requirements, technical specifications, configurations, and deliverables.
+Coordinate, collate, and validate artefacts related to audit queries; provide remediation plans for identified gaps.
+Support the operations team in managing the PAM environment, including but not limited to:
+Incident Management
+Problem Management
+Minor security patches
+Defect fixes for recurring incidents
+Vendor coordination for PAM tools
+Application onboarding for privileged access
+Operations Management and reporting
+Coach and mentor junior security consultants, developing team skills in selected vendor PAM products (e.g., CyberArk, BeyondTrust, Delinea, etc.).
+Thrive in a fast-paced environment, take initiative, and collaborate effectively across teams.
+Preferred Education
+
+Associate's Degree/College Diploma
+
+Required Technical And Professional Expertise
+
+Required Professional and Technical Expertise:
+
+Degree in Information Technology, Computer Science, Network/Telecommunications Engineering, or equivalent (B.Tech, B.E, MCA, M.Sc. IT) 
+12+ years of experience in PAM architecture design, consulting, identity governance, and privileged access management.
+Specialized expertise in IAM and PAM technologies, including IBM PAM products, SailPoint, Saviynt, Okta, Entra ID, CyberArk, and BeyondTrust.
+Proven experience as an PAM security professional in client-facing roles, preferably with a focus on privileged access management.
+In-depth knowledge of related technologies such as Single Sign-On (SSO), Multi-Factor Authentication (MFA), and identity federation.
+Strong understanding of PAM frameworks, protocols, and standards (e.g., OAuth, OpenID Connect, SAML).
+Demonstrated proficiency in designing and implementing PAM solutions in complex enterprise environments.
+Hands-on experience managing operations and supporting large-scale PAM implementations.
+Strong problem-solving and analytical skills, with the ability to diagnose and resolve complex technical issues.
+Excellent communication and stakeholder management skills.

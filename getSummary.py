@@ -8,21 +8,30 @@ import re
 import tomli
 import sqlite3
 
+# local
+from common import ConfigSingleton
+
 # LLM model
 #
 modelName = r"gemma3:1b"
+#modelName = r"llama3.1:latest"
 
 
 # ---------------data types
 
 
 class PromptTemplate(BaseModel):
+    """represents prompt template with named parameters"""
     name: str = ""
+    parameters: list[str]
     value: str = ""
 
 class LLMresult(BaseModel):
+    """represents collection of results from LLM calls"""
     originFile: str = ""
     dict_of_results: dict[str, list[str]]
+
+
 
 #
 # open text file
@@ -49,24 +58,72 @@ def openTextFile(filePath : str, readContent : bool):
     return False, ""
 
 
+def getRolesFromDatabase() -> str:
+    retStr = ""
+    sqlDBName = ConfigSingleton().conf["database_name"]
+    with sqlite3.connect(sqlDBName) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT name FROM position;")
+            rows = cursor.fetchall()
+            for row in rows:
+                retStr = retStr + "\n" + dict(row)["name"]
+        except sqlite3.OperationalError as e:
+            print(f"***ERROR: Failed to access database:{e}")
+        except Exception as e:
+            print(f"***ERROR: General error on accessing database:{e}")
+        return retStr
+
+def getCertificationsFromDatabase() -> str:
+    retStr = ""
+    sqlDBName = ConfigSingleton().conf["database_name"]
+    with sqlite3.connect(sqlDBName) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT name FROM certifications;")
+            rows = cursor.fetchall()
+            for row in rows:
+                retStr = retStr + "\n" + dict(row)["name"]
+        except sqlite3.OperationalError as e:
+            print(f"***ERROR: Failed to access database:{e}")
+        except Exception as e:
+            print(f"***ERROR: General error on accessing database:{e}")
+        return retStr
+
+def fillPromptTemplate(objPrompt:PromptTemplate, jobAdText: str) -> str:
+    dictParams = {}
+    for param in objPrompt.parameters:
+        match param:
+            case "jobdescription":
+                dictParams["jobdescription"] = jobAdText
+            case "roles":
+                dictParams["roles"] = getRolesFromDatabase()
+            case "certifications":
+                dictParams["certifications"] = getCertificationsFromDatabase()
+
+    formattedPrompt = (objPrompt.value).format(**dictParams)
+    return formattedPrompt
+
 #
 # read prompts from JSON file
 # return list of promptTemplate objects
 #
-def readPrompts(promptFile : str):
+def readPrompts() -> list[PromptTemplate]:
+    promptFile = ConfigSingleton().conf["prompts"]
     list_of_templates: list[PromptTemplate] = []
     boolResult, sourceStr = openTextFile(filePath = promptFile, readContent = True)
     if not boolResult:
-        print(f"***ERROR: no prompts for LLM found")
+        print("***ERROR: no prompts for LLM found")
         return []
     sourceJson = json.loads(sourceStr)
     for prompt in sourceJson:
-        list_of_templates.append(
-            PromptTemplate(
+        list_of_templates.append(PromptTemplate(
                 name=prompt["name"], 
+                parameters=prompt["parameters"],
                 value=prompt["value"]
-            )
-        )
+            ))
 
     return list_of_templates
     
@@ -75,7 +132,8 @@ def readPrompts(promptFile : str):
 # return checked list of text files
 # on errors return empty list
 #
-def readListOfJobs(dataPath : str):
+def readListOfJobs() -> list[str]:
+    dataPath = ConfigSingleton().conf["input_folder"]
     files: list[str] = []
     folder_path = Path(dataPath)
     if not folder_path.is_dir():
@@ -114,8 +172,10 @@ def callAPIOnce(prompt : str):
 def callAPIs(jobDescription:str, list_of_templates:list[PromptTemplate]):
     dict_of_results: dict[str, list[str]] = {}
     for promptTemplate in list_of_templates:
-        formattedPrompt = promptTemplate.value % (jobDescription)
+        formattedPrompt = fillPromptTemplate(promptTemplate, jobDescription)
         response = callAPIOnce(formattedPrompt)
+
+        print(response)
 
         # you might think API returns JSON, but it is not
         #jsonObj = json.loads(response)
@@ -149,21 +209,20 @@ def main():
         print(f"Usage:\n\t{sys.argv[0]} CONFIG\nExample: {sys.argv[0]} default.toml")
         return
 
-    dictGlobalConfig = {}
     try:
         with open(sys.argv[1], mode="rb") as fp:
-            dictGlobalConfig = tomli.load(fp)
+            ConfigSingleton().conf = tomli.load(fp)
     except Exception as e:
         print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
         return
     
-    listFilePaths = readListOfJobs(dataPath = dictGlobalConfig["input_folder"])
+    listFilePaths = readListOfJobs()
     if (len(listFilePaths) == 0):
-        print(f"***ERROR: no input files in {dictGlobalConfig["input_folder"]}")
+        print(f"***ERROR: no input files in {ConfigSingleton().conf["input_folder"]}")
         return
     print(f"Found {len(listFilePaths)} input files")
 
-    templates = readPrompts(promptFile = dictGlobalConfig["prompts"])
+    templates = readPrompts()
 
     for jobDescriptionPath in listFilePaths:
         print(f"Processing {jobDescriptionPath}")
@@ -175,7 +234,7 @@ def main():
         llmResult.dict_of_results["questions"] = processQuestions(jobDescription = contentJD)
         
         # output summary in JSON alongside the original job description
-        jobDescriptionJSON = dictGlobalConfig["input_folder"] + '/' + Path(jobDescriptionPath).stem + ".json"
+        jobDescriptionJSON = ConfigSingleton().conf["input_folder"] + '/' + Path(jobDescriptionPath).stem + ".json"
         with open(jobDescriptionJSON, "w") as jsonOut:
             jsonOut.writelines(llmResult.model_dump_json(indent=2))
 

@@ -1,0 +1,39 @@
+About AC3
+
+At AC3, our purpose is simple but powerful: make technology real. As Australia’s leading secure multi-cloud solutions provider, we support over 700 enterprise clients including more than half of the NSW Government to translate technical potential into business results. From cloud and infrastructure to cyber security and data integration, we provide full-stack solutions to consult, build, run and optimise IT environments.
+
+Proudly Australian-owned with offices in Sydney, Melbourne and Auckland, AC3 ranks #4 on Australia’s Best Places to Work list. We’re a tight-knit crew of smart people, using brilliant tech to deliver exceptional outcomes. We value trust, ownership, bold ideas and a good laugh along the way.
+About the Role This is more than your typical Level 2 Service Desk gig.
+
+We’re offering ambitious tech professionals the chance to join our award-winning Service Desk team and step into a career fast lane. You’ll master core support disciplines across Microsoft, AD, and Windows environments while developing the knowledge and exposure that primes you to transfer into Cyber Security SOC or CloudOps. AC3 is littered with previous such success stories, and we'd love you to help you realise your potential.
+
+This isn’t lip service. It’s a structured pathway backed by AC3’s dedicated L&D program, mentorships, cross-team collaboration, and a proven internal mobility track record.
+
+What You’ll Be Doing
+Triage, resolve and escalate technical issues via phone, email and self-service channels
+Maintain high standards of ticket quality, resolution rates and customer communication
+Monitor task queues, prioritise effectively and maintain visibility on critical incidents
+Update knowledge base articles and contribute to peer upskilling
+Participate in induction of new team members and cross-functional projects
+Gain early exposure to security and cloud infrastructure tooling as part of your development plan
+What You’ll Bring
+2+ years in a service desk or technical support role, ideally in a multi-client/MSP setting
+Strong Windows 10/11, Active Directory, Office 365 and ITSM experience
+A natural communicator with a proactive, can-do approach and appetite to learn
+Experience in ServiceNow or other ITIL-aligned ticketing systems
+Bonus: certifications like ITIL, Microsoft, or foundational Cyber/Cloud certs (CompTIA Sec+, Azure Fundamentals etc.)
+Why AC3?
+$65,000 + Super + Bonus
+Sydney CBD office with hybrid flexibility
+Supported pathway to Cyber Security, CloudOps or other avenues within AC3
+#4 Best Place to Work in Australia
+Funded certifications + structured L&D support
+Lifestyle perks including novated leasing, health discounts, and wellness programs
+Real work that makes a real impact—on clients and your career
+What’s Next? If you're a tech pro ready to evolve from support to specialist—whether in SOC, SecOps, or Cloud—this is your jump point.
+
+Apply now and let’s make your next move your best one.
+Employer questions
+Your application will include the following questions:
+Which of the following statements best describes your right to work in Australia?
+How many years' experience do you have as a service desk analyst?

@@ -5,6 +5,10 @@ import glob
 from pathlib import Path
 import tomli
 
+# local dependencies
+#
+from common import ConfigSingleton
+
 #--------------Database creation script
 
 statements = {
@@ -121,7 +125,16 @@ statements = {
             );""",
         "insert": """INSERT INTO questions(question, answer)
               VALUES( :question, :answer);""",
-    }
+    },
+    "certifications": {
+        "create": """CREATE TABLE IF NOT EXISTS certifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL
+            );""",
+        "insert": """INSERT INTO certifications(name, description)
+              VALUES( :name, :description);""",
+    }    
 }
 
 
@@ -139,8 +152,8 @@ def createSchema(conn):
 # from supplied folder path read all JSON files
 # insert records in tables with the same name
 #
-def insertData(conn, dictGlobalConfig):
-    dataPath = dictGlobalConfig["sqlite"]
+def insertData(conn):
+    dataPath = ConfigSingleton().conf["sqlite_datapath"]
     folder_path = Path(dataPath)
     if not folder_path.is_dir():
         print(f"***ERROR: not a folder: {folder_path}")
@@ -187,19 +200,17 @@ def main():
         print(f"Usage:\n\t{sys.argv[0]} CONFIG\nExample: {sys.argv[0]} default.toml")
         return
 
-    dictGlobalConfig = {}
-
     try:
         with open(sys.argv[1], mode="rb") as fp:
-            dictGlobalConfig = tomli.load(fp)
+            ConfigSingleton().conf = tomli.load(fp)
     except Exception as e:
         print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
         return
 
-    with sqlite3.connect(dictGlobalConfig["database_name"]) as conn:
-        print(f"SQLite {sqlite3.sqlite_version}\nDatabase {dictGlobalConfig["database_name"]}")
+    with sqlite3.connect(ConfigSingleton().conf["database_name"]) as conn:
+        print(f"SQLite {sqlite3.sqlite_version}\nDatabase {ConfigSingleton().conf["database_name"]}")
         createSchema(conn)
-        insertData(conn, dictGlobalConfig)
+        insertData(conn)
 
 if __name__ == "__main__":
     main()

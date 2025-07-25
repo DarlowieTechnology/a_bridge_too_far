@@ -1,0 +1,35 @@
+Opportunity 
+ Long-term rolling contract for a large federal department undertaking a $200m transformation to uplift security, resilience and minimize fraud. This is a 12-month initial hourly rate contract which can be based in any major capital city, with preference for Melbourne and Canberra. Long-term potential and great workplace flexibility. 
+
+Role 
+ Senior Cyber Security Architect with enterprise level focus and exposure to broader domains. You will join a major 12+ stream program with 12-14 Senior Solution Architects each reporting into the Lead Program Architect. You will provide specialist architecture and advice across one or more of the following security areas: 
+
+Identity and access (IDAM)
+Cyber Security Operations (SOC)
+Data Security
+Payments and Debt Management
+API Gateways to public third parties
+Fraud and Case Management.
+Mobile applications
+Governance, Risk and Compliance (GRC)
+
+ Day to Day you will:
+Resolve complex cyber security related issues and risks
+Develop and participate in the implementation of projects focused on the reduction of technology risk, governance and compliance to policies and regulatory compliance
+Develop IT security standards, policy, procedures, and controls for managing risks.
+Support various business areas by ensuring stakeholders adequately address all relevant compliance standards such as the PSPF, ISM, Agency Risk Management Frameworks and incident management disciplines
+Security Architecture development and presentations and engagement within the Program and Chief Architect's Architecture Forums
+
+ Essential criteria
+
+Minimum 5 years' experience in technical cyber security architecture including security governance, risk and compliance (GRC)
+Experience working in agile environments at scale (SAFe), with an ability to adapt to changes in project direction and stakeholder expectations.
+Experience assessing the potential risks and security standards of greenfield environments
+Minimum of five years' experience with Australian Government governance concepts with a focus on ICT, policy/standards development, documentation of frameworks (NIST, ISM, PSPF, Essential8)
+Ability to produce technical documentation and present to executives and architecture forums with ability to influence outcomes
+Experience in an Enterprise Security Architect, Domain or Senior Cyber Architect
+Tertiary qualifications in Information Technology and Cyber Security Qualifications
+Preference for candidates with active Baseline or NV, ability to obtain considered.
+
+ Apply 
+ Kylie.McManus@talentinternational.com // 0408 388 680

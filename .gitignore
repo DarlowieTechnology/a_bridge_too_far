@@ -206,5 +206,8 @@ __marimo__/
 testprompts.json
 test.toml
 taxonomy.db
+notes.txt
 /testJD
+
+# source for database
 /sqliteData

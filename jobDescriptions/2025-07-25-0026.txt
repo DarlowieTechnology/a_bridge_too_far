@@ -1,0 +1,47 @@
+About the job
+Join our diverse team as we embark on our roadmap to strengthen Macquarie Group security posture. You will work with a group of security professionals to deliver complex offensive security engagements, and contribute to Macquarie security practices on tactical and strategic level.
+
+At Macquarie, our advantage is bringing together diverse people and empowering them to shape all kinds of possibilities. We are a global financial services group operating in 31 markets and with 56 years of unbroken profitability. You’ll be part of a friendly and supportive team where everyone - no matter what role - contributes ideas and drives outcomes.
+
+ What role will you play? 
+
+You will be responsible for the execution of penetration tests, evaluation of findings, reporting, providing remediation advisory, and improving security testing processes. Additionally, you will contribute to Macquarie's security practices on both tactical and strategic levels.
+
+What You Offer
+
+Hands-on experience in either security testing or software development 
+Sound theoretical background in offensive security subjects, such as web application security, mobile security, infrastructure (including cloud and containers) security 
+A willingness to learn, discover and apply the latest offensive security tactics, techniques, and procedures 
+Ability to do a thorough analysis and strive to find the root causes behind vulnerabilities 
+Ability to convey technical insights to technical and non-technical audiences both written and verbally 
+Practical certifications such as BSCP, CBBH, CPTS, OSCP are a plus
+Ability to work onsite (most Australia capital cities) for at least half of the time.
+
+We love hearing from anyone inspired to build a better future with us, if you're excited about the role or working at Macquarie we encourage you to apply.
+
+What We Offer
+
+Benefits
+
+At Macquarie, you’re empowered to shape a career that’s rewarding in all the ways that matter most to you. Macquarie employees can access a wide range of benefits which, depending on employment type, include:
+
+1 wellbeing leave day per year
+Up to 5 additional service bonus leave days per year
+Up to 20 weeks’ paid parental leave for primary caregivers along with 12 days of transition leave upon return to work, and 6 weeks’ paid leave for non-primary caregivers
+2 days of paid volunteer leave and donation matching
+Up to 12 months’ gender affirmation leave, including 6 weeks’ paid leave
+Access to Employee Assistance Program and wellbeing benefits including skin and health checks, and flu vaccinations
+Access to a wide range of salary packaging options
+Access to a wide range of learning and development opportunities, including reimbursement for professional membership or subscription
+Hybrid and flexible working arrangements, dependent on role
+Reimbursement for work from home equipment
+
+About Technology 
+
+Technology enables every aspect of Macquarie, for our people, our customers and our communities. We’re a global team that is passionate about accelerating the digital enterprise, connecting people and data, building platforms and applications and designing tomorrow’s technology solutions.
+
+ Our commitment to diversity, equity and inclusion 
+
+We are committed to fostering a diverse, equitable and inclusive workplace. We encourage people from all backgrounds to apply and welcome all identities, including race, ethnicity, cultural identity, nationality, gender (including gender identity or expression), age, sexual orientation, marital or partnership status, parental, caregiving or family status, family and domestic violence status, neurodiversity, religion or belief, disability, or socio-economic background. We welcome further discussions on how you can feel included and belong at Macquarie as you progress through our recruitment process. To learn more, contact our team by clicking here.
+
+Our aim is to provide reasonable adjustments to individuals who may need support during the recruitment process and through working arrangements. If you require additional assistance, please let us know in the application process.

@@ -1,6 +1,42 @@
 {
   "originFile": "jobDescriptions\\2025-07-22-0001.txt",
   "dict_of_results": {
-    "questions": []
+    "position": {
+      "results": [
+        "Security Consultant"
+      ]
+    },
+    "activity": {
+      "results": [
+        "Deliver technical assessments, solution designs, and implementations that address client security challenges.",
+        "Facilitate workshops, security reviews, and reporting to uplift cyber maturity.",
+        "Join and support client security teams in monitoring tools (SIEM, email gateways, identity, remote access).",
+        "Drive incident response and serve as the SME during security incidents.",
+        "Produce polished proposals, statements of work, and client-facing collateral.",
+        "Contribute to the evolution of Cube’s cyber offerings through IP development, service innovation, and process improvements.",
+        "Mentor others and continuously sharpen your consulting and technical toolkit."
+      ]
+    },
+    "certifications": {
+      "results": [
+        "Security+",
+        "CISSP",
+        "OSCP",
+        "CISM"
+      ]
+    },
+    "product": {
+      "results": [
+        "MXDR",
+        "email security",
+        "remote access gateways",
+        "SIEM"
+      ]
+    },
+    "methodology": {
+      "results": [
+        "NIST CSF, ISO27001, ASD Essential 8, SOC 2"
+      ]
+    }
   }
 }

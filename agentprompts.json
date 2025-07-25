@@ -1,0 +1,26 @@
+[
+    {
+        "name":  "technology",
+        "value": "Give me list of technologies in the text."
+    },
+    {
+        "name":  "methodology",
+        "value": "Give me list of methodologies in the text."
+    },
+    {
+        "name":  "position",
+        "value": "Give me the role matching the text."
+    },
+    {
+        "name":  "activity",
+        "value": "Give me list of activities in the text."
+    },
+    {
+        "name":  "certifications",
+        "value": "Give me list of certifications in the text."
+    },
+    {
+        "name":  "product",
+        "value": "Give me list of products in the text."
+    }
+]

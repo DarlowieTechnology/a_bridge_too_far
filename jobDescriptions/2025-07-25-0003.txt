@@ -1,0 +1,46 @@
+Role: IAM Specialist
+
+Location: Sydney, NSW/ Melbourne, VIC
+
+Employment Type: Fixed Term Contract/ Contract
+
+Must have:
+
+Full working rights. No sponsorship available.
+Must Have:
+
+Full working rights. No sponsorship available.
+EntraID
+Cisco Duo
+Qualifications and Experience
+
+Bachelor’s or master’s degree in computer science, Information Systems, or a related field.
+At least 8-10 years of hands-on experience in IAM architecture, implementation, and management.
+Proven expertise in OKTA and Azure AD, including administration, customisation, and integration.
+Extensive experience with multi-identity federation in large-scale, complex environments.
+Prior experience in a telecommunications organisation is highly desirable.
+Skills:
+
+Strong knowledge of IAM protocols and standards (e.g., SAML, OAuth, OpenID Connect).
+Experience with hybrid identity architectures and migration to cloud identity solutions.
+Proficiency in directory services (e.g., Active Directory, LDAP) and access governance tools.
+Hands-on experience with scripting and automation (e.g., PowerShell, Python).
+Familiarity with API security, network security, and zero-trust frameworks.
+Interested consultants can share their updated resume at vipul.chaudhary@carecone.com.au or call +61 283 195 538.
+
+Job Types: Fixed term, Contract
+Contract length: 6 months
+
+Pay: Up to $160,000.00 per year
+
+Schedule:
+
+8 hour shift
+Experience:
+
+Cisco Duo: 5 years (Required)
+EntraID: 5 years (Required)
+Work Authorisation:
+
+Australia (Required)
+Work Location: Hybrid remote in South Melbourne VIC 3205

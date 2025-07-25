@@ -1,0 +1,80 @@
+Senior Cyber Security Designer
+
+
+
+
+Permanent role in a growing organisation with exciting projects in the pipeline
+An opportunity to drive cyber security activities with state-wide impact
+Flexible working arrangements
+
+
+V/Line is experiencing significant growth. We're delivering more services, more trains, cheaper fares, and major projects.
+
+With more than 3,700 weekly train and coach services, an expansive freight network and vast rail infrastructure, millions of Victorians depend on us every day. You could be one of our 2,500 committed team members who are up to the challenge.
+
+
+
+About the role
+
+The Senior/Lead Cyber Security Designer is responsible for designing, testing, ongoing planning and oversight of IT security controls implementation across V/Line's IT Infrastructure stack. With a focus on Operational Control Systems, this role is also responsible for providing strategic direction and input to security roadmaps. The successful candidate will act as a conduit between the Information Security team and the enterprise stakeholders, by enabling the business to deliver projects and initiatives in a secure and timely manner.
+
+As a senior technical member of V/Line's Enterprise Security team, the Senior Cyber Security Designer will play a key role in guiding stakeholders through challenges related to data networks and operational systems delivery. Good technical knowledge and experience is expected across multiple domains such as cloud, applications, networking, infrastructure, identity management, data security and threat/vulnerability management.
+
+
+
+Key accountabilities include:
+
+
+Act as a senior subject matter expert in designing pragmatic cyber security controls for OT networks, using industry recommended practices standards and guidelines while matching organisation risk appetite.
+Provide cyber security advice/guidance on the appropriateness and timeliness of cyber security improvements. This also includes supporting the implementation of technology changes, reviewing and assessing projects for security risk posture and define appropriate management plans where required.
+Support the delivery and design of enterprise security solutions while working with project delivery teams, project designers, enterprise architects and solution designers in order to meet enterprise outcomes.
+Assess and report security control maturity and gaps using enterprise risk management framework and procedures, as well as support the development of remediation and improvement plans.
+Design and coordinate security assurance testing activities, including penetration testing and code scans, as well as ensuring mitigation plans address identified gaps.
+Drive engagement with key business and technology stakeholders to ensure security requirements are accurately captured and organisation requirements are met.
+Lead discussions with technical and non-technical stakeholders to develop robust and trusted relationships with OT (OCS) and IT stakeholders and the boarder organisation to influence information security decisions.
+Lead the collection, analysis, and reporting on intelligence data and trends so that it can be used for executive awareness and strategic planning.
+Provide subject matter expertise when assessing and deploying processes and technologies used to deal with emerging information security threats and vulnerabilities, while ensuring compliance with all applicable regulatory obligations and standards.
+Provide security risk management expertise in estimation forums at different points of the project/initiative delivery.
+
+
+About you
+
+Our ideal candidate will possess the following:
+
+
+Must have extensive experience successfully advising on the design and implementation of cyber security controls/assurance activities for projects and BAU initiatives. Including, but not limited to, risk assessments, architectural design and testing plans.
+High level interpersonal skills, with the ability to articulate technical terminology to both technical and non-technical stakeholders.
+Demonstrated experience with, and understanding of cyber security industry standards, approaches, and frameworks for the purpose of risk analysis and design of assurance plans. Including, but not limited to, identifying, evaluating, and prioritising potential threats/vulnerabilities.
+Must possess tertiary or equivalent qualifications in computer science, cyber security, computer/electronic engineering, or a technology-related field of study.
+Knowledge in the design and implementation of Operational Technology (OT) security technical environments and in the development of associated cyber security frameworks.
+Cloud security design experience across IaaS, PaaS, and SaaS (desirable)
+Professional & Accredited security management training or certification (CISSP, CISM, CISA or similar credentials) (desirable)
+
+
+Remuneration for this position is commensurate to the successful candidate's aligned skills and experience to the position.
+
+
+
+In addition to free Myki travel, we offer:
+
+
+Community impact - Make a genuine difference. Work in a role that connects Victorians, every day.
+Huge potential - We're transforming, and you can to. Be a change maker, recognised for your contribution and creativity.
+Dynamic environment - V/Line operates in a constantly changing space. Join a fast-paced and exciting organisation.
+Collaborative team - You'll be part of a broader supportive team. Surround yourself with talented, passionate peers.
+Flexible working - We support flexible working. Work in a way that supports you to thrive in your role.
+
+
+How to Apply
+
+Please use the 'Apply' button to submit your application, including a cover letter addressing the key criteria (About you) and a current resume.
+
+The recruitment and selection process may include aptitude assessments, behavioural and/or technical interviews and employment references.
+
+Successful applicants will be required to undergo pre-employment screening including, probity (police) checks, medical assessment, and Australian entitlement to work. Employees of V/Line are required to maintain a valid Working with Children Check Victoria (Employee) for the duration of employment.
+
+Remuneration for this position will be in line with the V/Line Rail Operations and Administrative Employees Agreement 2023 / Asset Management Enterprise Agreement 2023).
+
+
+
+V/Line is an equal opportunity employer. We are committed to providing an environment of mutual respect and we welcome applicants from any background. We value diversity and are continuously working towards creating a flexible and inclusive environment that is representative of the Victorian community.

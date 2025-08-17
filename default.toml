@@ -1,4 +1,12 @@
-prompts = "agentprompts.json"
+prompt_folder = "."
+prompts = "agentprompts"
 input_folder = "jobDescriptions"
 database_name = "taxonomy.db"
 sqlite_datapath = "sqliteData"
+rag_datapath = "chromadb"
+rag_embed_llm = "nomic-embed-text"
+rag_embed_url = "http://localhost:11434/api/embeddings"
+rag_distance = 0.4
+main_llm_name = "llama3.1:latest"
+llm_base_url = "http://localhost:11434/v1"
+

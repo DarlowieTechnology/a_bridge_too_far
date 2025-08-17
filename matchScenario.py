@@ -2,15 +2,10 @@
 # read vectors from chromadb/scenario collection - loose match 
 # match some responsibilities with scenarios
 #
-from __future__ import annotations as _annotations
 
 import sys
 import tomli
 import json
-from pathlib import Path
-
-from typing import Union
-from typing import List
 
 import chromadb
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
@@ -76,10 +71,10 @@ async def main():
 
     try:
         chromaCollection = chromaClient.get_collection(
-            name=ConfigSingleton().conf["rag_scenario_collection"],
+            name="scenario",
             embedding_function=ef
         )
-        print(f"Collection {ConfigSingleton().conf["rag_scenario_collection"]} opened with {chromaCollection.count()} documents")
+        print(f"Collection scenario opened with {chromaCollection.count()} documents")
     except Exception as e:
         print(f"{e}")
         return
@@ -106,23 +101,7 @@ async def main():
 
     allRecords = AllRecords(list_of_records = [])
     inputToChromaDB = [
-        "designing security controls for software applications",
-        "implementing security controls for software applications",
-        "maintaining security controls for software applications throughout their development lifecycle",
-        "risk assessment",
-        "secure coding practices",
-        "threat modeling",
-        "penetration testing",
-        "vulnerability management",
-        "incident response",
-        "compliance with regulatory requirements",
-        "ensuring CIA (confidentiality, integrity, and availability)",
-        "minimizing attack surface through robust security architecture",
-        "knowledge of application development technologies",
-        "threat intelligence",
-        "security standards and best practices",
-        "regulatory frameworks",
-        "collaboration with cross-functional teams including development, operations, QA for DevOps workflow"
+        "designing security controls for software applications"
         ]
 
     for oneInput in inputToChromaDB:
@@ -157,7 +136,6 @@ async def main():
 
         ollamaModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
                             provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"]))
-
         try:
             agent = Agent(ollamaModel,
                         output_type=OneRecord,
@@ -186,7 +164,7 @@ async def main():
             except Exception as e:
                 print(f"Exception: {e} - give up")
 
-        OpenFile.writeRecordJSON("shortprojects", allRecords)
+        OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], "shortprojects", allRecords)
 
 if __name__ == "__main__":
     asyncio.run(main())

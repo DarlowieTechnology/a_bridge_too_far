@@ -1,8 +1,11 @@
 import sys
-import glob
 import tomli
 import json
+import re
+import sqlite3
 from pathlib import Path
+
+from typing import Union
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
@@ -10,17 +13,22 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 import pydantic_ai.exceptions
 
-# local
-from common import ConfigSingleton
+import asyncio
 
+
+# local
+from common import OneRecord, AllRecords, ConfigSingleton, OpenFile
+
+#--------------------------------------------------------
 
 class PromptTemplate(BaseModel):
-    """represents prompt template with named parameters"""
+    """represents prompt template with named parameters."""
     name: str = ""
+    list: list[str]
     value: str = ""
 
 class OneResultList(BaseModel):
-    """represents one results from LLM call - pass this class in AI agent as a template"""
+    """represents one results from LLM call"""
     results: list[str]
 
 class LLMresult(BaseModel):
@@ -28,80 +36,89 @@ class LLMresult(BaseModel):
     originFile: str = ""
     dict_of_results: dict[str, OneResultList]
 
-
-#
-# open text file
-# return tuple [bool, content]
-# if error, return [False, None]
-#
-def openTextFile(filePath : str, readContent : bool) -> tuple[bool, str] :
-    file_path = Path(filePath)
-    if not file_path.is_file():
-        print(f"***ERROR: Error opening file {filePath}")
-        return False, None
-    try:
-        with open(filePath, "r") as textFile:
-            if readContent:
-                return True, textFile.read()
-            else:
-               return True, None
-    except FileNotFoundError as e:
-        print(f"***ERROR: Error opening file {filePath}, exception {e}")
-    except PermissionError as e:
-        print(f"***ERROR: Permission error opening file {filePath}, exception {e}")
-    except Exception as e:
-        print(f"***ERROR: General error opening file {filePath}, exception {e}")
-    return False, None
-
+#-------------------------------------------------------
 
 #
 # return tuple [bool, list[str]]
-# on errors return [False, None]
+# on errors return [False, Error]
 #
-def readListOfJobs() -> tuple[bool, list[str]] :
+def readListOfFileNames() -> tuple[bool, Union[list[str],str]] :
     dataPath = ConfigSingleton().conf["input_folder"]
-    files: list[str] = []
     folder_path = Path(dataPath)
     if not folder_path.is_dir():
-        print(f"***ERROR: data path is not a folder: {folder_path}")
-        return False, None
-    rawFiles = glob.glob(dataPath + "/*.txt")
-    for file in rawFiles:
-        boolResult, sourceStr = openTextFile(filePath = file, readContent = False)
+        return False, f"***ERROR: data path is not a folder: {folder_path}"
+    fileNames = list(folder_path.glob("*.txt"))
+    for file in fileNames:
+        boolResult, sourceStr = OpenFile.open(filePath = file, readContent = False)
         if not boolResult:
-            return False, None
-        files.append(file)
-    return True, files
+            return False, [sourceStr]
+    return True, fileNames
 
+
+def fillListFromDatabase(tableName:str) -> list[str]:
+    if (tableName == "position"):
+            with sqlite3.connect(ConfigSingleton().conf["database_name"]) as conn:
+                cur = conn.cursor()
+                try:
+                    cur.execute("SELECT name from POSITION;")
+                    rows = cur.fetchall()
+                    array_results = [str(row[0]) for row in rows]
+                    return array_results
+                except sqlite3.IntegrityError as e:
+                    print(f"sqlite3.IntegrityError, exception {e}")
+                except Exception as e:
+                    print(f"exception {e}")
+    return []
 
 #
 # read prompts from JSON file
 # return tuple [bool, list[PromptTemplate]]
-# on error return [False, None]
+# on error return [False, Error]
 #
-def readPrompts() -> tuple[bool, list[PromptTemplate]] :
+def readPrompts() -> tuple[bool, Union[list[PromptTemplate],str]] :
     promptFile = ConfigSingleton().conf["prompts"]
-    list_of_templates: list[PromptTemplate] = []
-    boolResult, sourceStr = openTextFile(filePath = promptFile, readContent = True)
+    boolResult, sourceStr = OpenFile.open(filePath = promptFile, readContent = True)
     if not boolResult:
-        print("***ERROR: no prompts for LLM found")
-        return False, None
-    sourceJson = json.loads(sourceStr)
-    for prompt in sourceJson:
-        list_of_templates.append(PromptTemplate(
-                name=prompt["name"], 
-                value=prompt["value"]
-            ))
+        return False, sourceStr
+    try:
+        sourceJson = json.loads(sourceStr)
+        list_of_templates: list[PromptTemplate] = []
+        for prompt in sourceJson:
+            prompt["list"] = fillListFromDatabase(prompt["name"])
+            list_of_templates.append(PromptTemplate(**prompt))
+        return True, list_of_templates
+    except json.JSONDecodeError as e:
+        return False, f"***ERROR: file {promptFile}, exception {e}"
+    except Exception as e:
+        return False, f"***ERROR: file {promptFile}, exception {e}"
 
-    return True, list_of_templates
+def formPrompt(prompt : PromptTemplate) -> str:
+    
+    if not len(prompt.list) :
+        return prompt.value
+    
+    return prompt.value + " (" + ",".join(prompt.list)  + ")"
 
 
+# Seek adds question in known fixed format after this tag:
+# ^Employer questions$
+# ^Your application will include the following questions:$
+#
+def processQuestions(jobDescription:str) :
+    oneResult = OneResultList(results = [])
+    pattern = r'^Employer questions.*\nYour application will include the following questions:.*\n'
+    matchQuestion = re.search(pattern, jobDescription, re.MULTILINE)
+    if matchQuestion:
+        questionsStr = jobDescription[matchQuestion.end(0):]
+        oneResult.results = questionsStr.splitlines(False)
+    return oneResult
 
-def main():
+
+async def main():
+    
     if len(sys.argv) < 2:
         print(f"Usage:\n\t{sys.argv[0]} CONFIG\nExample: {sys.argv[0]} default.toml")
         return
-
     try:
         with open(sys.argv[1], mode="rb") as fp:
                 ConfigSingleton().conf = tomli.load(fp)
@@ -109,53 +126,56 @@ def main():
         print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
         return
 
-    boolResult, templateList = readPrompts()
+    boolResult, templateListOrError = readPrompts()
     if (not boolResult):
-        print(f"***ERROR: Cannot open prompt file {ConfigSingleton().conf["prompts"]}")
+        print(templateListOrError)
         return
 
-    boolResult, listFilePaths = readListOfJobs()
+    boolResult, listFilePathsOrError = readListOfFileNames()
     if (not boolResult):
-        print(f"***ERROR: Opening input files in {ConfigSingleton().conf["input_folder"]}")
+        print(listFilePathsOrError)
         return
 
-    print(f"Found {len(listFilePaths)} input files")
-    for jobDescriptionPath in listFilePaths:
+    print(f"Found {len(listFilePathsOrError)} input files")
+    for jobDescriptionPath in listFilePathsOrError:
 
         print(f"Processing {jobDescriptionPath}")
-        llmResult = LLMresult(originFile = jobDescriptionPath, dict_of_results = {})
-        boolResult, contentJD = openTextFile(filePath = jobDescriptionPath, readContent = True)
+        llmResult = LLMresult(originFile = str(jobDescriptionPath), dict_of_results = {})
+        boolResult, contentJDOrError = OpenFile.open(filePath = jobDescriptionPath, readContent = True)
         if not boolResult:
-            print(f"Skipping {jobDescriptionPath}")
+            print(contentJDOrError)
             continue
 
-        for promptTemplate in templateList:
-            ollama_model = OpenAIModel(
-                model_name='llama3.1:latest', provider=OpenAIProvider(base_url='http://localhost:11434/v1')
-            )
-            agent = Agent(ollama_model, output_type=OneResultList, retries=1, output_retries=1)
+        for promptTemplate in templateListOrError:
+
+            ollamaModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
+                                provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"]))
+            agent = Agent(ollamaModel, output_type=OneResultList, retries=1, output_retries=1)
 
             @agent.system_prompt
             async def system_prompt() -> str:
-                strOut = f"""\
-            Given the following text, your job is to output information that matches user's request. Reply with the answer only. Format answer as JSON list,
-
-            """ + contentJD
-                return strOut
-
+                return "Given the following text in square brackets, \
+                    your job is to output information that matches user's request.\
+                    Reply with the answer only. Format answer as JSON list. [" + contentJDOrError + "]"
             try:
-                result = agent.run_sync(promptTemplate.value)
+                promptString = formPrompt(promptTemplate)
+                print(promptString)
+                print("----------------")
+                result = agent.run_sync(promptString)
                 print(f"{promptTemplate.name} : {result.output}")
                 llmResult.dict_of_results[promptTemplate.name] = result.output
             except pydantic_ai.exceptions.UnexpectedModelBehavior:
-                print(f"{promptTemplate.name} : []")
+                print(f"Skipping due to exception: {promptTemplate.name} : []")
                 llmResult.dict_of_results[promptTemplate.name] = OneResultList(results = [])
+
+        llmResult.dict_of_results["questions"] = processQuestions(jobDescription = contentJDOrError)
 
         # output summary in JSON alongside the original job description
         jobDescriptionJSON = ConfigSingleton().conf["input_folder"] + '/' + Path(jobDescriptionPath).stem + ".json"
         with open(jobDescriptionJSON, "w") as jsonOut:
-            jsonOut.writelines(llmResult.model_dump_json(indent=2))
+            res = llmResult.model_dump_json(indent=2)
+            jsonOut.writelines(res)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -202,12 +202,3 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# some local test things
-testprompts.json
-test.toml
-taxonomy.db
-notes.txt
-/testJD
-
-# source for database
-/sqliteData

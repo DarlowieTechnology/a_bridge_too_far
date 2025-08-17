@@ -2,7 +2,6 @@ import requests
 from pydantic import BaseModel
 import sys
 import json
-import glob
 from pathlib import Path
 import re
 import tomli
@@ -13,8 +12,7 @@ from common import ConfigSingleton
 
 # LLM model
 #
-modelName = r"gemma3:1b"
-#modelName = r"llama3.1:latest"
+modelName = r"llama3.1:latest"
 
 
 # ---------------data types
@@ -139,7 +137,8 @@ def readListOfJobs() -> list[str]:
     if not folder_path.is_dir():
         print(f"***ERROR: data path is not a folder: {folder_path}")
         return []
-    rawFiles = glob.glob(dataPath + "/*.txt")
+    rawFiles = list(dataPath.glob("*.txt"))
+#    rawFiles = glob.glob(dataPath + "/*.txt")
     for file in rawFiles:
         boolResult, sourceStr = openTextFile(filePath = file, readContent = False)
         if not boolResult:

@@ -38,7 +38,7 @@ def main():
     
     jsonFile = sys.argv[2]
 
-    boolResult, allScenariosOrError = OpenFile.readRecordJSON(jsonFile)
+    boolResult, allScenariosOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonFile)
     if (not boolResult):
         print(allScenariosOrError)
         return
@@ -69,7 +69,7 @@ def main():
             print(f"ERROR: exception {e}")
             continue
 
-        OpenFile.writeRecordJSON(jsonFile, allScenariosOrError)
+        OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonFile, allScenariosOrError)
 
 
 if __name__ == "__main__":

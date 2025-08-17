@@ -1,7 +1,6 @@
 import sqlite3
 import sys
 import json
-import glob
 from pathlib import Path
 import tomli
 
@@ -48,21 +47,19 @@ statements = {
         "create": """CREATE TABLE IF NOT EXISTS productcategory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                synonyms TEXT,                
                 description TEXT
             );""",
-        "insert": """INSERT INTO productcategory(name,synonyms,description)
-              VALUES(:name, :synonyms, :description);""",
+        "insert": """INSERT INTO productcategory(name, description)
+              VALUES(:name, :description);""",
     },
     "productfeature": {
         "create": """CREATE TABLE IF NOT EXISTS productfeature (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                synonyms TEXT,
                 description TEXT
             );""",
-        "insert": """INSERT INTO productfeature(name,synonyms,description)
-              VALUES(:name, :synonyms, :description);""",
+        "insert": """INSERT INTO productfeature(name,description)
+              VALUES(:name, :description);""",
     },
     "product": {
         "create": """CREATE TABLE IF NOT EXISTS product (
@@ -87,25 +84,14 @@ statements = {
         "insert": """INSERT INTO position(name, description)
               VALUES(:name, :description);""",
     },
-    "scenario": {
-        "create": """CREATE TABLE IF NOT EXISTS scenario (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                plot TEXT NOT NULL,
-                position TEXT NOT NULL,
-                keywords TEXT NOT NULL
-            );""",
-        "insert": """INSERT INTO scenario(plot, position, keywords)
-              VALUES(:plot, :position, :keywords);""",
-    },
     "activity": {
         "create": """CREATE TABLE IF NOT EXISTS activity (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                description TEXT,
-                position TEXT NOT NULL
+                description TEXT
             );""",
-        "insert": """INSERT INTO activity(name, description, position)
-              VALUES( :name, :description, :position);""",
+        "insert": """INSERT INTO activity(name, description)
+              VALUES( :name, :description);""",
     },
     "skill": {
         "create": """CREATE TABLE IF NOT EXISTS skill (
@@ -164,7 +150,7 @@ def insertData(conn):
     cur.execute("PRAGMA foreign_keys = ON;")
     conn.commit()
 
-    files = glob.glob(dataPath + "/*.json")
+    files = list(folder_path.glob("*.json"))
 
     for key in statements:
         for file in files:
@@ -175,25 +161,42 @@ def insertData(conn):
 
             # insert in the order of SQL statements
             if tableName == key:
-                with open(file, "r") as recordFile:
+                with open(file, "r", encoding='utf-8') as recordFile:
+                    strFile = ""
                     try:
-                        records = json.load(recordFile)
+                        strFile = recordFile.read()
+                    except UnicodeDecodeError as e:
+                        print(f"***ERROR: file {file_path} encoding is not unicode: {e}")
+                        return
+                    try:
+                        records = json.loads(strFile)
                     except json.JSONDecodeError as e:
                         print(f"***ERROR: file {file_path} is not a valid JSON: {e}")
                         return
                 if len(records) == 0:
                     continue
-                print(f"***Reading in {len(records)} from {file_path}")
                 tableName = Path(file_path).stem
-                for key in records:
-                    dict = records[key]
-                    cur = conn.cursor()
-                    # catch and show UNIQUE, NOT NULL, FOREIGN KEY constraint errors
-                    try:
-                        cur.execute(statements[tableName]["insert"], dict)
-                        conn.commit()
-                    except sqlite3.IntegrityError as e:
-                        print(f"sqlite3.IntegrityError: insert constraint failed: {dict}, exception {e}")
+                if (tableName == "position") or (tableName == "productcategory") or (tableName == "productfeature") or (tableName == "activity") or (tableName == "certifications"):
+                    print(f"***Reading in {len(records['list_of_records'])} from {file_path}")
+                    for argDict in records["list_of_records"]:
+                        cur = conn.cursor()
+                        # catch and show UNIQUE, NOT NULL, FOREIGN KEY constraint errors
+                        try:
+                            cur.execute(statements[tableName]["insert"], argDict)
+                            conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            print(f"sqlite3.IntegrityError: insert constraint failed: {argDict}, exception {e}")
+                else:
+                    print(f"***Reading in {len(records)} from {file_path}")
+                    for key in records:
+                        argDict = records[key]
+                        cur = conn.cursor()
+                        # catch and show UNIQUE, NOT NULL, FOREIGN KEY constraint errors
+                        try:
+                            cur.execute(statements[tableName]["insert"], argDict)
+                            conn.commit()
+                        except sqlite3.IntegrityError as e:
+                            print(f"sqlite3.IntegrityError: insert constraint failed: {argDict}, exception {e}")
 
 def main():
     if len(sys.argv) < 2:

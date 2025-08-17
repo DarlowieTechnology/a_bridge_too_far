@@ -32,7 +32,7 @@ def createCollection(chromaClient : chromadb.PersistentClient,
 
     allRecords = AllRecords(list_of_records = [])
     for fileName in jsonFileList:
-        boolResult, recordsOrError = OpenFile.readRecordJSON(fileName)
+        boolResult, recordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], fileName)
         if not boolResult:
             return False, f"***ERROR: Cannot read file {fileName}  error: {recordsOrError}"
         

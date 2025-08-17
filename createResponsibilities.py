@@ -6,8 +6,6 @@
 #
 from __future__ import annotations as _annotations
 
-import os
-
 import sys
 import tomli
 import json
@@ -81,7 +79,7 @@ async def main():
         print(f"***ERROR: Cannot open config file {configName}, exception {e}")
         return
 
-    boolResult, positionsOrError = OpenFile.readRecordJSON("position")
+    boolResult, positionsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], "position")
     if not boolResult:
         print(f"***ERROR: Cannot read file position  error: {positionsOrError}")
         return False

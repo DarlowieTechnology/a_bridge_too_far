@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+   
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="10">
+    <title>Processing</title>
+
+   <style>
+      .custom-hr {
+         border: none;
+         height: 2px;
+         background-color: red;
+      }
+      .bold-text {
+         font-weight: bold;
+      }   
+   </style>
+
+</head>
+<body>
+
+   {% if status %}
+      <div class="bold-text">Status</div>
+      <div>{{ status }}</div>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if jobtitle %}
+      <div class="bold-text">Job Title</div>
+      <div>{{ jobtitle }}</div>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if adtext %}
+      <div class="bold-text">Ad Text</div>
+      <div>{{ adtext }}</div>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if execsummary %}
+      <div class="bold-text">Executive Summary</div>
+      <div>{{ execsummary }}</div>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if extracted %}
+      <div class="bold-text">Extracted data</div>
+      <ul>
+      {% for item in extracted %}
+         <li>{{ item }}</li>
+      {% endfor %}
+      </ul>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if mapped %}
+      <div class="bold-text">Mapped data</div>
+      <ul>
+      {% for item in mapped %}
+         <li>{{ item }}</li>
+      {% endfor %}
+      </ul>
+      <hr class="custom-hr">
+   {% endif %}
+   {% if projects %}
+      <div class="bold-text">Projects</div>
+      <ul>
+      {% for item in projects %}
+         <li>{{ item }}</li>
+      {% endfor %}
+      </ul>
+      <hr class="custom-hr">
+   {% endif %}
+
+</body>
+</html>

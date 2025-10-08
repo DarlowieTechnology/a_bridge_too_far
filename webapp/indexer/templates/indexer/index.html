@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <form action="{% url 'indexer:process' %}" method="post">
+        {% csrf_token %}
+        <fieldset>
+            <legend><h1>List of files</h1></legend>
+            {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+            <textarea id="adtext" name="adtext" rows="20" cols="100"></textarea>
+        </fieldset>
+        <input type="submit" value="Process">
+    </form>
+
+{% endblock %} 

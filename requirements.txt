@@ -1,9 +1,11 @@
 tomli
 dataclasses
 chromadb
+django
 elevenlabs
 fastembed
 instructor
+keyboard
 langchain
 langchain-community
 langchain-core

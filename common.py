@@ -2,18 +2,63 @@ from typing import Union
 from typing import List
 
 import json
+import logging
+import inspect
+from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel, Field
 
 
 class OneRecord(BaseModel):
     """represents one record in structured storage"""
+    id : str = Field(..., description="id of records")
     name: str = Field(..., description="name of records")
     description: str = Field(..., description="description of records")
 
 class AllRecords(BaseModel):
     """represents collection of all records in structured storage"""
     list_of_records: List[OneRecord] = Field(..., description="list of records")
+
+
+class OneQueryResult(BaseModel):
+    """represents one query record"""
+    id: str = Field(..., description="id of record")
+    name: str = Field(..., description="name of record")
+    desc: str = Field(..., description="name of record")
+    query: str = Field(..., description="query used")
+    distance : float = Field(..., description="distance of record")
+
+class AllQueryResults(BaseModel):
+    """represents collection of all queries"""
+    list_of_queryresults: List[OneQueryResult] = Field(..., description="list of query results")
+
+class OneDesc(BaseModel):
+    """represents one project description"""
+    title: str = Field(..., description="title of project")
+    description: str = Field(..., description="description of project")
+
+class AllDesc(BaseModel):
+    """represents resume data"""
+    ad_name : str = Field(..., description="name of the job ad file")
+    exec_section: OneDesc = Field(..., description="executive section")
+    project_list: list[OneDesc] = Field(..., description="list of projects")
+
+class OneResultList(BaseModel):
+    """represents one results list from LLM call"""
+    results_list: list[str] = Field(..., description="list of results")
+
+
+class OneEmployer(BaseModel):
+    """represents one previous employer"""
+    name: str = Field(..., description="employer name")
+    blurb: str = Field(..., description="short description")
+    start: datetime = Field(..., description="employer start date")
+    end: datetime = Field(..., description="employer end date")
+    numJobs: int = Field(..., description="number of jobs")
+
+class AllEmployers(BaseModel):
+    """represents all employers"""
+    employer_list: list[OneEmployer] = Field(..., description="list of employers")
 
 
 class ConfigSingleton(object):
@@ -24,6 +69,47 @@ class ConfigSingleton(object):
         if not hasattr(cls, 'instance'):
             cls.instance = super(ConfigSingleton, cls).__new__(cls)
         return cls.instance 
+    def getAbsPath(this, key):
+        """return absolute path value from relative path. Compatible with Django web app"""
+        return Path(str(Path(__file__).parent.resolve()) + '/' + this.conf[key]).resolve()
+
+
+class DebugUtils(object):
+    """utility to provide debug support"""
+
+    @staticmethod
+    def pressKey(prompt = "Press c to break:", logger : logging.Logger = None) -> bool:
+        """ if DEBUG log is available -  do not break, notify in log
+            if no log - break
+            Compatible with command line and Django web app
+        """
+        if logger:
+            filename = inspect.stack()[1].filename 
+            logger.debug(f"Skipping manual breakpoint in the code called by {filename}")
+            return
+        name = input(prompt)
+        if name == "c":
+            return True
+        return False
+
+    @staticmethod
+    def logPydanticObject(objToDump, objLabel, logger : logging.Logger = None) -> bool :
+        """ if DEBUG log is available -  dump in log
+            if no log - dump in stdout.
+            Compatible with command line and Django web app
+        """
+        if logger:
+            if objToDump:
+                logger.debug(f"\n------{objLabel}---------\n{objToDump.model_dump_json(indent=2)}")
+            else:
+                logger.debug("\n------logPydanticObject : None------")
+        else:
+            if objToDump:
+                print(f"\n------{objLabel}---------\n{objToDump.model_dump_json(indent=2)}")
+            else:
+                print("\n------dumpPydanticObject : None------")
+
+
 
 class OpenFile():
 
@@ -88,4 +174,5 @@ class OpenFile():
         with open(jsonFileName, "w") as jsonOut:
             jsonOut.writelines(allRecords.model_dump_json(indent=2))
         return True
+
 

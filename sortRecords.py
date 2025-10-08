@@ -13,41 +13,13 @@ from operator import itemgetter
 
 
 # local
-from common import ConfigSingleton
-from common import OpenFile
+from common import OneRecord, AllRecords, ConfigSingleton, OpenFile
 
 #----------------------------------------------
 
-def readProdCatJSON() -> tuple[bool, Union[dict, str]] : 
-
-    dataPath = ConfigSingleton().conf["sqlite_datapath"]
-    folder_path = Path(dataPath)
-    if not folder_path.is_dir():
-        return False, f"***ERROR: data path is not a folder: {folder_path}"
-    jsonFileName = str(folder_path) + '/productfeature.json'
-    boolResult, contentOrError = OpenFile.open(filePath = jsonFileName, readContent = True)
-    if not boolResult:
-        return False, contentOrError
-    sourceJson = json.loads(contentOrError)
-    allRecords = {}
-    allRecords["list_of_records"] = []
-    for oneDict in sourceJson["list_of_records"]:
-        allRecords["list_of_records"].append(dict(**oneDict))
-    return True, allRecords
-
-def writeNewProdCatJSON(allProdCats : dict) -> bool:
-    """write all updated prod cats to new prod cats file"""
-
-    dataPath = ConfigSingleton().conf["sqlite_datapath"]
-    folder_path = Path(dataPath)
-    jsonFileName = str(folder_path) + '/productfeature.new.json'
-    with open(jsonFileName, "w") as jsonOut:
-        json.dump(allProdCats, jsonOut, indent=4)
-    return True
-
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG\nExample: {sys.argv[0]} default.toml")
+    if len(sys.argv) < 3:
+        print(f"Usage:\n\t{sys.argv[0]} CONFIG TABLE\nExample: {sys.argv[0]} default.toml activity")
         return
 
     try:
@@ -56,16 +28,17 @@ def main():
     except Exception as e:
         print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
         return
+    jsonName = sys.argv[2]
 
-    boolResult, allProdCatOrError = readProdCatJSON()
+
+    boolResult, allRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName)
     if (not boolResult):
-        print(allProdCatOrError)
+        print(allRecordsOrError)
         return
 
-    allProdCatOrError["list_of_records"].sort(key=itemgetter('name'))
+    allRecordsOrError.list_of_records = sorted(allRecordsOrError.list_of_records, key=lambda d: d.name)
 
-    writeNewProdCatJSON(allProdCatOrError)
-
+    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName, allRecordsOrError)
 
 if __name__ == "__main__":
     main()

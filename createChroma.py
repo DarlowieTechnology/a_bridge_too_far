@@ -1,43 +1,108 @@
 #
-# create ChromeDB collection
-# Accepts TOML configuration file and name of the collection
-# name of the collection should match JSON file with format { "list_of_records": [ { "name"=NAME, "description"=DESC }, ...] }
+# check if TABLE has empty slots - if so, fill the slots via LLM 
+# (re)-create ChromeDB collection
+# TABLE should match JSON file with format 
+# { 
+#   "list_of_records": [ 
+#       { "id" = "", "name"=NAME, "description"=DESC }, ...
+#   ] 
+# }
 #
 import sys
 import tomli
 
 from typing import Union
+from typing import List
 
 import chromadb
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
+import pydantic_ai.exceptions
+from pydantic import BaseModel, Field
+
 import asyncio
 
 # local
-from common import AllRecords, ConfigSingleton, OpenFile
+from common import OneRecord, AllRecords, ConfigSingleton, OpenFile
 
 #---------------------------------------------------
 
 
-supportedCollections = ["activity", "certifications", "position", "productcategory", "productfeature", "scenario"]
+supportedCollections = ["scenario", "actreal"]
 
 
 #---------------------------------------------------
+# CAREFUL - does non-english
+#
 
-def createCollection(chromaClient : chromadb.PersistentClient,
-                     collectionName : str, 
-                     jsonFileList : list[str]) -> tuple[bool, Union[chromadb.Collection, str]] : 
-    """ create Chroma collection and embed from JSON files"""
+async def expandRecords(collectionName : str, allRecords : AllRecords) -> tuple[bool, Union[AllRecords, str]] :
 
-    allRecords = AllRecords(list_of_records = [])
-    for fileName in jsonFileList:
-        boolResult, recordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], fileName)
-        if not boolResult:
-            return False, f"***ERROR: Cannot read file {fileName}  error: {recordsOrError}"
+    systemPrompt = f"""
+        You are an expert in responsibilities of various organization roles.
+        Your job is to expand on responsibility as supplied in the prompt
+        """
+
+    ollamaModel = OpenAIModel(
+                        model_name=ConfigSingleton().conf["main_llm_name"], 
+                        provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"])
+                    )
+    agent = Agent(ollamaModel, retries=1, output_retries=1, system_prompt = systemPrompt)
+
+    idxRecord = -1
+    for oneRecord in allRecords.list_of_records:
+
+        idxRecord += 1
+
+        oneRecord.id = str(idxRecord)
+
+        if len(oneRecord.description):
+#            print(f"Skipping completed record {idxRecord}")
+            continue
         
-        print(f"Read total of {len(recordsOrError.list_of_records)} records from {fileName}")
-        allRecords.list_of_records = allRecords.list_of_records + recordsOrError.list_of_records 
+        print(f"Expanding record {idxRecord}")
+
+        prompt = f"""Output expanded paragraph for text in brackets. 
+        Do not format text with newlines. Output only the answer. ( {oneRecord.name} )"""
+
+        try:
+            result = await agent.run(prompt)
+            oneRecord.description = result.output
+        except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
+            print(f"ERROR: exception {e}")
+            continue
+
+    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], collectionName, allRecords)
+
+    return True, allRecords
+
+
+async def fillRecords(collectionName : str, allRecords : AllRecords) -> tuple[bool, Union[AllRecords, str]] :
+
+    """Fill `id` field for all records. Fill `description` field if empty """
+
+    idxRecord = -1
+    for oneRecord in allRecords.list_of_records:
+        idxRecord += 1
+        oneRecord.id = str(idxRecord)
+        if len(oneRecord.description):
+            continue
+        oneRecord.description = oneRecord.name.capitalize() + "."
+
+
+    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], collectionName, allRecords)
+    return True, allRecords
+
+
+
+async def createCollection(chromaClient : chromadb.PersistentClient,
+                     collectionName : str, 
+                     allRecords : AllRecords) -> tuple[bool, AllRecords] : 
+    """ create Chroma collection from record list """
+
 
     ef = OllamaEmbeddingFunction(
         model_name=ConfigSingleton().conf["rag_embed_llm"],
@@ -47,7 +112,7 @@ def createCollection(chromaClient : chromadb.PersistentClient,
     chromaCollection = chromaClient.create_collection(
         name=collectionName,
         embedding_function=ef,
-        metadata={"hnsw:space": "cosine"}
+        metadata={ "hnsw:space": ConfigSingleton().conf["rag_hnsw_space"]  }
     )
 
     ids : list[str] = []
@@ -58,13 +123,17 @@ def createCollection(chromaClient : chromadb.PersistentClient,
     idxRecord = -1
     for oneRecord in allRecords.list_of_records:
         idxRecord += 1
-        label = "id" + str(idxRecord)
+        oneRecord.id = str(idxRecord)
 
-        ids.append(label)
+        ids.append(oneRecord.id)
         docs.append(oneRecord.description)
         docMetadata.append({ "docName" : oneRecord.name } )
-        embeddings.append(ef([oneRecord.description])[0])
-        print(f"added embedding {idxRecord}")
+        if collectionName == "actreal":
+            embeddings.append(ef([oneRecord.name])[0])
+        if collectionName == "scenario":
+            embeddings.append(ef([oneRecord.description])[0])
+        if (idxRecord % 100) == 0 :
+            print(f"added embedding {idxRecord}")
 
     chromaCollection.add(
         embeddings=embeddings,
@@ -74,13 +143,88 @@ def createCollection(chromaClient : chromadb.PersistentClient,
     )
 
     print(f"ChromaDB collection {collectionName} created with {chromaCollection.count()} documents")
-    return True, chromadb.Collection
+    return True, allRecords
+
+
+async def updateCollection(chromaClient : chromadb.PersistentClient,
+                     collectionName : str, 
+                     allRecords : AllRecords) -> tuple[bool, AllRecords] : 
+    """ update Chroma collection from record list """
+
+    ef = OllamaEmbeddingFunction(
+        model_name=ConfigSingleton().conf["rag_embed_llm"],
+        url= ConfigSingleton().conf["rag_embed_url"],
+    )
+
+    chromaCollection = None
+    try:
+        chromaCollection = chromaClient.get_collection(
+            name=collectionName,
+            embedding_function=ef
+        )
+    except chromadb.errors.NotFoundError as e:
+        # Collection [TABLE] does not exists
+        return await createCollection(chromaClient, collectionName, allRecords)
+
+    # assume all ids in database are in the range 0..max
+    # add only the records after max
+    maxCnt = chromaCollection.count()
+    recordsToAdd = []
+    for oneRecord in allRecords.list_of_records:
+        if oneRecord.id == str(maxCnt):
+#            print(f"found record with id {maxCnt}")
+            recordsToAdd = allRecords.list_of_records[maxCnt:]
+
+#    print(f"maxCnt {maxCnt} number of elements to add {len(recordsToAdd)}")
+    if len(recordsToAdd):
+        ids : list[str] = []
+        docs : list[str] = []
+        docMetadata : list[str] = []
+        embeddings = []
+
+        idxRecord = maxCnt - 1
+        for oneRecord in recordsToAdd:
+            idxRecord += 1
+            oneRecord.id = str(idxRecord)    
+
+            ids.append(oneRecord.id)
+            docs.append(oneRecord.description)
+            docMetadata.append({ "docName" : oneRecord.name } )
+            if collectionName == "actreal":
+                embeddings.append(ef([oneRecord.name])[0])
+            if collectionName == "scenario":
+                embeddings.append(ef([oneRecord.description])[0])
+            print(f"added embedding {oneRecord.id}")
+
+        chromaCollection.add(
+            embeddings=embeddings,
+            documents=docs,
+            ids=ids,
+            metadatas=docMetadata
+        )
+
+    print(f"ChromaDB collection {collectionName} updated with {len(recordsToAdd)} documents")
+    return True, allRecords
+
+
+async def deleteCollection(chromaClient : chromadb.PersistentClient,
+                     collectionName : str) -> bool : 
+    """ delete Chroma collection"""
+    print(f"Attempting to remove collection {collectionName}")
+    try:
+        chromaClient.delete_collection(name=collectionName)
+        print(f"Collection {collectionName} removed")
+    except Exception as e:
+        # Exception Collection [TABLE] does not exists
+        print(f"{e}")
+
+    return True
 
 
 async def main():
 
     if len(sys.argv) < 3:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG COLLECTION\nExample: {sys.argv[0]} default.toml scenario")
+        print(f"Usage:\n\t{sys.argv[0]} CONFIG TABLE\nExample: {sys.argv[0]} default.toml scenario")
         return
     configName = sys.argv[1]
     try:
@@ -90,8 +234,25 @@ async def main():
         print(f"***ERROR: Cannot open config file {configName}, exception {e}")
         return
     chromaCollectionName = sys.argv[2]
+
     if chromaCollectionName not in supportedCollections :
-        print(f"***ERROR: Collection name {chromaCollectionName} is not supported")
+        print(f"***ERROR: Collection {chromaCollectionName} is not supported")
+        return
+
+    boolResult, allRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], chromaCollectionName)
+    if (not boolResult):
+        print(allRecordsOrError)
+        return
+    print(f"Read total of {len(allRecordsOrError.list_of_records)} records from {chromaCollectionName} JSON")
+
+#    boolResult, allRecordsOrError = await expandRecords(chromaCollectionName, allRecordsOrError)
+#    if (not boolResult):
+#        print(allRecordsOrError)
+#        return
+
+    boolResult, allRecordsOrError = await fillRecords(chromaCollectionName, allRecordsOrError)
+    if (not boolResult):
+        print(allRecordsOrError)
         return
 
     chromaClient = chromadb.PersistentClient(
@@ -101,33 +262,18 @@ async def main():
         database=DEFAULT_DATABASE,
     )
 
-    ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url=ConfigSingleton().conf["rag_embed_url"]    
-    )
+    # await deleteCollection(chromaClient, chromaCollectionName)
 
-    chromaCollection = None
-    try:
-        chromaCollection = chromaClient.get_collection(
-            name=chromaCollectionName,
-            embedding_function=ef
-        )
-        print(f"Existing collection {chromaCollectionName} opened with {chromaCollection.count()} documents")
-    except Exception as e:
-        print(f"Exception {e}")
+    boolResult, allRecordsOrError = await updateCollection(chromaClient, chromaCollectionName, allRecordsOrError)
+    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], chromaCollectionName, allRecordsOrError)
 
-        tableList = [chromaCollectionName]
-        boolResult, chromaCollectionOrError = createCollection(chromaClient, chromaCollectionName, tableList)
-        if not boolResult:
-            print(chromaCollectionOrError)
-            return
+    return
 
-    if not chromaCollection:
-        chromaCollection = chromaClient.get_collection(
-            name=chromaCollectionName,
-            embedding_function=ef
-        )
-        print(f"Collection opened with {chromaCollection.count()} documents")
+
+    boolResult, chromaCollectionOrError = await createCollection(chromaClient, chromaCollectionName, allRecordsOrError)
+    if not boolResult:
+        print(chromaCollectionOrError)
+        return
 
 
 if __name__ == "__main__":

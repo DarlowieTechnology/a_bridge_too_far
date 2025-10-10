@@ -162,8 +162,8 @@ def main():
         if (recordIdx % 100) == 0 :
             print(f"processed {recordIdx}")        
 
-    print(f"Distance {ConfigSingleton().conf["rag_scenario"]}  Matches {matchCount}")
-    print(f"Not matched under {ConfigSingleton().conf["rag_scenario"]} distance {notMatched}")
+    print(f"Distance {ConfigSingleton().conf['rag_scenario']}  Matches {matchCount}")
+    print(f"Not matched under {ConfigSingleton().conf['rag_scenario']} distance {notMatched}")
 
 
 if __name__ == "__main__":

@@ -207,7 +207,7 @@ def makeQuery(
 #        DebugUtils.dumpPydanticObject(oneQueryResult, "Record from Query")
 #        if DebugUtils.pressKey():
 #            return False
-    print(f"found {len(idSet)} within distance {ConfigSingleton().conf["rag_cluster"]}")
+    print(f"found {len(idSet)} within distance {ConfigSingleton().conf['rag_cluster']}")
 
 #    if not len(idSet):
 #        # add potential record

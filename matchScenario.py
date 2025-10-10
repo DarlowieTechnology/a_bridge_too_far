@@ -135,7 +135,7 @@ def makeProject(chromaQuery : str, chromaScenario : Collection) -> OneDesc :
         numberChosen = numberChosen + 1
 
     if not numberChosen :
-        print(f"ERROR: cannot find ChromaDB records under distance {ConfigSingleton().conf["rag_scenario"]}")
+        print(f"ERROR: cannot find ChromaDB records under distance {ConfigSingleton().conf['rag_scenario']}")
         return None
     
 #        print(f"Selected {numberChosen} scenarios from ChromaDB. Distances: {distList}")
@@ -309,7 +309,7 @@ def getChromaDBMatchActivity(chromaDBCollection : Collection, queryString : str)
         totals.add(docText)
 
     if not len(totals) :
-        print(f"Query {queryString} did not get matches less than {ConfigSingleton().conf["rag_distmatch"]}")
+        print(f"Query {queryString} did not get matches less than {ConfigSingleton().conf['rag_distmatch']}")
 
 #        with open("out.txt", "a") as fileOut:
 #            fileOut.write(f'{{\n\t"id": "","name": "{queryString}",\n\t"description": "{queryString.capitalize()}."\n}},')

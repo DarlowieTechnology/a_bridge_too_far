@@ -6,5 +6,5 @@ class GeneratorConfig(AppConfig):
     name = 'generator'
 
     def ready(self):
-        logging.basicConfig(filename='application.log', level=logging.INFO)
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         logger = logging.getLogger(__name__)

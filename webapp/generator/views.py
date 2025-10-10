@@ -432,7 +432,7 @@ def getChromaDBMatchActivity(chromaDBCollection : Collection, queryString : str,
         totals.add(docText)
 
     if not len(totals) :
-        logger.info(f"Query {queryString} did not get matches less than {ConfigSingleton().conf["rag_distmatch"]}")
+        logger.info(f"Query {queryString} did not get matches less than {ConfigSingleton().conf['rag_distmatch']}")
         return OneResultList(results_list = [])
 
     return OneResultList(results_list=list(totals))
@@ -472,7 +472,7 @@ def makeProject(chromaQuery : str, chromaScenario : Collection, logger : logging
         numberChosen = numberChosen + 1
 
     if not numberChosen :
-        logger.info(f"ERROR: cannot find ChromaDB records under distance {ConfigSingleton().conf["rag_scenario"]}")
+        logger.info(f"ERROR: cannot find ChromaDB records under distance {ConfigSingleton().conf['rag_scenario']}")
         return None
     
     logger.info(f"Selected {numberChosen} scenarios from ChromaDB. Distances: {distList}")

@@ -117,12 +117,12 @@ def process(request):
     jobAdRecord = OneRecord(
         id = "", 
         name=str(request.session.session_key), 
-        description=request.POST["adtext"]
+        description=request.POST['adtext']
     )
-    logger.info(f"Copied job description from client POST data - {len(request.POST["adtext"])} bytes")
-    request.session['adtext'] = request.POST["adtext"]
+    logger.info(f"Copied job description from client POST data - {len(request.POST['adtext'])} bytes")
+    request.session['adtext'] = request.POST['adtext']
     request.session.flush()
-    context['adtext'] = request.POST["adtext"]
+    context['adtext'] = request.POST['adtext']
 
     #execSummary = extractExecSection(jobAdRecord, logger)
     execSummary = fakeExtractExecSection()

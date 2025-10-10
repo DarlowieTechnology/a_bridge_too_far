@@ -80,16 +80,17 @@ class DebugUtils(object):
     @staticmethod
     def pressKey(prompt = "Press c to break:", logger : logging.Logger = None) -> bool:
         """ if DEBUG log is available -  do not break, notify in log
-            if no log - break
+            if running in Django environment - do not break
             Compatible with command line and Django web app
         """
         if logger:
             filename = inspect.stack()[1].filename 
             logger.debug(f"Skipping manual breakpoint in the code called by {filename}")
             return
-        name = input(prompt)
-        if name == "c":
-            return True
+        if not os.getenv('DJANGO_SETTINGS_MODULE'):
+            name = input(prompt)
+            if name == "c":
+                return True
         return False
 
     @staticmethod

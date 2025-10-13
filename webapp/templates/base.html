@@ -8,7 +8,25 @@
         <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.ico' %}" >
         <meta charset="UTF-8">
 
-        <main>{% block headcontent %}{% endblock %}</main>
+        <style>
+            .submitbutton {
+                margin: 10px;
+            }
+            .custom-hr {
+                border: none;
+                height: 2px;
+                background-color: red;
+            }
+            .bold-text {
+                font-weight: bold;
+            }
+            th, td {
+                border: 1px solid;
+                text-align:left;
+            }
+        </style>
+
+        <div>{% block headcontent %}{% endblock %}</div>
     </head>
     <body>
         <main>{% block content %}{% endblock %}</main>

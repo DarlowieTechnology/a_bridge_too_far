@@ -1,5 +1,42 @@
-<html>
-    <body>
-        Placeholder results
-    </body>
-</html>
+{% extends "base.html" %}
+
+{% block headcontent %}
+    <title>GenAI Pricing</title>
+{% endblock %} 
+
+{% block content %}
+
+    <h1>Pricing for LLM usage calculated using <a href="https://github.com/pydantic/genai-prices">GenAI pricing project</a></h1>
+    <hr class="custom-hr">
+    <div>
+        Requests: {{ totalrequests }}
+    </div>
+    <div>
+        Request tokens: {{ totalrequesttokens }}
+    </div>
+    <div>
+        Response tokens: {{ totalresponsetokens }}
+    </div>
+    <hr class="custom-hr">
+    <table>
+        <tr>
+            <th>Provider</th>
+            <th>Model</th>
+            <th>Cost USD</th>
+            <th>Cost AUD</th>
+        </tr>
+        {% if llminfo %}
+            {% for item in llminfo %}
+                <tr>
+                    <td>{{ item.provider }}</td>
+                    <td>{{ item.model }}</td>
+                    <td>{{ item.costusd }}</td>
+                    <td>{{ item.costaud }}</td>
+                </td>
+            {% endfor %}
+        {% endif %}
+    </table>
+
+
+
+{% endblock %} 

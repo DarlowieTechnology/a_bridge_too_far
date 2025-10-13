@@ -111,7 +111,6 @@ class DebugUtils(object):
                 print("\n------dumpPydanticObject : None------")
 
 
-
 class OpenFile():
 
     @staticmethod
@@ -129,6 +128,7 @@ class OpenFile():
 
     @staticmethod
     def open(filePath : str, readContent : bool) -> tuple[bool, str] :
+
         file_path = Path(filePath)
         if not file_path.is_file():
             return False, f"***ERROR: Error opening file {filePath}"

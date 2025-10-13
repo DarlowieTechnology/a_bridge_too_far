@@ -1,73 +1,164 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+{% extends "base.html" %}
 
-   
-    <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="10">
-    <title>Processing</title>
+{% block headcontent %}
+    <title>CV Generator</title>
+{% endblock %} 
 
-   <style>
-      .custom-hr {
-         border: none;
-         height: 2px;
-         background-color: red;
+{% block content %}
+
+   <div class="bold-text">Stage</div>
+   <div id="stage">
+      {% if stage %}
+         <div">{{ stage }}</div>
+      {% endif %}
+   </div>
+   <hr class="custom-hr">
+
+   <div class="bold-text">Activity log</div>
+   <div id="status">
+      {% if status %}
+         <div>{{ status }}</div>
+      {% endif %}
+   </div>
+   <hr class="custom-hr">
+
+   <a id="cost" href="">Potential cost of access to cloud-deployed LLMs</a>
+   <hr class="custom-hr">
+
+
+   <div class="bold-text">Job Title</div>
+   <div id="jobtitle">
+      {% if jobtitle %}
+        <div>{{ jobtitle }}</div>
+      {% endif %}
+   </div>
+   <hr class="custom-hr">
+
+   <div class="bold-text">Executive Summary</div>
+   <div id="execsummary">
+      {% if execsummary %}
+         <div>{{ execsummary }}</div>
+      {% endif %}
+   </div>
+   <hr class="custom-hr">
+
+   <table>
+      <tr>
+         <th>Extracted Activities</th>
+         <th>Mapped Activities</th>
+      </tr>
+     <tr>
+      <td>
+         <ol id="extracted">
+            {% if extracted %}
+               {% for item in extracted %}
+                  <li>{{ item }}</li>
+               {% endfor %}
+            {% endif %}
+         </ol>
+      </td>
+      <td>
+         <ol id="mapped">
+            {% if mapped %}
+               {% for item in mapped %}
+                  <li>{{ item }}</li>
+               {% endfor %}
+            {% endif %}
+         </ol>
+      </td>
+     </tr>
+   </table>
+   <hr class="custom-hr">
+
+   <div class="bold-text">Experience</div>
+   <ul id="projects">
+      {% if projects %}
+         {% for item in projects %}
+            <li>{{ item }}</li>
+         {% endfor %}
+      {% endif %}
+   </ul>
+   <hr class="custom-hr">
+
+   <script>
+      window.setTimeout(getData, 3000);
+
+      async function getData() {
+         try {
+            const response = await fetch("../status/", {
+               headers:{
+                  'Accept': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest',
+               },
+            });
+            if (!response.ok) {
+               throw new Error(`Response status: ${response.status}`);
+            }
+            const result = await response.json();
+            console.log("HERE:" + result);
+//            if (result["stage"] === "completed") {
+//               window.location.href = "../results";
+//            }
+            try {
+               document.getElementById('stage').innerHTML = result["stage"]
+            } catch (error) {
+               console.error(error.message);
+            }
+            try {
+               document.getElementById('status').innerHTML = ""
+               for (const value of result["status"]) {
+                  document.getElementById('status').innerHTML += "<br>" + value
+               }
+            } catch (error) {
+               console.error(error.message);
+            }
+            if ('jobtitle' in result) {
+               document.getElementById('jobtitle').innerHTML = 
+                  "<div>" + result['jobtitle'] + "</div>"
+            }
+
+            if ('execsummary' in result) {
+               document.getElementById('execsummary').innerHTML = 
+                  "<div>" + result['execsummary'] + "</div>"
+            }
+
+            if ('extracted' in result) {
+               document.getElementById('extracted').innerHTML = ""
+               for (const value of result["extracted"]) {
+                  document.getElementById('extracted').innerHTML += "<li>" + value + "</li>"
+               }
+            }
+
+            if ('mapped' in result) {
+               document.getElementById('mapped').innerHTML = ""
+               for (const value of result["mapped"]) {
+                  if (value.includes('--- ')) {
+                     document.getElementById('mapped').innerHTML += "<li style='color: red;'>" + value + "</li>"
+                  } else {
+                     document.getElementById('mapped').innerHTML += "<li>" + value + "</li>"
+                  }
+               }
+            }
+
+            if ('projects' in result) {
+               document.getElementById('projects').innerHTML = ""
+               for (const value of result["projects"]) {
+                  document.getElementById('projects').innerHTML += "<li>" + value + "</li>"
+               }
+            }
+
+            var anchorCost = document.getElementById('cost');
+            anchorCost.href = '../results?totalrequests=' + result["llmrequests"] + "&totalrequesttokens=" + result["llmrequesttokens"] + "&totalresponsetokens=" + result["llmresponsetokens"];
+            anchorCost.target = '_blank';
+
+            const stages = ["error", "completed"]
+            if (!stages.includes(result["stage"]))  {
+               setTimeout(getData, 3000);
+            }
+         } catch (error) {
+            console.error(error.message);
+         }
       }
-      .bold-text {
-         font-weight: bold;
-      }   
-   </style>
+   </script>
 
-</head>
-<body>
-
-   {% if status %}
-      <div class="bold-text">Status</div>
-      <div>{{ status }}</div>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if jobtitle %}
-      <div class="bold-text">Job Title</div>
-      <div>{{ jobtitle }}</div>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if adtext %}
-      <div class="bold-text">Ad Text</div>
-      <div>{{ adtext }}</div>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if execsummary %}
-      <div class="bold-text">Executive Summary</div>
-      <div>{{ execsummary }}</div>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if extracted %}
-      <div class="bold-text">Extracted data</div>
-      <ul>
-      {% for item in extracted %}
-         <li>{{ item }}</li>
-      {% endfor %}
-      </ul>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if mapped %}
-      <div class="bold-text">Mapped data</div>
-      <ul>
-      {% for item in mapped %}
-         <li>{{ item }}</li>
-      {% endfor %}
-      </ul>
-      <hr class="custom-hr">
-   {% endif %}
-   {% if projects %}
-      <div class="bold-text">Projects</div>
-      <ul>
-      {% for item in projects %}
-         <li>{{ item }}</li>
-      {% endfor %}
-      </ul>
-      <hr class="custom-hr">
-   {% endif %}
-
-</body>
-</html>
+{% endblock %} 

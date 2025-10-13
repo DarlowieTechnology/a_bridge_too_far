@@ -1,15 +1,22 @@
 {% extends "base.html" %}
 
+{% block headcontent %}
+    <title>Document Indexer</title>
+{% endblock %} 
+
+
 {% block content %}
+
+    <h1>Document Indexer</h1>
 
     <form action="{% url 'indexer:process' %}" method="post">
         {% csrf_token %}
         <fieldset>
-            <legend><h1>List of files</h1></legend>
+            <legend><h2>List of files</h2></legend>
             {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-            <textarea id="adtext" name="adtext" rows="20" cols="100"></textarea>
+            <textarea id="filelist" name="filelist" rows="20" cols="100"></textarea>
         </fieldset>
-        <input type="submit" value="Process">
+        <input type="submit" class="submitbutton" value="Process">
     </form>
 
 {% endblock %} 

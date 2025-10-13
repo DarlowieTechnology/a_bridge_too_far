@@ -26,3 +26,5 @@ unstructured[all-docs]
 pydantic
 pydantic_ai
 pydantic[email]
+genai-prices
+uv

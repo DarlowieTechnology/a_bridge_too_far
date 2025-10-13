@@ -1,4 +1,7 @@
 from django.shortcuts import render
+from django.http import JsonResponse
+
+from typing import List
 
 import chromadb
 from chromadb import Collection
@@ -11,24 +14,271 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.usage import Usage
 
 import tomli
 import logging
 import json
 import sys
+import time
 from datetime import datetime
+from pathlib import Path
+import threading
+
 
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-import threading
+import genai_prices
 
 # local
 sys.path.append("..")
 
 from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile
 from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, AllEmployers
+
+def workerSnapshot(logger, fileName, context, msg):
+    if msg:
+        logger.info(msg)
+        context['status'].append(msg)
+    with open(fileName, "w") as jsonOut:
+        formattedOut = json.dumps(context, indent=2)
+        jsonOut.write(formattedOut)
+
+def workerError(logger, fileName, context, msg):
+    logger.info(msg)
+    context['status'].append(msg)
+    context['stage'] = 'error'
+    with open(fileName, "w") as jsonOut:
+        formattedOut = json.dumps(context, indent=2)
+        jsonOut.write(formattedOut)
+
+
+def threadWorker(sessionKey, fileName, adText):
+
+    logger = logging.getLogger(sessionKey)
+
+    context = {}
+    context['status'] = list()
+    context["llmrequests"] = 0
+    context["llmrequesttokens"] = 0
+    context["llmresponsetokens"] = 0
+
+    time.sleep(1)
+
+    #-----------------stage configure
+
+    start = time.time()
+    totalStart = start
+
+    context["stage"] = "configure"
+    workerSnapshot(logger, fileName, context, None)
+    
+    configName = str(Path(__file__).parent.resolve()) + '/../../default.toml'
+    try:
+        with open(configName, mode="rb") as fp:
+            ConfigSingleton().conf = tomli.load(fp)
+    except Exception as e:
+        msg = f"Error: config file {configName}, exception {e}"
+        workerError(logger, fileName, context, msg)
+        return
+
+    try:
+        chromaClient = chromadb.PersistentClient(
+            path=ConfigSingleton().getAbsPath("rag_datapath"),
+            settings=Settings(anonymized_telemetry=False),
+            tenant=DEFAULT_TENANT,
+            database=DEFAULT_DATABASE,
+        )
+    except Exception as e:
+        msg = f"Error: OpenAI API exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return
+    
+    ef = OllamaEmbeddingFunction(
+        model_name=ConfigSingleton().conf["rag_embed_llm"],
+        url=ConfigSingleton().conf["rag_embed_url"]    
+    )
+
+    collectionName = "actreal"
+    try:
+        chromaActivity = chromaClient.get_collection(
+            name=collectionName,
+            embedding_function=ef
+        )
+    except Exception as e:
+        msg = f"Error: collection ACTIVITY exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return
+
+    collectionName = "scenario"
+    try:
+        chromaScenario = chromaClient.get_collection(
+            name=collectionName,
+            embedding_function=ef
+        )
+    except Exception as e:
+        msg = f"Error: collection SCENARIO exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return
+
+    end = time.time()
+    msg = f"Opened vector collections ACTIVITY with {chromaActivity.count()} documents, SCENARIO with {chromaScenario.count()} documents. {(end-start):9.4f} seconds"
+    workerSnapshot(logger, fileName, context, msg)
+
+    #----------------stage summary
+
+    start = time.time()
+
+    context["stage"] = "summary"
+    workerSnapshot(logger, fileName, context, None)
+
+
+    jobAdRecord = OneRecord(
+        id = "", 
+        name=str(sessionKey), 
+        description=adText
+    )
+
+    execSummary, usageStats = extractExecSection(jobAdRecord, logger, fileName, context)
+#    execSummary, usageStats = fakeExtractExecSection()
+    if not execSummary:
+        return
+
+    context['jobtitle'] = execSummary.title
+    context['execsummary'] = execSummary.description
+    if usageStats:
+        context["llmrequests"] = usageStats.requests
+        context["llmrequesttokens"] = usageStats.request_tokens
+        context["llmresponsetokens"] = usageStats.response_tokens
+
+    end = time.time()
+
+    if usageStats:
+        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+    else:
+        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds."
+    workerSnapshot(logger, fileName, context, msg)
+
+    #----------------stage extract
+
+    start = time.time()
+
+    context["stage"] = "extract"
+    workerSnapshot(logger, fileName, context, None)
+
+    allDescriptions = AllDesc(
+        ad_name = jobAdRecord.name,
+        exec_section = execSummary,
+        project_list = [])
+
+    oneResultList, usageStats = extractInfoFromJobAd(jobAdRecord, logger)
+ #   oneResultList, usageStats = fakeExtractInfoFromJobAd()
+
+    if not oneResultList:
+        msg = f"Internal error on extracting activities from job description"
+        workerError(logger, fileName, context, msg)
+        return
+
+    context['extracted'] = oneResultList.results_list
+    if usageStats:
+        context["llmrequests"] += usageStats.requests
+        context["llmrequesttokens"] += usageStats.request_tokens
+        context["llmresponsetokens"] += usageStats.response_tokens
+
+    end = time.time()
+
+    if usageStats:
+        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+    else:
+        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds."
+    workerSnapshot(logger, fileName, context, msg)
+
+    #--------------stage mapping
+
+    start = time.time()
+
+    context["stage"] = "mapping"
+    workerSnapshot(logger, fileName, context, None)
+
+    # ChromaDB calls do not account for LLM usage
+    oneResultList = mapToActivity(oneResultList, chromaActivity, logger)
+    #oneResultList = fakeMapToActivity()
+
+    context['mapped'] = oneResultList.results_list
+
+    end = time.time()
+
+    msg = f"Mapped {len(oneResultList.results_list)} activities to vector database. {(end-start):9.4f} seconds"
+    workerSnapshot(logger, fileName, context, msg)
+
+    #----------------stage projects
+
+    startAllProjects = time.time()
+
+    context["stage"] = "projects"
+    workerSnapshot(logger, fileName, context, None)
+
+    context['projects'] = []
+    prjCount = 0
+    for chromaQuery in oneResultList.results_list:
+
+        if chromaQuery[:4] == "--- ":
+            logger.info(f"!!!!----!!!!!---skipping '{chromaQuery}'")
+            continue
+        start = time.time()
+        oneDesc, usageStats = makeProject(chromaQuery, chromaScenario, logger)
+        if oneDesc:
+            prjCount += 1
+            allDescriptions.project_list.append(oneDesc)
+            context['projects'].append(oneDesc.description)
+
+            if usageStats:
+                context["llmrequests"] += usageStats.requests
+                context["llmrequesttokens"] += usageStats.request_tokens
+                context["llmresponsetokens"] += usageStats.response_tokens
+
+            end = time.time()
+
+            msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+            workerSnapshot(logger, fileName, context, msg)
+
+    endAllProjects = time.time()
+
+    msg = f"Created {len(context['projects'])} projects. {(endAllProjects-startAllProjects):9.4f} seconds"
+    workerSnapshot(logger, fileName, context, msg)
+
+
+    #--------------stage completed
+
+    totalEnd = time.time()
+
+    context["stage"] = "completed"
+    workerSnapshot(logger, fileName, context, f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. {context["llmrequests"]} LLM requests. {context["llmrequesttokens"]} request tokens. {context["llmresponsetokens"]} response tokens.")
+
+
+def status(request):
+
+    context = {}
+
+    if not request.session.session_key:
+        request.session.create() 
+    logger = logging.getLogger(request.session.session_key)
+
+    statusFileName = "status." + request.session.session_key + ".json"
+    try:
+        with open(statusFileName, "r") as jsonIn:
+            context = json.load(jsonIn)
+    except Exception as e:
+        errorMsg = f"Status Page: status file error {e}"
+        logger.info(errorMsg)
+        context['status'] = errorMsg
+        return JsonResponse(context)
+    
+    msg = f"Status: Opened {statusFileName}"
+    logger.info(msg)
+    return JsonResponse(context)
 
 
 def index(request):
@@ -44,268 +294,42 @@ def process(request):
 
     context = {}
 
+    if not request.session.session_key:
+        request.session.create() 
+
     logger = logging.getLogger(request.session.session_key)
 
-    if request.method == "GET":
-        logger.info(f"Serving GET")
-        for key in ['status', 'jobtitle', 'adtext', 'execsummary', 'extracted', 'mapped', 'projects']:
-            context[key] = request.session.get(key, "")
-        return render(request, "generator/process.html", context)
+    logger.info(f"Process: Serving POST")
+    statusFileName = "status." + request.session.session_key + ".json"
+    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
+    if boolResult:
+        contextOld = json.loads(sessionInfoOrError)
+        logger.info("Process: Existing async processing found")
+        if contextOld["stage"] in ["error", "completed"]:
+            logger.info("Process: Removing completed session file")
+            pass
+        else:    
+            return render(request, "generator/process.html", context)
 
-    # start POST processing
-    logger.info(f"Serving POST - cleaning session storage")
-    for key in ['status', 'jobtitle', 'adtext', 'execsummary', 'extracted', 'mapped', 'projects']:
-        request.session[key] = ""
-    request.session.flush()
+    thread = threading.Thread(
+        target=threadWorker, 
+        args=(request.session.session_key, statusFileName, request.POST['adtext']))
+    thread.start()
 
-#    t = threading.Thread(target=doProcessing,args=[request], daemon=True)
-#    t.start()
-
-    context['status'] = "Started processing"
-    request.session['status'] = context['status']
-    logger.info(f"Starting processing thread")
-
-    configName = "default.toml"
-    try:
-        with open(configName, mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        logger.info(f"***ERROR: Cannot open config file {configName}, exception {e}")
-        request.session['status'] = 'Internal error on config file'
-        return render(request, "generator/process.html", context)
-    logger.info(f"Opened config file {configName}")
-
-    chromaClient = chromadb.PersistentClient(
-        path=ConfigSingleton().getAbsPath("rag_datapath"),
-        settings=Settings(anonymized_telemetry=False),
-        tenant=DEFAULT_TENANT,
-        database=DEFAULT_DATABASE,
-    )
-    logger.info(f"Created ChromaDB client")
-
-    ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url=ConfigSingleton().conf["rag_embed_url"]    
-    )
-
-    collectionName = "actreal"
-    try:
-        chromaActivity = chromaClient.get_collection(
-            name=collectionName,
-            embedding_function=ef
-        )
-        logger.info(f"Collection {collectionName} opened with {chromaActivity.count()} documents")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
-        request.session['status'] = f'Internal error on ChromaDB {collectionName} collection'
-        return render(request, "generator/process.html", context)
-    logger.info(f"Opened ChromaDB collection {collectionName} with {chromaActivity.count()} documents ")
-
-    collectionName = "scenario"
-    try:
-        chromaScenario = chromaClient.get_collection(
-            name=collectionName,
-            embedding_function=ef
-        )
-        logger.info(f"Collection {collectionName} opened with {chromaActivity.count()} documents")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
-        request.session['status'] = f'Internal error on ChromaDB {collectionName} collection'
-        return render(request, "generator/process.html", context)
-    logger.info(f"Opened ChromaDB collection {collectionName} with {chromaScenario.count()} documents ")
-
-    jobAdRecord = OneRecord(
-        id = "", 
-        name=str(request.session.session_key), 
-        description=request.POST['adtext']
-    )
-    logger.info(f"Copied job description from client POST data - {len(request.POST['adtext'])} bytes")
-    request.session['adtext'] = request.POST['adtext']
-    request.session.flush()
-    context['adtext'] = request.POST['adtext']
-
-    #execSummary = extractExecSection(jobAdRecord, logger)
-    execSummary = fakeExtractExecSection()
-    request.session['jobtitle'] = execSummary.title
-    request.session['execsummary'] = execSummary.description
-    request.session['status'] = 'Extracted executive summary'
-    request.session.flush()
-    logger.info(f"Extracted executive summary from ad text")
-
-    context['jobtitle'] = execSummary.title
-    context['execsummary'] = execSummary.description
-
-
-    allDescriptions = AllDesc(
-        ad_name = jobAdRecord.name,
-        exec_section = execSummary,
-        project_list = [])
-
-    #oneResultList = extractInfoFromJobAd(jobAdRecord, logger)
-    oneResultList = fakeExtractInfoFromJobAd()
-    logger.info(f"Extracted activities from ad text")
-
-    if not oneResultList:
-        request.session['status'] = 'Internal error on extractInfoFromJobAd'
-        return
-    request.session['extracted'] = oneResultList.results_list
-    request.session['status'] = 'Extracted activities'
-    request.session.flush()
-
-    context['extracted'] = oneResultList.results_list
-
-
-    #oneResultList = mapToActivity(oneResultList, chromaActivity, logger)
-    oneResultList = fakeMapToActivity()
-    logger.info(f"Matched activities to Chroma DB")
-
-    request.session['mapped'] = oneResultList.results_list
-    request.session['status'] = 'Mapped activities'
-    request.session.flush()
-
-    context['mapped'] = oneResultList.results_list
-
-
-    request.session['projects'] = []
-    for chromaQuery in oneResultList.results_list:
-        oneDesc = makeProject(chromaQuery, chromaScenario, logger)
-        if oneDesc:
-            allDescriptions.project_list.append(oneDesc)
-#            request.session['projects'].append(oneDesc.description)
-            request.session['status'] = 'Created project'
-            request.session.flush()
-    logger.info(f"Created projects")
-    request.session['status'] = 'Processing completed'
-    request.session.flush()
-
-    context['mapped'] = allDescriptions.project_list
+    msg = f"Processing..."
+    context['status'] = msg
+    context['stage'] = 'starting'
+    logger.info(msg)
+    with open(statusFileName, "w") as jsonOut:
+        json.dump(context, jsonOut)
     return render(request, "generator/process.html", context)
 
-def status(request):
-    return render(request, "generator/status.html", None)
 
 
-def results(request):
-    return render(request, "generator/results.html", None)
-
-
-# --------- long running thread func
-
-def doProcessing(request): 
-
-    logger = logging.getLogger(request.session.session_key)
-    logger.info(f"Starting processing thread")
-
-    configName = "default.toml"
-    try:
-        with open(configName, mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        logger.info(f"***ERROR: Cannot open config file {configName}, exception {e}")
-        request.session['status'] = 'Internal error on config file'
-        return
-    logger.info(f"Opened config file {configName}")
-
-    chromaClient = chromadb.PersistentClient(
-        path=ConfigSingleton().getAbsPath("rag_datapath"),
-        settings=Settings(anonymized_telemetry=False),
-        tenant=DEFAULT_TENANT,
-        database=DEFAULT_DATABASE,
-    )
-    logger.info(f"Created ChromaDB client")
-
-    ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url=ConfigSingleton().conf["rag_embed_url"]    
-    )
-
-    collectionName = "actreal"
-    try:
-        chromaActivity = chromaClient.get_collection(
-            name=collectionName,
-            embedding_function=ef
-        )
-        logger.info(f"Collection {collectionName} opened with {chromaActivity.count()} documents")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
-        request.session['status'] = f'Internal error on ChromaDB {collectionName} collection'
-        return
-    logger.info(f"Opened ChromaDB collection {collectionName} with {chromaActivity.count()} documents ")
-
-    collectionName = "scenario"
-    try:
-        chromaScenario = chromaClient.get_collection(
-            name=collectionName,
-            embedding_function=ef
-        )
-        logger.info(f"Collection {collectionName} opened with {chromaActivity.count()} documents")
-    except Exception as e:
-        logger.info(f"Exception: {e}")
-        request.session['status'] = f'Internal error on ChromaDB {collectionName} collection'
-        return
-    logger.info(f"Opened ChromaDB collection {collectionName} with {chromaScenario.count()} documents ")
-
-    jobAdRecord = OneRecord(
-        id = "", 
-        name=str(request.session.session_key), 
-        description=request.POST['adtext']
-    )
-    logger.info(f"Copied job description from client POST data - {len(request.POST['adtext'])} bytes")
-    request.session['adtext'] = request.POST['adtext']
-    request.session.flush()
-
-    execSummary = extractExecSection(jobAdRecord, logger)
-    # execSummary = fakeExtractExecSection()
-    request.session['jobtitle'] = execSummary.title
-    request.session['execsummary'] = execSummary.description
-    request.session['status'] = 'Extracted executive summary'
-    request.session.flush()
-    logger.info(f"Extracted executive summary from ad text")
-
-    allDescriptions = AllDesc(
-        ad_name = jobAdRecord.name,
-        exec_section = execSummary,
-        project_list = [])
-
-    oneResultList = extractInfoFromJobAd(jobAdRecord, logger)
-    #oneResultList = fakeExtractInfoFromJobAd()
-    logger.info(f"Extracted activities from ad text")
-
-    if not oneResultList:
-        request.session['status'] = 'Internal error on extractInfoFromJobAd'
-        return
-    request.session['extracted'] = oneResultList.results_list
-    request.session['status'] = 'Extracted activities'
-    request.session.flush()
-
-    oneResultList = mapToActivity(oneResultList, chromaActivity, logger)
-    #oneResultList = fakeMapToActivity()
-    logger.info(f"Matched activities to Chroma DB")
-
-    request.session['mapped'] = oneResultList.results_list
-    request.session['status'] = 'Mapped activities'
-    request.session.flush()
-
-    request.session['projects'] = []
-    for chromaQuery in oneResultList.results_list:
-        oneDesc = makeProject(chromaQuery, chromaScenario, logger)
-        if oneDesc:
-            allDescriptions.project_list.append(oneDesc)
-#            request.session['projects'].append(oneDesc.description)
-            request.session['status'] = 'Created project'
-            request.session.flush()
-
-    logger.info(f"Created projects")
-    request.session['status'] = 'Processing completed'
-    request.session.flush()
-
-
-
-
-
-
-
-def extractExecSection(jobInfo : OneRecord, logger : logging.Logger) -> OneDesc :
+def extractExecSection(jobInfo : OneRecord, 
+                       logger : logging.Logger, 
+                       fileName : str, 
+                       context : dict) -> tuple[ OneDesc, Usage] :
 
     systemPromptPhase1 = f"""
         You are an expert in cyber security, information technology and software development 
@@ -314,14 +338,24 @@ def extractExecSection(jobInfo : OneRecord, logger : logging.Logger) -> OneDesc 
         Here is the JSON schema for the OneDesc model you must use as context for what information is expected:
         {json.dumps(OneDesc.model_json_schema(), indent=2)}
         """
-
-    ollModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
+    try:
+        ollModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
                         provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"]))
-    agent = Agent(ollModel, 
+    except Exception as e:
+        msg = f"OpenAIModel API exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return None, None
+
+    try:
+        agent = Agent(ollModel, 
                 output_type=OneDesc,                  
                 system_prompt = systemPromptPhase1,
                 retries=10,
                 output_retries=10)
+    except Exception as e:
+        msg = f"Agent creation exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return None, None
 
     promptPhase1 = f"""Extract the required role suitable for CV from the text below.
     Make required role the title.
@@ -334,15 +368,22 @@ def extractExecSection(jobInfo : OneRecord, logger : logging.Logger) -> OneDesc 
     try:
         result = agent.run_sync(promptPhase1)
         oneDesc = OneDesc.model_validate_json(result.output.model_dump_json())
-        oneDesc.description = oneDesc.description.replace("\n", "")
+        oneDesc.description = oneDesc.description.replace("\n", " ")
+        oneDesc.description = oneDesc.description.encode("ascii", "ignore").decode("ascii")
         DebugUtils.logPydanticObject(oneDesc, "Executive Summary", logger)
+        runUsage = result.usage()
     except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
-        logger.info(f"extractExecSection: Skipping due to exception: {e}")
-        return None
-    return oneDesc
+        msg = f"LLM summary extraction exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return None, None
+    except Exception as e:
+        msg = f"Summary extraction exception: {e}"
+        workerError(logger, fileName, context, msg)
+        return None, None
+    return oneDesc, runUsage
 
 
-def extractInfoFromJobAd(jobInfo : OneRecord, logger : logging.Logger) -> OneResultList :
+def extractInfoFromJobAd(jobInfo : OneRecord, logger : logging.Logger) -> tuple[ OneResultList, Usage] :
 
     systemPromptPhase1 = f"""
         You are an expert in cyber security, information technology and software development 
@@ -370,9 +411,10 @@ def extractInfoFromJobAd(jobInfo : OneRecord, logger : logging.Logger) -> OneRes
 
     try:
         result = agent.run_sync(promptPhase1)
+        runUsage = result.usage()
     except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
         logger.info(f"extractInfoFromJobAd: phase 1 exception: {e}")
-        return None
+        return None, None
 
     phase2Input = result.output
 
@@ -395,19 +437,24 @@ def extractInfoFromJobAd(jobInfo : OneRecord, logger : logging.Logger) -> OneRes
     try:
         result = agentPhase2.run_sync(promptPhase2)
         oneResultList = OneResultList.model_validate_json(result.output.model_dump_json())
+        runUsage = runUsage + result.usage()
         DebugUtils.logPydanticObject(oneResultList, "list from job ad", logger)
     except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
         logger.info(f"extractInfoFromJobAd: phase 2 exception: {e}")
-        return None
-    return oneResultList
+        return None, None
+    return oneResultList, runUsage
 
 
 def mapToActivity(oneResultList : OneResultList, chromaDBCollection : Collection, logger : logging.Logger) -> OneResultList :
     itemSet = set()
     for itm in oneResultList.results_list:
         listNew = getChromaDBMatchActivity(chromaDBCollection, itm, logger)
-        for itemNew in listNew.results_list:
-            itemSet.add(itemNew)
+        if not len(listNew.results_list):
+            itemSet.add(f"--- No match for activity `{itm}` ---")
+        else:
+            for itemNew in listNew.results_list:
+                itemSet.add(itemNew)
+    
     oneResultList = OneResultList(results_list = list(itemSet))
     DebugUtils.logPydanticObject(oneResultList, "Mapped list", logger)
     return oneResultList
@@ -438,7 +485,7 @@ def getChromaDBMatchActivity(chromaDBCollection : Collection, queryString : str,
     return OneResultList(results_list=list(totals))
 
 
-def makeProject(chromaQuery : str, chromaScenario : Collection, logger : logging.Logger) -> OneDesc :
+def makeProject(chromaQuery : str, chromaScenario : Collection, logger : logging.Logger) -> tuple [OneDesc, Usage] :
 
     logger.info(f"Scenario query: ({chromaQuery})")
     queryResult = chromaScenario.query(query_texts=[chromaQuery], n_results=3)
@@ -473,7 +520,7 @@ def makeProject(chromaQuery : str, chromaScenario : Collection, logger : logging
 
     if not numberChosen :
         logger.info(f"ERROR: cannot find ChromaDB records under distance {ConfigSingleton().conf['rag_scenario']}")
-        return None
+        return None, None
     
     logger.info(f"Selected {numberChosen} scenarios from ChromaDB. Distances: {distList}")
 
@@ -501,11 +548,12 @@ def makeProject(chromaQuery : str, chromaScenario : Collection, logger : logging
         result = agent.run_sync(prompt)
         oneDesc = OneDesc.model_validate_json(result.output.model_dump_json())
         oneDesc.description = oneDesc.description.replace("\n", "")
+        runUsage = result.usage()
         DebugUtils.logPydanticObject(oneDesc, "Project Description", logger)
     except pydantic_ai.exceptions.UnexpectedModelBehavior:
         logger.info(f"Exception: pydantic_ai.exceptions.UnexpectedModelBehavior")
-        return None
-    return oneDesc
+        return None, None
+    return oneDesc, runUsage
 
 
 def makeWordDoc(allDesc : AllDesc) :
@@ -580,13 +628,13 @@ def makeWordDoc(allDesc : AllDesc) :
     doc.save(allDesc.ad_name + ".resume.docx")
 
 
-def fakeExtractExecSection() ->  OneDesc :
+def fakeExtractExecSection() ->  tuple[OneDesc, Usage] :
 
     oneDesc = OneDesc(title='Senior Cyber Security Advisor', 
                       description='Utilized senior expertise in enterprise-wide security outcomes through strategic engagement and technical leadership. Established strong relationships with stakeholders and provided expert guidance to enable secure business missions.')
-    return oneDesc
+    return oneDesc, None
 
-def fakeExtractInfoFromJobAd() -> OneResultList :
+def fakeExtractInfoFromJobAd() -> tuple [OneResultList, Usage] :
     return OneResultList( results_list = [
         "strategic relationship management",
         "cybersecurity advocacy",
@@ -607,9 +655,9 @@ def fakeExtractInfoFromJobAd() -> OneResultList :
         "cisco certified cyberops associate",
         "global network & technology - security & operations",
         "telstra's assets and infrastructure"
-    ])
+    ]), None
 
-def fakeMapToActivity() ->  OneResultList :
+def fakeMapToActivity() ->  tuple [OneResultList, Usage] :
     return OneResultList( results_list = [
         "Demonstrated project management skills.",
         "Managed the coordination and evaluation of security assurance activities.",
@@ -625,5 +673,50 @@ def fakeMapToActivity() ->  OneResultList :
         "Delivered end-to-end engagements.",
         "Led Cybersecurity initiatives.",
         "Acquired Certified Cryptoasset Anti-Financial Crime Specialist (CCAS) certification."
-    ])
-  
+    ]), None
+
+
+# use this to display genAI pricing
+#   
+def results(request):
+
+    providers = [
+        { "provider" : "anthropic", "model": "claude-3-5-haiku-latest"  },
+        { "provider" : "aws", "model": "nova-pro-v1" },
+        { "provider" : "azure", "model": "gpt-4" },
+        { "provider" : "deepseek", "model": "deepseek-chat" },
+        { "provider" : "google", "model": "gemini-pro-1.5" },
+        { "provider" : "openai", "model": "gpt-4" },
+        { "provider" : "openrouter", "model": "gpt-4" },
+        { "provider" : "x-ai", "model": "grok-3" },
+        { "provider" : "x-ai", "model": "grok-4-0709" }
+    ]
+
+    context = {}
+    if not request.session.session_key:
+        request.session.create() 
+    logger = logging.getLogger(request.session.session_key)
+    logger.info(f"Results: Serving GET")
+
+    context["totalrequests"] = request.GET["totalrequests"]
+    context["totalrequesttokens"] = request.GET["totalrequesttokens"]
+    context["totalresponsetokens"] = request.GET["totalresponsetokens"]
+
+    context["llminfo"] = []
+    for providerInfo in providers:
+        price_data = genai_prices.calc_price(
+            genai_prices.Usage(input_tokens=int(context["totalrequesttokens"]), output_tokens=int(context["totalresponsetokens"])),
+            model_ref= providerInfo["model"],
+            provider_id = providerInfo["provider"]
+        )
+        item = {}
+        item["provider"] = providerInfo["provider"]
+        item["model"] = providerInfo["model"]
+        item["costusd"] = f"{price_data.total_price:.4f}"
+        audValue = float(price_data.total_price) * 1.53
+        item["costaud"] = f"{audValue:.4f}"
+
+        context["llminfo"].append(item)
+
+    return render(request, "generator/results.html", context)
+

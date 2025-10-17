@@ -4,12 +4,14 @@ chromadb
 django
 elevenlabs
 fastembed
+jinja2
 instructor
 keyboard
 langchain
 langchain-community
 langchain-core
 langchain-ollama
+langchain_openai
 langchain_text_splitters
 logfire
 nest_asyncio
@@ -21,8 +23,6 @@ xformers
 bitsandbytes
 accelerate
 einops
-unstructured
-unstructured[all-docs]
 pydantic
 pydantic_ai
 pydantic[email]

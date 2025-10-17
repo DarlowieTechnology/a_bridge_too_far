@@ -1,5 +1,6 @@
 from typing import Union
 from typing import List
+from typing import Dict
 
 import json
 import logging
@@ -59,6 +60,49 @@ class OneEmployer(BaseModel):
 class AllEmployers(BaseModel):
     """represents all employers"""
     employer_list: list[OneEmployer] = Field(..., description="list of employers")
+
+
+class ReportIssue(BaseModel):
+    """An issue description in cyber security report. 
+    This is a section of the report. The section contains information on the issue.
+    Section starts with issue identifier. Identifier contains letters, numbers, dashes, no whitespace.
+    Title follows identifier.
+    Risk rating field follows title.
+    Status field follows risk rating field
+    Description text section follows status field
+    Recommendation text section follows description.
+    """
+
+    # ^ Doc-string for the issue in the test report.
+    # This doc-string is sent to the LLM as the description of the schema Vulnerability,
+    # and it can help to improve extraction results.
+
+    # Note that:
+    # Each field has a `description` -- this description is used by the LLM.
+    # Having a good description can help improve extraction results.
+
+    identifier: str = Field(default=None, pattern=r"^SR-\d\d\d-\d\d\d$", description="identifier contains letters, numbers, dashes, no whitespace")
+    title: str = Field(default=None, description="title field follows identifier")
+    risk: str = Field(default=None, description="risk rating field follows title")    
+    status: str = Field(default=None, description="status field follows risk rating ")    
+    description: str = Field(default=None, description="description text section follows status and contains detailed description of the issue")
+    recommendation: str = Field(default=None, description="recommendation text section follows description and contains recommendation on how to mitigate the issue.")
+    affects:str = Field(default=None, description="affects field follows recommendation text section.")
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.identifier == other.identifier and self.title == other.title and self.risk == other.risk and self.status == other.status and self.description == other.description and self.affects == other.affects
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    
+    def __hash__(self):
+        return hash((self.identifier, self.title, self.risk, self.status, self.description, self.recommendation, self.affects))    
+
+class AllReportIssues(BaseModel):
+    """represents all issues in a report document"""
+    name : str = Field(default=None, description="name of the report")
+    issue_dict: Dict[str, ReportIssue] = Field(..., description="dict of issues, key by issue identifier")
+
 
 
 class ConfigSingleton(object):
@@ -175,5 +219,4 @@ class OpenFile():
         with open(jsonFileName, "w") as jsonOut:
             jsonOut.writelines(allRecords.model_dump_json(indent=2))
         return True
-
 

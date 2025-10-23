@@ -82,7 +82,8 @@ class ReportIssue(BaseModel):
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
 
-    identifier: str = Field(default=None, pattern=r"^SR-\d\d\d-\d\d\d$", description="identifier contains letters, numbers, dashes, no whitespace")
+#    identifier: str = Field(default=None, pattern=r"^SR-\d\d\d-\d\d\d$", description="identifier contains letters, numbers, dashes, no whitespace")
+    identifier: str = Field(default=None, description="identifier contains letters, numbers, dashes, no whitespace")
     title: str = Field(default=None, description="title field follows identifier")
     risk: str = Field(default=None, description="risk rating field follows title")    
     status: str = Field(default=None, description="status field follows risk rating ")    
@@ -100,9 +101,12 @@ class ReportIssue(BaseModel):
         return hash((self.identifier, self.title, self.risk, self.status, self.description, self.recommendation, self.affects))    
 
 class AllReportIssues(BaseModel):
-    """represents all issues in a report document"""
+    """
+    represents all issues in a report document
+    """
     name : str = Field(default=None, description="name of the report")
-    issue_dict: Dict[str, ReportIssue] = Field(..., description="dict of issues, key by issue identifier")
+    pattern : str = Field(default=r"SR-\d\d\d-\d\d\d", description="pattern of separation between issues")
+    issue_dict: Dict[str, ReportIssue] = Field(default=None, description="dict of issues, key by issue identifier")
 
 
 

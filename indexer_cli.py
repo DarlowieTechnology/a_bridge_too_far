@@ -1,3 +1,7 @@
+#
+# Indexer CLI app
+#
+
 import sys
 import logging
 import threading
@@ -5,17 +9,13 @@ import json
 import tomli
 
 # local
-sys.path.append("..")
-sys.path.append("../..")
-
-# local
 from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile
-from workflow import IndexerWorkflow
+from indexer_workflow import IndexerWorkflow
 
 
 def testRun(context : dict) :
     """ 
-    Test indexer stages 
+    Test for indexer stages 
     
     Args:
         context (dict) - all information for test run
@@ -46,7 +46,7 @@ def testRun(context : dict) :
     context["rawJSON"] = inputFileName + ".raw.json"
     context["finalJSON"] = inputFileName + ".json"
 
-    configName = '../../default.toml'
+    configName = 'default.toml'
     try:
         with open(configName, mode="rb") as fp:
             ConfigSingleton().conf = tomli.load(fp)
@@ -104,15 +104,15 @@ def main():
     context = {}
     context["session_key"] = "BLAH"
     context["statusFileName"] = "status.BLAH.json"
-    context["inputFileName"] = "input/test.pdf"
+    context["inputFileName"] = "webapp/indexer/input/test.pdf"
     context["llmProvider"] = "Ollama"
 
-#    testRun(context=context)
+    testRun(context=context)
 
-    indexerWorkflow = IndexerWorkflow()
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
-    thread.start()
-    thread.join()
+#    indexerWorkflow = IndexerWorkflow()
+#    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
+#    thread.start()
+#    thread.join()
 
 
 if __name__ == "__main__":

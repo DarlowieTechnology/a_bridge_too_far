@@ -34,9 +34,13 @@ import genai_prices
 
 # local
 sys.path.append("..")
+sys.path.append("../..")
 
 from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile
 from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, AllEmployers
+
+from indexer_workflow import IndexerWorkflow
+
 
 def workerSnapshot(logger, fileName, context, msg):
     if msg:
@@ -62,16 +66,52 @@ def index(request):
     logger = logging.getLogger("indexer:" + request.session.session_key)
     logger.info(f"Starting session")
 
-    return render(request, "indexer/index.html", None)
+    context = {}
+
+    data_folder = Path("indexer/input/")
+    fileNames = list(data_folder.glob("*.pdf"))
+    context["filelist"] = []
+    for item in fileNames:
+        context["filelist"].append(str(item.name))
+
+    return render(request, "indexer/index.html", context)
 
 
 def process(request):
 
     context = {}
+    context['session_key'] = request.session.session_key
+    context['statusFileName'] = "status." + request.session.session_key + ".json"
+    context['llmrequesttokens'] = 0
+    context['llmresponsetokens'] = 0
+    context['llmProvider'] = "Ollama"
 
     logger = logging.getLogger("indexer:" + request.session.session_key)
 
     # start POST processing
-    logger.info(f"Serving POST")
+    fileName = Path("indexer/input/" + request.POST['filename'])
+    logger.info(f"Serving POST {fileName}")
+    context['inputFileName'] = str(fileName)
+    context['rawtextfromPDF'] = str(Path("indexer/input/" + request.POST['filename'] + ".raw.txt"))
+    context['rawJSON'] =  str(Path("indexer/input/" + request.POST['filename'] + ".raw.json"))
+    context['finalJSON'] = str(Path("indexer/input/" + request.POST['filename'] + ".json"))
+
+    boolResult, sessionInfoOrError = OpenFile.open(context['statusFileName'], True)
+    if boolResult:
+        try:
+            contextOld = json.loads(sessionInfoOrError)
+            if contextOld["stage"] in ["error", "completed"]:
+                logger.info(f"Process: Removing completed session file {context['statusFileName']}")
+            else:    
+                logger.info(f"Process: Existing async processing found : {context['statusFileName']}")
+                return render(request, "indexer/process.html", context)
+        except:
+            logger.info(f"Process: Removing corrupt session file : {context['statusFileName']}")
+
+    indexerWorkflow = IndexerWorkflow()
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
+    thread.start()
+    thread.join()
+
     return render(request, "indexer/process.html", context)
 

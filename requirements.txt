@@ -2,6 +2,7 @@ tomli
 dataclasses
 chromadb
 django
+django-multiselectfield
 elevenlabs
 fastembed
 jinja2

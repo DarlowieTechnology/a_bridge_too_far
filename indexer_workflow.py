@@ -28,10 +28,6 @@ from langchain_community.document_loaders.pdf import PyPDFLoader
 
 
 # local
-sys.path.append("..")
-sys.path.append("../..")
-
-# local
 from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile
 
 
@@ -441,7 +437,7 @@ class IndexerWorkflow(BaseModel):
         context['status'] = []
         context["stage"] = "Read PDF"
 
-        configName = '../../default.toml'
+        configName = 'default.toml'
         try:
             with open(configName, mode="rb") as fp:
                 ConfigSingleton().conf = tomli.load(fp)

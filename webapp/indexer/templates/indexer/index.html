@@ -12,9 +12,16 @@
     <form action="{% url 'indexer:process' %}" method="post">
         {% csrf_token %}
         <fieldset>
-            <legend><h2>List of files</h2></legend>
+            <legend><h2>Input files</h2></legend>
             {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-            <textarea id="filelist" name="filelist" rows="20" cols="100"></textarea>
+            {% if filelist %}
+                <ul>
+                    {% for item in filelist %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            File: <input id="filename" type="text" size=100 name="filename" value="" />
         </fieldset>
         <input type="submit" class="submitbutton" value="Process">
     </form>

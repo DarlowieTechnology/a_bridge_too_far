@@ -49,7 +49,7 @@ def main():
 
     chromaClient = chromadb.PersistentClient(
         path=ConfigSingleton().conf["rag_datapath"],
-        settings=Settings(),
+        settings=Settings(anonymized_telemetry=False),
         tenant=DEFAULT_TENANT,
         database=DEFAULT_DATABASE,
     )

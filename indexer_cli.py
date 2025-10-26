@@ -6,7 +6,7 @@ import sys
 import logging
 import threading
 import json
-import tomli
+
 
 # local
 from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile
@@ -23,22 +23,26 @@ def testRun(context : dict) :
         None
     
     """
-    indexerWorkflow = IndexerWorkflow()
-    inputFileName = context["inputFileName"]
-    statusFileName = context["statusFileName"]
+    
+    # redirect all logs to console
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logger = logging.getLogger(context["session_key"])
 
+    indexerWorkflow = IndexerWorkflow(logger)
+    inputFileName = context["inputFileName"]
+    statusFileName = context["statusFileName"]
+    
     boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
     if boolResult:
         try:
             contextOld = json.loads(sessionInfoOrError)
             if contextOld["stage"] in ["error", "completed"]:
-                print("Process: Removing completed session file")
+                logger.info("Process: Removing completed session file")
             else:    
-                print("Process: Existing async processing found - exiting")
+                logger.info("Process: Existing async processing found - exiting")
                 return
         except:
-            print("Process: Removing corrupt session file")
+            logger.info("Process: Removing corrupt session file")
 
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
@@ -46,22 +50,14 @@ def testRun(context : dict) :
     context["rawJSON"] = inputFileName + ".raw.json"
     context["finalJSON"] = inputFileName + ".json"
 
-    configName = 'default.toml'
-    try:
-        with open(configName, mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        print(f"***ERROR: Cannot open config file {configName}, exception {e}")
-        exit
-
     context["stage"] = "completed"
     context['status'] = []
-    indexerWorkflow.workerSnapshot(logger, statusFileName, context, "Starting")
+    indexerWorkflow.workerSnapshot(context, "Starting")
 
 # load PDF
     rawTextFileName = context["rawtextfromPDF"]
 
-    textCombined = indexerWorkflow.loadPDF(logger, statusFileName, context, inputFileName)
+    textCombined = indexerWorkflow.loadPDF(context, inputFileName)
     with open(rawTextFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
         rawOut.write(textCombined)
 
@@ -81,7 +77,7 @@ def testRun(context : dict) :
     dictIssues = {}
     with open(outputRawJSONFileName, 'r') as file:
         dictIssues = json.load(file)
-    allReportIssues = indexerWorkflow.parseAllIssues(inputFileName, statusFileName, dictIssues, context, logger, ReportIssue)
+    allReportIssues = indexerWorkflow.parseAllIssues(inputFileName, dictIssues, context, ReportIssue)
 
     outputJSONFileName = context["finalJSON"]
     with open(outputJSONFileName, "w") as jsonOut:
@@ -91,28 +87,30 @@ def testRun(context : dict) :
     with open(outputJSONFileName, 'r') as file:
         allIssues = AllReportIssues.model_validate(json.load(file))
 #    DebugUtils.logPydanticObject(allIssues, "All Issues")
-    indexerWorkflow.vectorize(logger, statusFileName, context, allIssues)
+    indexerWorkflow.vectorize(context, allIssues)
 
     context["stage"] = "completed"
     msg = f"Processing completed."
-    indexerWorkflow.workerSnapshot(logger, statusFileName, context, msg)
+    indexerWorkflow.workerSnapshot(context, msg)
 
 
 
 def main():
 
     context = {}
-    context["session_key"] = "BLAH"
-    context["statusFileName"] = "status.BLAH.json"
+    context["session_key"] = "INDEXER"
+    context["statusFileName"] = "status.INDEXER.json"
     context["inputFileName"] = "webapp/indexer/input/test.pdf"
     context["llmProvider"] = "Ollama"
 
-    testRun(context=context)
+#    testRun(context=context)
 
-#    indexerWorkflow = IndexerWorkflow()
-#    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
-#    thread.start()
-#    thread.join()
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger = logging.getLogger(context["session_key"])
+    indexerWorkflow = IndexerWorkflow(logger)
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
+    thread.start()
+    thread.join()
 
 
 if __name__ == "__main__":

@@ -4,41 +4,37 @@
 # write "RECORDS.new.json"
 
 import sys
-import tomli
-import json
+import logging
 from pathlib import Path
-
-from typing import Union
-from operator import itemgetter
 
 
 # local
-from common import OneRecord, AllRecords, ConfigSingleton, OpenFile
+from common import ConfigSingleton, OpenFile
 
 #----------------------------------------------
 
 def main():
-    if len(sys.argv) < 3:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG TABLE\nExample: {sys.argv[0]} default.toml activity")
+
+    scriptName = Path(sys.argv[0]).name
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger = logging.getLogger(scriptName)
+
+    if not (len(sys.argv) == 2):
+        logger.info(f"Invalid number of arguments\nUsage:\n\t{scriptName} TABLE\nExample: {scriptName} activity")
         return
 
-    try:
-        with open(sys.argv[1], mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
-        return
-    jsonName = sys.argv[2]
+    config = ConfigSingleton()
+    jsonName = sys.argv[1]
 
-
-    boolResult, allRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName)
+    boolResult, allRecordsOrError = OpenFile.readRecordJSON(config["sqlite_datapath"], jsonName)
     if (not boolResult):
-        print(allRecordsOrError)
+        logger.info(allRecordsOrError)
         return
 
     allRecordsOrError.list_of_records = sorted(allRecordsOrError.list_of_records, key=lambda d: d.name)
 
-    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName, allRecordsOrError)
+    OpenFile.writeRecordJSON(config["sqlite_datapath"], jsonName, allRecordsOrError)
 
 if __name__ == "__main__":
     main()

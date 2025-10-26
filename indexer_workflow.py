@@ -33,13 +33,22 @@ from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, Op
 
 class IndexerWorkflow(BaseModel):
 
-    def workerSnapshot(self, logger : Logger, fileName : str, context : dict, msg : str):
+    _config : ConfigSingleton
+    _logger : Logger
+
+    def __init__(self, logger):
+        """
+        Args:
+            logger (Logger) - can originate in CLI or Django app
+        """
+        self._config = ConfigSingleton()
+        self._logger = logger
+
+    def workerSnapshot(self, context : dict, msg : str):
         """
         Logs status and updates status file
 
         Args:
-            logger (Logger) - logger object
-            fileName (str) - status file name
             context (dict) - process context data
             msg (str) - message string 
 
@@ -47,19 +56,17 @@ class IndexerWorkflow(BaseModel):
             None
         """
         if msg:
-            logger.info(msg)
+            self._logger.info(msg)
             context['status'].append(msg)
-        with open(fileName, "w") as jsonOut:
+        with open(context['statusFileName'], "w") as jsonOut:
             formattedOut = json.dumps(context, indent=2)
             jsonOut.write(formattedOut)
 
-    def workerError(self, logger : Logger, fileName : str, context : dict, msg : str):
+    def workerError(self, context : dict, msg : str):
         """
         Logs error and sets process status to error
 
         Args:
-            logger (Logger) - logger object
-            fileName (str) - status file name
             context (dict) - process context data
             msg (str) - message string 
 
@@ -67,10 +74,10 @@ class IndexerWorkflow(BaseModel):
             None
         """
         if msg:
-            logger.info(msg)
+            self._logger.info(msg)
             context['status'].append(msg)
         context['stage'] = 'error'
-        with open(fileName, "w") as jsonOut:
+        with open(context['statusFileName'], "w") as jsonOut:
             formattedOut = json.dumps(context, indent=2)
             jsonOut.write(formattedOut)
 
@@ -131,8 +138,8 @@ class IndexerWorkflow(BaseModel):
         """
         prompt = f"{docs}"
 
-        ollModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
-                            provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"]))
+        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
+                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
@@ -147,10 +154,10 @@ class IndexerWorkflow(BaseModel):
                 oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
             runUsage = result.usage()
     #        DebugUtils.logPydanticObject(oneIssue, "Issue")
-    #        print(runUsage)
+    #        self._logger.info(runUsage)
             return oneIssue, runUsage
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            print(f"Exception: pydantic_ai.exceptions.UnexpectedModelBehavior")
+            self._logger.info(f"Exception: pydantic_ai.exceptions.UnexpectedModelBehavior")
         return None, None
 
 
@@ -166,7 +173,7 @@ class IndexerWorkflow(BaseModel):
             Tuple of BaseModel and Usage
         """
 
-        api_key = ConfigSingleton().conf["gemini_key"]
+        api_key = self._config["gemini_key"]
 
         openAIClient = OpenAI(
             api_key=api_key,
@@ -201,7 +208,7 @@ class IndexerWorkflow(BaseModel):
             Tuple of BaseModel and Usage
         """
 
-        api_key = ConfigSingleton().conf["mistral_key"]
+        api_key = self._config["mistral_key"]
 
         schema = json.dumps(ClassTemplate.model_json_schema(), indent=2)
         
@@ -235,20 +242,16 @@ class IndexerWorkflow(BaseModel):
     def parseAllIssues(
             self,
             inputFileName : str, 
-            statusFileName : str, 
             dictText: dict[str,str], 
             context : dict, 
-            logger: Logger, 
             ClassTemplate : BaseModel) -> AllReportIssues :
         """
         Extracts ClassTemplate instances in the dict of pages using LLM. ClassTemplate is based on Pydantic BaseModel.
         
         Args:
             inputFileName (str) - original file name
-            statusFileName (str) - status file name
             dictText (dict[str,str]) - dict of pages
             context (dict) - context record
-            logger (Logger) - logger object
             ClassTemplate (BaseModel) - description of structured data
 
         Returns:
@@ -274,17 +277,15 @@ class IndexerWorkflow(BaseModel):
                 context["llmresponsetokens"] += usageStats.response_tokens
             else:
                 msg = f"Fetched issue {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
-            self.workerSnapshot(logger, statusFileName, context, msg)
+            self.workerSnapshot(context, msg)
 
         return allIssues
 
-    def loadPDF(self, logger : Logger, statusFileName : str, context : dict, inputFile : str) -> str :
+    def loadPDF(self, context : dict, inputFile : str) -> str :
         """
         Use PyDPF to load PDF and extract all text
 
         Args:
-            logger (Logger) - logger object
-            statusFileName (str) - status file name
             context (dict) - context record
             inputFile (str) - PDF file name
 
@@ -295,20 +296,18 @@ class IndexerWorkflow(BaseModel):
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
         docs = loader.load()
         msg = f"{inputFile} loaded. Pages: {len(docs)}"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
         textCombined = ""
         for page in docs:
             textCombined += "\n" + page.page_content
         return textCombined
 
-    def vectorize(self, logger : Logger, statusFileName : str, context : dict, allIssues : AllReportIssues) :
+    def vectorize(self, context : dict, allIssues : AllReportIssues) :
         """
         Add all structured records to vector database
         
         Args:
-            logger (Logger) - logger object
-            statusFileName (str) - status file name
             context (dict) - context record
             allIssues (AllReportIssues) - list of issues
 
@@ -317,19 +316,19 @@ class IndexerWorkflow(BaseModel):
         """
         try:
             chromaClient = chromadb.PersistentClient(
-                path=ConfigSingleton().getAbsPath("rag_datapath"),
+                path=self._config.getAbsPath("rag_datapath"),
                 settings=Settings(anonymized_telemetry=False),
                 tenant=DEFAULT_TENANT,
                 database=DEFAULT_DATABASE,
             )
         except Exception as e:
             msg = f"Error: OpenAI API exception: {e}"
-            self.workerError(logger, statusFileName, context, msg)
+            self.workerError(context, msg)
             return
         
         ef = OllamaEmbeddingFunction(
-            model_name=ConfigSingleton().conf["rag_embed_llm"],
-            url=ConfigSingleton().conf["rag_embed_url"]    
+            model_name=self._config["rag_embed_llm"],
+            url=self._config["rag_embed_url"]    
         )
 
         collectionName = "reportissues"
@@ -339,24 +338,24 @@ class IndexerWorkflow(BaseModel):
                 embedding_function=ef
             )
             msg = f"Opened collections REPORTISSUES with {chromaReportIssues.count()} documents."
-            self.workerSnapshot(logger, statusFileName, context, msg)
+            self.workerSnapshot(context, msg)
         except chromadb.errors.NotFoundError as e:
             try:
                 chromaReportIssues = chromaClient.create_collection(
                     name=collectionName,
                     embedding_function=ef,
-                    metadata={ "hnsw:space": ConfigSingleton().conf["rag_hnsw_space"]  }
+                    metadata={ "hnsw:space": self._config["rag_hnsw_space"]  }
                 )
                 msg = f"Created collection REPORTISSUES"
-                self.workerSnapshot(logger, statusFileName, context, msg)
+                self.workerSnapshot(context, msg)
             except Exception as e:
                 msg = f"Error: exception creating collection REPORTISSUES: {e}"
-                self.workerError(logger, statusFileName, context, msg)
+                self.workerError(context, msg)
                 return
 
         except Exception as e:
             msg = f"Error: exception opening collection REPORTISSUES: {e}"
-            self.workerError(logger, statusFileName, context, msg)
+            self.workerError(context, msg)
             return
 
         ids : list[str] = []
@@ -366,39 +365,39 @@ class IndexerWorkflow(BaseModel):
 
         for key in allIssues.issue_dict:
             reportIssue = allIssues.issue_dict[key]
-    #        print(f"New record: {reportIssue.model_dump_json(indent=2)}")
+    #        self._logger.info(f"New record: {reportIssue.model_dump_json(indent=2)}")
             recordHash = hash(reportIssue)
-    #        print(f"New hash: {recordHash}")
+    #        self._logger.info(f"New hash: {recordHash}")
             uniqueId = key
             queryResult = chromaReportIssues.get(ids=[uniqueId])
             if (len(queryResult["ids"])) :
 
                 msg = f"Record found in database {reportIssue.identifier}"
-                self.workerSnapshot(logger, statusFileName, context, msg)
+                self.workerSnapshot(context, msg)
 
                 existingRecordJSON = json.loads(queryResult["documents"][0])
                 existingRecord = ReportIssue.model_validate(existingRecordJSON)
-    #            print(f"Existing record: {existingRecord.model_dump_json(indent=2)}")
+    #            self._logger.info(f"Existing record: {existingRecord.model_dump_json(indent=2)}")
                 existingHash = hash(existingRecord)
-    #            print(f"Existing hash: {existingHash}")
+    #            self._logger.info(f"Existing hash: {existingHash}")
 
                 if recordHash == existingHash:
                     msg = f"Record hash match for {reportIssue.identifier} - skipping"
-                    self.workerSnapshot(logger, statusFileName, context, msg)
+                    self.workerSnapshot(context, msg)
                     continue
                 else:
                     msg = f"Record hash different for {reportIssue.identifier}"
-                    self.workerSnapshot(logger, statusFileName, context, msg)
+                    self.workerSnapshot(context, msg)
                     chromaReportIssues.delete(ids=[uniqueId])
                     msg = f"Deleted record {reportIssue.identifier}"
-                    self.workerSnapshot(logger, statusFileName, context, msg)
+                    self.workerSnapshot(context, msg)
 
             ids.append(uniqueId)
             docs.append(reportIssue.model_dump_json())
             docMetadata.append({ "docName" : recordHash } )
             embeddings.append(ef([reportIssue.description])[0])
             msg = f"Record added in database {reportIssue.identifier}."
-            self.workerSnapshot(logger, statusFileName, context, msg)
+            self.workerSnapshot(context, msg)
 
         if len(ids):
             chromaReportIssues.add(
@@ -410,12 +409,12 @@ class IndexerWorkflow(BaseModel):
 
 
 
-    def threadWorker(self, context=None):
+    def threadWorker(self, context):
         """
         Workflow to read, parse, vectorize records
         
         Args:
-            context - initial information for index run
+            context - initial information for index run, can originate in CLI or Django app
 
         Returns:
             None
@@ -426,10 +425,8 @@ class IndexerWorkflow(BaseModel):
         start = time.time()
         totalStart = start
 
-        logger = logging.getLogger(context["session_key"])
         context["llmrequesttokens"] = 0
         context["llmresponsetokens"] = 0
-        statusFileName = context["statusFileName"]
         inputFileName = context["inputFileName"]
         context["rawtextfromPDF"] = inputFileName + ".raw.txt"
         context["rawJSON"] = inputFileName + ".raw.json"
@@ -437,24 +434,16 @@ class IndexerWorkflow(BaseModel):
         context['status'] = []
         context["stage"] = "Read PDF"
 
-        configName = 'default.toml'
-        try:
-            with open(configName, mode="rb") as fp:
-                ConfigSingleton().conf = tomli.load(fp)
-        except Exception as e:
-            print(f"***ERROR: Cannot open config file {configName}, exception {e}")
-            exit
-
         msg = f"Starting processing"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
-        textCombined = self.loadPDF(logger, statusFileName, context, inputFileName)
+        textCombined = self.loadPDF(context, inputFileName)
         rawTextfileName = context["rawtextfromPDF"]
         with open(rawTextfileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
         end = time.time()
         msg = f"Read input document ({inputFileName}). Wrote raw text ({rawTextfileName}). Time: {(end-start):9.4f} seconds"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
         # ---------------stage preprocess raw text ---------------
 
@@ -469,32 +458,32 @@ class IndexerWorkflow(BaseModel):
             jsonOut.writelines(json.dumps(dictIssues, indent=2))
         end = time.time()
         msg = f"Preprocessed raw text ({rawTextfileName}). Found {len(dictIssues)} potential issues. Time: {(end-start):9.4f} seconds"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
         # ---------------stage fetch issues ---------------
 
         start = time.time()
         context["stage"] = "Fetch Issues"
 
-        allReportIssues = self.parseAllIssues(inputFileName, statusFileName, dictIssues, context, logger, ReportIssue)
+        allReportIssues = self.parseAllIssues(inputFileName, dictIssues, context, ReportIssue)
         outputJSONFileName = context["finalJSON"]
         with open(outputJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(allReportIssues.model_dump_json(indent=2))
 
         end = time.time()
         msg = f"Fetched {len(allReportIssues.issue_dict)} Wrote final JSON {outputJSONFileName}. {(end-start):9.4f} seconds"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
         # ---------------stage vectorize --------------
 
         start = time.time()
         context["stage"] = "vectorize"
 
-        self.vectorize(logger, statusFileName, context, allReportIssues)
+        self.vectorize(context, allReportIssues)
 
         end = time.time()
         msg = f"Added {len(allReportIssues.issue_dict)} to vector collections ISSUES. {(end-start):9.4f} seconds"
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)
 
 
         # ---------------stage completed ---------------
@@ -503,4 +492,4 @@ class IndexerWorkflow(BaseModel):
 
         totalEnd = time.time()
         msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. LLM request tokens: {context["llmrequesttokens"]}. LLM response tokens: {context["llmresponsetokens"]}."
-        self.workerSnapshot(logger, statusFileName, context, msg)
+        self.workerSnapshot(context, msg)

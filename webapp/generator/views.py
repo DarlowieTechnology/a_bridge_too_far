@@ -39,7 +39,7 @@ sys.path.append("../..")
 from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile
 from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, AllEmployers
 
-from generatorworkflow import GeneratorWorkflow
+from generator_workflow import GeneratorWorkflow
 
 
 

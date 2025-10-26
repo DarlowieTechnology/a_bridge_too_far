@@ -81,7 +81,8 @@ def process(request):
 
     context = {}
     context['session_key'] = request.session.session_key
-    context['statusFileName'] = "status." + request.session.session_key + ".json"
+    statusFileName = "status." + request.session.session_key + ".json"
+    context['statusFileName'] = statusFileName
     context['llmrequesttokens'] = 0
     context['llmresponsetokens'] = 0
     context['llmProvider'] = "Ollama"
@@ -101,17 +102,24 @@ def process(request):
         try:
             contextOld = json.loads(sessionInfoOrError)
             if contextOld["stage"] in ["error", "completed"]:
-                logger.info(f"Process: Removing completed session file {context['statusFileName']}")
+                logger.info(f"Process: Removing completed session file {statusFileName}")
             else:    
-                logger.info(f"Process: Existing async processing found : {context['statusFileName']}")
+                logger.info(f"Process: Existing async processing found : {statusFileName}")
                 return render(request, "indexer/process.html", context)
         except:
-            logger.info(f"Process: Removing corrupt session file : {context['statusFileName']}")
+            logger.info(f"Process: Removing corrupt session file : {statusFileName}")
+
+    msg = f"Processing..."
+    logger.info(msg)
+
+    context['status'] = msg
+    context['stage'] = 'starting'
+    with open(statusFileName, "w") as jsonOut:
+        json.dump(context, jsonOut)    
 
     indexerWorkflow = IndexerWorkflow()
     thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
     thread.start()
-    thread.join()
 
     return render(request, "indexer/process.html", context)
 

@@ -26,60 +26,56 @@
 # 
 
 import sys
-import tomli
-import json
+import logging
 from pathlib import Path
-from typing import Union
-from typing import List
-from typing import Sequence
 
 import chromadb
 from chromadb import Collection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-from pydantic import BaseModel, Field
 
 
 # local
 from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile, DebugUtils
 
 def main():
-    if len(sys.argv) < 4:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG TABLE1 TABLE2 COUNT\nExample: {sys.argv[0]} default.toml activity scenario 100")
+
+    scriptName = Path(sys.argv[0]).name
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger = logging.getLogger(scriptName)
+
+    if not (len(sys.argv) == 3):
+        logger.info(f"\nUsage:\n\t{scriptName} TABLE1 TABLE2 COUNT\nExample: {scriptName} activity scenario 100")
         return
 
-    try:
-        with open(sys.argv[1], mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
-        return
-    nameActivity = sys.argv[2]
-    nameScenario = sys.argv[3]
-    maxCount = sys.argv[4]
+    config = ConfigSingleton()
+    nameActivity = sys.argv[1]
+    nameScenario = sys.argv[2]
+    maxCount = sys.argv[3]
 
-    boolResult, allActivityRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], nameActivity)
+    boolResult, allActivityRecordsOrError = OpenFile.readRecordJSON(config["sqlite_datapath"], nameActivity)
     if (not boolResult):
-        print(allActivityRecordsOrError)
+        logger.info(allActivityRecordsOrError)
         return
-    print(f"JSON {nameActivity} opened with {len(allActivityRecordsOrError.list_of_records)} records")
+    logger.info(f"JSON {nameActivity} opened with {len(allActivityRecordsOrError.list_of_records)} records")
 
-    boolResult, allScenarioRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], nameScenario)
+    boolResult, allScenarioRecordsOrError = OpenFile.readRecordJSON(config["sqlite_datapath"], nameScenario)
     if (not boolResult):
-        print(allScenarioRecordsOrError)
+        logger.info(allScenarioRecordsOrError)
         return
-    print(f"JSON {nameScenario} opened with {len(allScenarioRecordsOrError.list_of_records)} records")
+    logger.info(f"JSON {nameScenario} opened with {len(allScenarioRecordsOrError.list_of_records)} records")
 
     chromaClient = chromadb.PersistentClient(
-        path=ConfigSingleton().conf["rag_datapath"],
-        settings=Settings(),
+        path=config["rag_datapath"],
+        settings=Settings(anonymized_telemetry=False),
         tenant=DEFAULT_TENANT,
         database=DEFAULT_DATABASE,
     )
 
     ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url= ConfigSingleton().conf["rag_embed_url"],
+        model_name=config["rag_embed_llm"],
+        url= config["rag_embed_url"],
     )
 
     try:
@@ -88,10 +84,10 @@ def main():
             embedding_function=ef
         )
     except chromadb.errors.NotFoundError as e:
-        print(f"ERROR - create ChromaDB collection for {nameActivity} first!!!")
+        logger.info(f"ERROR - create ChromaDB collection for {nameActivity} first!!!")
         return
 
-    print(f"Collection {nameActivity} opened with {activityCollection.count()} documents")
+    logger.info(f"Collection {nameActivity} opened with {activityCollection.count()} documents")
 
     try:
         scenarioCollection = chromaClient.get_collection(
@@ -99,10 +95,10 @@ def main():
             embedding_function=ef
         )
     except chromadb.errors.NotFoundError as e:
-        print(f"ERROR - create ChromaDB collection for {nameScenario} first!!!")
+        logger.info(f"ERROR - create ChromaDB collection for {nameScenario} first!!!")
         return
 
-    print(f"Collection {nameScenario} opened with {scenarioCollection.count()} documents")
+    logger.info(f"Collection {nameScenario} opened with {scenarioCollection.count()} documents")
 
     # remove stale content from "out.txt"
     with open("out.txt", "w") as fileOut:
@@ -122,7 +118,7 @@ def main():
         for distFloat in queryResult["distances"][0] :
             idx += 1
             
-            if (distFloat > ConfigSingleton().conf["rag_scenario"]) :
+            if (distFloat > config["rag_scenario"]) :
                 break
 
             oneResult = OneQueryResult(
@@ -136,7 +132,7 @@ def main():
             allQueryResults.list_of_queryresults.append(oneResult)
 
 # uncomment for interactive 
-#            print(f"\nid: {actRecord.id}   Query: ({actDesc})\n")
+#            logger.info(f"\nid: {actRecord.id}   Query: ({actDesc})\n")
 #            DebugUtils.dumpPydanticObject(oneResult, "one query result")
 #            if DebugUtils.pressKey("Press c to move to next activity:"):
 #                break
@@ -145,11 +141,11 @@ def main():
             matchCount += 1
 
 # uncomment to dump all matched scenarios
-#            print(f"({actDesc}) matched {len(allQueryResults.list_of_queryresults)} scenarios")
+#            logger.info(f"({actDesc}) matched {len(allQueryResults.list_of_queryresults)} scenarios")
 #            DebugUtils.dumpPydanticObject(allQueryResults, "Matched scenarios")
 
         else:
-            print(f"----------\n({actDesc}) not matched\n---------------")
+            logger.info(f"----------\n({actDesc}) not matched\n---------------")
             notMatched += 1
 
             # add potential scenario record
@@ -160,10 +156,10 @@ def main():
         if recordIdx > int(maxCount):
             break
         if (recordIdx % 100) == 0 :
-            print(f"processed {recordIdx}")        
+            logger.info(f"processed {recordIdx}")        
 
-    print(f"Distance {ConfigSingleton().conf['rag_scenario']}  Matches {matchCount}")
-    print(f"Not matched under {ConfigSingleton().conf['rag_scenario']} distance {notMatched}")
+    logger.info(f"Distance {config['rag_scenario']}  Matches {matchCount}")
+    logger.info(f"Not matched under {config['rag_scenario']} distance {notMatched}")
 
 
 if __name__ == "__main__":

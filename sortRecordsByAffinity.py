@@ -11,7 +11,7 @@ import sys
 import tomli
 import json
 from pathlib import Path
-from typing import Union
+import logging
 
 
 import chromadb
@@ -26,35 +26,35 @@ from common import OneRecord, AllRecords, ConfigSingleton, OpenFile, DebugUtils
 #----------------------------------------------
 
 def main():
-    if len(sys.argv) < 3:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG TABLE\nExample: {sys.argv[0]} default.toml activity")
+
+    scriptName = Path(sys.argv[0]).name
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger = logging.getLogger(scriptName)
+
+    if not (len(sys.argv) == 2):
+        logger.info(f"\nUsage:\n\t{scriptName} TABLE\nExample: {scriptName} activity")
         return
 
-    try:
-        with open(sys.argv[1], mode="rb") as fp:
-            ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
-        return
+    config = ConfigSingleton()
     jsonName = sys.argv[2]
 
 
-    boolResult, allRecordsOrError = OpenFile.readRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName)
+    boolResult, allRecordsOrError = OpenFile.readRecordJSON(config["sqlite_datapath"], jsonName)
     if (not boolResult):
-        print(allRecordsOrError)
+        logger.info(allRecordsOrError)
         return
-    print(f"JSON {jsonName} opened with {len(allRecordsOrError.list_of_records)} records")
+    logger.info(f"JSON {jsonName} opened with {len(allRecordsOrError.list_of_records)} records")
 
     chromaClient = chromadb.PersistentClient(
-        path=ConfigSingleton().conf["rag_datapath"],
-        settings=Settings(),
+        path=config["rag_datapath"],
+        settings=Settings(anonymized_telemetry=False),
         tenant=DEFAULT_TENANT,
         database=DEFAULT_DATABASE,
     )
 
     ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url= ConfigSingleton().conf["rag_embed_url"],
+        model_name=config["rag_embed_llm"],
+        url= config["rag_embed_url"],
     )
 
     try:
@@ -63,14 +63,14 @@ def main():
             embedding_function=ef
         )
     except chromadb.errors.NotFoundError as e:
-        print("ERROR - create ChromaDB collection first!!!")
+        logger.info("ERROR - create ChromaDB collection first!!!")
         return
 
-    print(f"Collection {jsonName} opened with {chromaCollection.count()} documents")
+    logger.info(f"Collection {jsonName} opened with {chromaCollection.count()} documents")
 
     newRecordList = list(range(0, len(allRecordsOrError.list_of_records)))
     progressIndicator = 0
-    sameDist = ConfigSingleton().conf["rag_same"]
+    sameDist = config["rag_same"]
     for oneRecord in allRecordsOrError.list_of_records :
 
         queryResult = chromaCollection.query(query_texts=[oneRecord.name], n_results=100)
@@ -86,13 +86,13 @@ def main():
             idText = queryResult["ids"][0][idx]
 
             if int(oneRecord.id) != int(idText) :
-                print(f"Found same: '{oneRecord.id}' '{oneRecord.name}' --- '{idText}' '{docText}' --- '{distFloat}'")
+                logger.info(f"Found same: '{oneRecord.id}' '{oneRecord.name}' --- '{idText}' '{docText}' --- '{distFloat}'")
                 idToRemove = int(idText)
                 if idToRemove < int(oneRecord.id):
                     idToRemove = int(oneRecord.id)
                 try:
                     newRecordList.remove(idToRemove)
-                    print(f"Removed id: '{idToRemove}'")
+                    logger.info(f"Removed id: '{idToRemove}'")
                 except:
                     pass
                 DebugUtils.pressKey()
@@ -100,15 +100,15 @@ def main():
 
         progressIndicator = progressIndicator +1
         if (progressIndicator % 100) == 0 :
-            print(f"processed {progressIndicator}")        
+            logger.info(f"processed {progressIndicator}")        
 
     newAllRecords = AllRecords(list_of_records = [])
     for oneRecord in allRecordsOrError.list_of_records :
         if int(oneRecord.id) in newRecordList:
             newAllRecords.list_of_records.append(oneRecord)
 
-    print(f"Original List {len(allRecordsOrError.list_of_records)} - updated list {len(newAllRecords.list_of_records)}")
-    OpenFile.writeRecordJSON(ConfigSingleton().conf["sqlite_datapath"], jsonName, newAllRecords)
+    logger.info(f"Original List {len(allRecordsOrError.list_of_records)} - updated list {len(newAllRecords.list_of_records)}")
+    OpenFile.writeRecordJSON(config["sqlite_datapath"], jsonName, newAllRecords)
 
 
 if __name__ == "__main__":

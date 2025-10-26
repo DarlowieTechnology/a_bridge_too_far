@@ -23,7 +23,8 @@ import sys
 import tomli
 import json
 import re
-import sqlite3
+import logging
+from logging import Logger
 from pathlib import Path
 
 from typing import Union
@@ -59,49 +60,46 @@ class LLMresult(BaseModel):
 
 def main():
     
-    if len(sys.argv) < 2:
-        print(f"Usage:\n\t{sys.argv[0]} CONFIG\nExample: {sys.argv[0]} default.toml")
-        return
-    try:
-        with open(sys.argv[1], mode="rb") as fp:
-                ConfigSingleton().conf = tomli.load(fp)
-    except Exception as e:
-        print(f"***ERROR: Cannot open config file {sys.argv[1]}, exception {e}")
-        return
+    scriptName = Path(sys.argv[0]).name
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger = logging.getLogger(scriptName)
+
+    config = ConfigSingleton()
 
     # get list of job ads
     boolResult, listFilePathsOrError = OpenFile.readListOfFileNames("jobDescriptions", "*.txt")
     if (not boolResult):
-        print(listFilePathsOrError)
+        logger.info(listFilePathsOrError)
         return
-    print(f"Read in {len(listFilePathsOrError)} input files names")
+    logger.info(f"Read in {len(listFilePathsOrError)} input files names")
 
     # read in job ads
     allJobAdRecords = AllRecords(list_of_records=[])
     for jobDescriptionPath in listFilePathsOrError:
         boolResult, contentJDOrError = OpenFile.open(filePath = jobDescriptionPath, readContent = True)
         if not boolResult:
-            print(contentJDOrError)
+            logger.info(contentJDOrError)
             continue
         oneRecord = OneRecord(id = "", name=str(jobDescriptionPath), description=contentJDOrError)
         allJobAdRecords.list_of_records.append(oneRecord)
     if (not len(allJobAdRecords.list_of_records)) : 
-        print(f"***ERROR: Cannot read Job Descriptions")
+        logger.info(f"***ERROR: Cannot read Job Descriptions")
         return
-    print(f"Read in {len(allJobAdRecords.list_of_records)} Job Descriptions")
+    logger.info(f"Read in {len(allJobAdRecords.list_of_records)} Job Descriptions")
 
     chromaClient = chromadb.PersistentClient(
-        path=ConfigSingleton().conf["rag_datapath"],
-        settings=Settings(),
+        path=config["rag_datapath"],
+        settings=Settings(anonymized_telemetry=False),
         tenant=DEFAULT_TENANT,
         database=DEFAULT_DATABASE,
     )
 
-    chromaActions = getChromaCollection(chromaClient, "actreal")
+    chromaActions = getChromaCollection(logger, chromaClient, "actreal")
     if not chromaActions:
         return
 
-    chromaScenario = getChromaCollection(chromaClient, "scenario")
+    chromaScenario = getChromaCollection(logger, chromaClient, "scenario")
     if not chromaScenario:
         return
 
@@ -133,13 +131,13 @@ def main():
 #        if oneResultList:
 #            llmResult.dict_of_results["name"] = oneResultList
 #        llmResult.dict_of_results["questions"] = processQuestions(jobDescription = contentJDOrError)
-#        jobDescriptionJSON = ConfigSingleton().conf["input_folder"] + '/' + Path(jobDescriptionPath).stem + ".json"
+#        jobDescriptionJSON = config["input_folder"] + '/' + Path(jobDescriptionPath).stem + ".json"
 #        with open(jobDescriptionJSON, "w") as jsonOut:
 #            res = llmResult.model_dump_json(indent=2)
 #            jsonOut.writelines(res)
 
 
-def extractInfo(jobInfo : OneRecord) -> OneResultList :
+def extractInfo(logger: Logger, jobInfo : OneRecord) -> OneResultList :
 
     systemPromptPhase1 = f"""
         You are an expert in cyber security, information technology and software development 
@@ -147,8 +145,8 @@ def extractInfo(jobInfo : OneRecord) -> OneResultList :
         Your job is to extract information from the text that matches user's request.
         """
 
-    ollModel = OpenAIModel(model_name=ConfigSingleton().conf["main_llm_name"], 
-                        provider=OpenAIProvider(base_url=ConfigSingleton().conf["llm_base_url"]))
+    ollModel = OpenAIModel(model_name=config["main_llm_name"], 
+                        provider=OpenAIProvider(base_url=config["llm_base_url"]))
     agent = Agent(ollModel, 
                 system_prompt = systemPromptPhase1,
                 retries=10,
@@ -167,9 +165,9 @@ def extractInfo(jobInfo : OneRecord) -> OneResultList :
 
     try:
         result = agent.run_sync(promptPhase1)
-        print(f"{result.output}")
+        logger.info(f"{result.output}")
     except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
-        print(f"extractInfo: Skipping due to exception: {e}")
+        logger.info(f"extractInfo: Skipping due to exception: {e}")
         return None
 
     phase2Input = result.output
@@ -195,7 +193,7 @@ def extractInfo(jobInfo : OneRecord) -> OneResultList :
         oneResultList = OneResultList.model_validate_json(result.output.model_dump_json())
         DebugUtils.dumpPydanticObject(oneResultList, "Phase 2")
     except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
-        print(f"extractInfo: Skipping due to exception: {e}")
+        logger.info(f"extractInfo: Skipping due to exception: {e}")
         return None
     return oneResultList
 
@@ -219,7 +217,7 @@ def getChromaDBMatchActivity(chromaDBCollection : Collection, queryString : str)
     totals = set()
 
     queryResult = chromaDBCollection.query(query_texts=[queryString], n_results=1)
-    cutDist = ConfigSingleton().conf["rag_distance"]
+    cutDist = config["rag_distance"]
     resultIdx = -1
     for distFloat in queryResult["distances"][0] :
         resultIdx += 1
@@ -244,11 +242,11 @@ def getChromaDBMatchActivity(chromaDBCollection : Collection, queryString : str)
 #
 # open chromeDB Collection
 #
-def getChromaCollection(chromaClient : chromadb.PersistentClient, collName : str) -> Collection :
+def getChromaCollection(logger : Logger, chromaClient : chromadb.PersistentClient, collName : str) -> Collection :
 
     ef = OllamaEmbeddingFunction(
-        model_name=ConfigSingleton().conf["rag_embed_llm"],
-        url=ConfigSingleton().conf["rag_embed_url"]    
+        model_name=config["rag_embed_llm"],
+        url=config["rag_embed_url"]    
     )
 
     try:
@@ -256,9 +254,9 @@ def getChromaCollection(chromaClient : chromadb.PersistentClient, collName : str
             name=collName,
             embedding_function=ef
         )
-        print(f"Collection {collName} opened with {chromaColl.count()} documents")
+        logger.info(f"Collection {collName} opened with {chromaColl.count()} documents")
     except Exception as e:
-        print(f"Exception: {e}")
+        logger.info(f"Exception: {e}")
         return None
     return chromaColl
 

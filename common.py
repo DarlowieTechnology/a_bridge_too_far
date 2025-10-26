@@ -3,9 +3,14 @@ from typing import List
 from typing import Dict
 
 import os
+import sys
 import json
 import logging
+from logging import Logger
 import inspect
+import tomli
+import threading
+
 from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -112,15 +117,37 @@ class AllReportIssues(BaseModel):
 
 class ConfigSingleton(object):
     """single instance class represents TOML configuration file"""
-    conf : dict[str, str] = {}
+
+    _configName = 'default.toml'
+    init_lock = threading.Lock()
+    _conf = {}
+
+    def __init__(self):
+        """ special method __init__ is required to load configuration once """
+        with self.init_lock:
+            try:
+                with open(self._configName, mode="rb") as fp:
+                    self._conf = tomli.load(fp)
+            except Exception as e:
+                print(f"***ERROR: Cannot open config file {self._configName}, exception {e}")
+                sys.exit("Program terminates")
+            # read ENV
+            self._conf['gemini_key'] = os.environ['gemini_key']
+            self._conf['mistral_key'] = os.environ['mistral_key']
+
     def __new__(cls):
-        """overwrite of __new__ to enforce one instance via class attribute 'instance'"""
+        """ overwrite of __new__ to enforce one instance via class attribute 'instance' """
         if not hasattr(cls, 'instance'):
             cls.instance = super(ConfigSingleton, cls).__new__(cls)
         return cls.instance 
+    
+    def __getitem__(self, key):
+        """Called when obj[index] is used."""
+        return self._conf[key]
+
     def getAbsPath(this, key):
         """return absolute path value from relative path. Compatible with Django web app"""
-        return Path(str(Path(__file__).parent.resolve()) + '/' + this.conf[key]).resolve()
+        return Path(str(Path(__file__).parent.resolve()) + '/' + this._conf[key]).resolve()
 
 
 class DebugUtils(object):
@@ -143,7 +170,7 @@ class DebugUtils(object):
         return False
 
     @staticmethod
-    def logPydanticObject(objToDump, objLabel, logger : logging.Logger = None) -> bool :
+    def logPydanticObject(objToDump, objLabel, logger : Logger = None) -> bool :
         """ if DEBUG log is available -  dump in log
             if no log - dump in stdout.
             Compatible with command line and Django web app

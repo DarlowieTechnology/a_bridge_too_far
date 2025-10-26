@@ -27,5 +27,6 @@ einops
 pydantic
 pydantic_ai
 pydantic[email]
+python-dotenv
 genai-prices
 uv

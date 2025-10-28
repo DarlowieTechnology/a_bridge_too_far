@@ -15,6 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from pydantic import BaseModel, Field
 
+# local
+sys.path.append("..")
+sys.path.append("../..")
+
+
 
 class OneRecord(BaseModel):
     """represents one record in structured storage"""
@@ -116,7 +121,11 @@ class AllReportIssues(BaseModel):
 
 
 class ConfigSingleton(object):
-    """single instance class represents TOML configuration file"""
+    """
+    single instance class represents TOML configuration file
+    configuration file is in ./ directory for CLI
+    configuration file is in ../ directory for webapp
+    """
 
     _configName = 'default.toml'
     init_lock = threading.Lock()
@@ -129,8 +138,13 @@ class ConfigSingleton(object):
                 with open(self._configName, mode="rb") as fp:
                     self._conf = tomli.load(fp)
             except Exception as e:
-                print(f"***ERROR: Cannot open config file {self._configName}, exception {e}")
-                sys.exit("Program terminates")
+                try:
+                    self._configName = "../" + self._configName
+                    with open(self._configName, mode="rb") as fp:
+                        self._conf = tomli.load(fp)
+                except Exception as e:
+                    print(f"***ERROR: Cannot open config file {self._configName}, exception {e}")
+                    sys.exit("Program terminates")
             # read ENV
             self._conf['gemini_key'] = os.environ['gemini_key']
             self._conf['mistral_key'] = os.environ['mistral_key']

@@ -95,10 +95,6 @@
                throw new Error(`Response status: ${response.status}`);
             }
             const result = await response.json();
-            console.log("HERE:" + result);
-//            if (result["stage"] === "completed") {
-//               window.location.href = "../results";
-//            }
             try {
                document.getElementById('stage').innerHTML = result["stage"]
             } catch (error) {

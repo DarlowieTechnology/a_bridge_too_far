@@ -42,25 +42,51 @@ from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, All
 from indexer_workflow import IndexerWorkflow
 
 
-def workerSnapshot(logger, fileName, context, msg):
-    if msg:
-        logger.info(msg)
-        context['status'].append(msg)
-    with open(fileName, "w") as jsonOut:
-        formattedOut = json.dumps(context, indent=2)
-        jsonOut.write(formattedOut)
+def status(request):
+    """
+    Target of HTTP Async call from indexer/process.html.
+    Reads JSON status file and responds to update indexer/process.html.
+    
+    Args:
+        request
 
-def workerError(logger, fileName, context, msg):
+    Returns:
+        JsonResponse
+    """
+    statusContext = {}
+
+    if not request.session.session_key:
+        request.session.create() 
+    logger = logging.getLogger(request.session.session_key)
+
+    statusFileName = "status." + request.session.session_key + ".json"
+    try:
+        with open(statusFileName, "r") as jsonIn:
+            statusContext = json.load(jsonIn)
+    except Exception as e:
+        errorMsg = f"Status Page: status file error {e}"
+        logger.info(errorMsg)
+        statusContext['status'] = errorMsg
+        return JsonResponse(statusContext)
+    
+    msg = f"Status: Opened {statusFileName}"
     logger.info(msg)
-    context['status'].append(msg)
-    context['stage'] = 'error'
-    with open(fileName, "w") as jsonOut:
-        formattedOut = json.dumps(context, indent=2)
-        jsonOut.write(formattedOut)
+    return JsonResponse(statusContext)
+
 
 
 def index(request):
-    # create session key and log per session
+    """
+    Front page of web app with the form. 
+    Read file list and pass it to template.
+    
+    Args:
+        request
+
+    Returns:
+        render generator/index.html
+
+    """
     if not request.session.session_key:
         request.session.create() 
     logger = logging.getLogger("indexer:" + request.session.session_key)
@@ -78,26 +104,26 @@ def index(request):
 
 
 def process(request):
+    """
+    Target of HTTP POST from indexer/index.html.
+    Starts workflow.
+    
+    Args:
+        request
 
-    context = {}
-    context['session_key'] = request.session.session_key
-    statusFileName = "status." + request.session.session_key + ".json"
-    context['statusFileName'] = statusFileName
-    context['llmrequesttokens'] = 0
-    context['llmresponsetokens'] = 0
-    context['llmProvider'] = "Ollama"
+    Returns:
+        render generator/process.html
+
+    """
+
+    if not request.session.session_key:
+        request.session.create() 
 
     logger = logging.getLogger("indexer:" + request.session.session_key)
+    logger.info(f"Process: Serving POST")
 
-    # start POST processing
-    fileName = Path("indexer/input/" + request.POST['filename'])
-    logger.info(f"Serving POST {fileName}")
-    context['inputFileName'] = str(fileName)
-    context['rawtextfromPDF'] = str(Path("indexer/input/" + request.POST['filename'] + ".raw.txt"))
-    context['rawJSON'] =  str(Path("indexer/input/" + request.POST['filename'] + ".raw.json"))
-    context['finalJSON'] = str(Path("indexer/input/" + request.POST['filename'] + ".json"))
-
-    boolResult, sessionInfoOrError = OpenFile.open(context['statusFileName'], True)
+    statusFileName = "status." + request.session.session_key + ".json"
+    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
     if boolResult:
         try:
             contextOld = json.loads(sessionInfoOrError)
@@ -109,16 +135,23 @@ def process(request):
         except:
             logger.info(f"Process: Removing corrupt session file : {statusFileName}")
 
-    msg = f"Processing..."
-    logger.info(msg)
+    fileName = Path("indexer/input/" + request.POST['filename'])
+    logger.info(f"Serving POST {fileName}")
 
-    context['status'] = msg
-    context['stage'] = 'starting'
-    with open(statusFileName, "w") as jsonOut:
-        json.dump(context, jsonOut)    
+    context = {}
+    context['session_key'] = request.session.session_key
+    context['statusFileName'] = statusFileName
+    context['llmrequesttokens'] = 0
+    context['llmresponsetokens'] = 0
+    context['llmProvider'] = "Ollama"
+    context['status'] = list()
+    context['inputFileName'] = str(fileName)
+    context['rawtextfromPDF'] = str(Path("indexer/input/" + request.POST['filename'] + ".raw.txt"))
+    context['rawJSON'] =  str(Path("indexer/input/" + request.POST['filename'] + ".raw.json"))
+    context['finalJSON'] = str(Path("indexer/input/" + request.POST['filename'] + ".json"))
 
-    indexerWorkflow = IndexerWorkflow()
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
+    indexerWorkflow = IndexerWorkflow(context, logger)
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={})
     thread.start()
 
     return render(request, "indexer/process.html", context)

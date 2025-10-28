@@ -6,6 +6,7 @@ import sys
 import logging
 import threading
 import json
+from pathlib import Path
 
 
 # local
@@ -24,15 +25,12 @@ def testRun(context : dict) :
     
     """
     
-    # redirect all logs to console
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(context["session_key"])
 
-    indexerWorkflow = IndexerWorkflow(logger)
-    inputFileName = context["inputFileName"]
-    statusFileName = context["statusFileName"]
+    indexerWorkflow = IndexerWorkflow(context, logger)
     
-    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
+    boolResult, sessionInfoOrError = OpenFile.open(context["statusFileName"], True)
     if boolResult:
         try:
             contextOld = json.loads(sessionInfoOrError)
@@ -44,54 +42,51 @@ def testRun(context : dict) :
         except:
             logger.info("Process: Removing corrupt session file")
 
-    context["llmrequesttokens"] = 0
-    context["llmresponsetokens"] = 0
-    context["rawtextfromPDF"] = inputFileName + ".raw.txt"
-    context["rawJSON"] = inputFileName + ".raw.json"
-    context["finalJSON"] = inputFileName + ".json"
 
-    context["stage"] = "completed"
-    context['status'] = []
-    indexerWorkflow.workerSnapshot(context, "Starting")
+    #-------- load PDF
 
-# load PDF
-    rawTextFileName = context["rawtextfromPDF"]
-
-    textCombined = indexerWorkflow.loadPDF(context, inputFileName)
-    with open(rawTextFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
+    textCombined = indexerWorkflow.loadPDF(context['inputFileName'])
+    with open(context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
         rawOut.write(textCombined)
 
-    rawTextFileName = context["rawtextfromPDF"]
-    with open(rawTextFileName, "r" , encoding="utf-8", errors="ignore") as rawIn:
-        textCombined = rawIn.read()
+    inputFileBaseName = str(Path(context['inputFileName']).name)
+    msg = f"Read input document {inputFileBaseName}"
+    indexerWorkflow.workerSnapshot(msg)
 
-#preprocess
-    outputRawJSONFileName = context["rawJSON"]
+    #-------- preprocess
+
     allReportIssues = AllReportIssues()
     pattern = allReportIssues.pattern
     dictIssues = indexerWorkflow.preprocessReportRawText(textCombined, pattern)
-    with open(outputRawJSONFileName, "w") as jsonOut:
+    with open(context['rawJSON'], "w") as jsonOut:
         jsonOut.writelines(json.dumps(dictIssues, indent=2))
 
-# parse
-    dictIssues = {}
-    with open(outputRawJSONFileName, 'r') as file:
-        dictIssues = json.load(file)
-    allReportIssues = indexerWorkflow.parseAllIssues(inputFileName, dictIssues, context, ReportIssue)
+    rawJSONBaseName = str(Path(context['rawJSON']).name)
+    msg = f"Preprocessed raw text {rawJSONBaseName}. Found {len(dictIssues)} potential issues."
+    indexerWorkflow.workerSnapshot(msg)
 
-    outputJSONFileName = context["finalJSON"]
-    with open(outputJSONFileName, "w") as jsonOut:
+    #--------- parse ReportIssue records
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    allReportIssues = indexerWorkflow.parseAllIssues(context['inputFileName'], dictIssues, ReportIssue)
+    with open(context["finalJSON"], "w") as jsonOut:
         jsonOut.writelines(allReportIssues.model_dump_json(indent=2))
 
-# vectorize
-    with open(outputJSONFileName, 'r') as file:
-        allIssues = AllReportIssues.model_validate(json.load(file))
-#    DebugUtils.logPydanticObject(allIssues, "All Issues")
-    indexerWorkflow.vectorize(context, allIssues)
+    finalJSONBaseName = str(Path(indexerWorkflow._context['finalJSON']).name)
+    msg = f"Fetched {len(allReportIssues.issue_dict)} Wrote final JSON {finalJSONBaseName}."
+    indexerWorkflow.workerSnapshot(msg)
+
+    #--------- vectorize
+
+    indexerWorkflow.vectorize(allReportIssues)
+
+    msg = f"Added {len(allReportIssues.issue_dict)} to vector collections ISSUES."
+    indexerWorkflow.workerSnapshot(msg)
+
 
     context["stage"] = "completed"
     msg = f"Processing completed."
-    indexerWorkflow.workerSnapshot(context, msg)
+    indexerWorkflow.workerSnapshot(msg)
 
 
 
@@ -101,14 +96,22 @@ def main():
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
     context["inputFileName"] = "webapp/indexer/input/test.pdf"
-    context["llmProvider"] = "Ollama"
+    context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+    context["rawJSON"] = context["inputFileName"] + ".raw.json"
+    context["finalJSON"] = context["inputFileName"] + ".json"
+    context["llmProvider"] = "Gemini"
+    context["llmrequests"] = 0
+    context["llmrequesttokens"] = 0
+    context["llmresponsetokens"] = 0
+    context['status'] = []
 
-#    testRun(context=context)
+    #testRun(context=context)
+    #return
 
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(context["session_key"])
-    indexerWorkflow = IndexerWorkflow(logger)
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={'context': context})
+    indexerWorkflow = IndexerWorkflow(context, logger)
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={})
     thread.start()
     thread.join()
 

@@ -8,6 +8,7 @@ import json
 import tomli
 import re
 import time
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 import pydantic_ai
@@ -29,57 +30,18 @@ from langchain_community.document_loaders.pdf import PyPDFLoader
 
 # local
 from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile
+from workflowbase import WorkflowBase 
 
 
-class IndexerWorkflow(BaseModel):
+class IndexerWorkflow(WorkflowBase):
 
-    _config : ConfigSingleton
-    _logger : Logger
-
-    def __init__(self, logger):
+    def __init__(self, context : dict, logger : Logger):
         """
         Args:
+            context (dict)
             logger (Logger) - can originate in CLI or Django app
         """
-        self._config = ConfigSingleton()
-        self._logger = logger
-
-    def workerSnapshot(self, context : dict, msg : str):
-        """
-        Logs status and updates status file
-
-        Args:
-            context (dict) - process context data
-            msg (str) - message string 
-
-        Returns:
-            None
-        """
-        if msg:
-            self._logger.info(msg)
-            context['status'].append(msg)
-        with open(context['statusFileName'], "w") as jsonOut:
-            formattedOut = json.dumps(context, indent=2)
-            jsonOut.write(formattedOut)
-
-    def workerError(self, context : dict, msg : str):
-        """
-        Logs error and sets process status to error
-
-        Args:
-            context (dict) - process context data
-            msg (str) - message string 
-
-        Returns:
-            None
-        """
-        if msg:
-            self._logger.info(msg)
-            context['status'].append(msg)
-        context['stage'] = 'error'
-        with open(context['statusFileName'], "w") as jsonOut:
-            formattedOut = json.dumps(context, indent=2)
-            jsonOut.write(formattedOut)
+        super().__init__(context, logger)
 
 
     def preprocessReportRawText(self, rawText : str, pattern: str ) -> dict[str, str] :
@@ -180,11 +142,18 @@ class IndexerWorkflow(BaseModel):
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
 
+        systemPrompt = f"""
+        The prompt contains an issue. Here is the JSON schema for the ReportIssue model you must use as context for what information is expected:
+        {json.dumps(ReportIssue.model_json_schema(), indent=2)}
+        """
+        userPrompt = f"{docs}"
+
+
         completion = openAIClient.beta.chat.completions.parse(
             model="gemini-2.0-flash",
             messages=[
-                {"role": "system", "content": "Extract the record information."},
-                {"role": "user", "content": docs},
+                {"role": "system", "content": systemPrompt},
+                {"role": "user", "content": userPrompt},
             ],
             response_format=ClassTemplate,
         )
@@ -193,7 +162,14 @@ class IndexerWorkflow(BaseModel):
         for attr in oneIssue.__dict__:
             oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
             oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-        return oneIssue, None
+
+        # map Open AI usage to Pydantic usage            
+        usage = Usage()
+        usage.requests = 1
+        usage.request_tokens = completion.usage.prompt_tokens
+        usage.response_tokens = completion.usage.completion_tokens
+            
+        return oneIssue, usage
 
 
     def parseIssueMistral(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
@@ -234,7 +210,13 @@ class IndexerWorkflow(BaseModel):
             for attr in oneIssue.__dict__:
                 oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
                 oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-            usage = Usage(request_tokens = res.usage.prompt_tokens, response_tokens = res.usage.completion_tokens)
+
+            # map Open AI usage to Pydantic usage            
+            usage = Usage()
+            usage.requests = 1
+            usage.request_tokens = res.usage.prompt_tokens
+            usage.response_tokens = res.usage.completion_tokens
+
             return oneIssue, usage
 
         return None, None
@@ -243,7 +225,6 @@ class IndexerWorkflow(BaseModel):
             self,
             inputFileName : str, 
             dictText: dict[str,str], 
-            context : dict, 
             ClassTemplate : BaseModel) -> AllReportIssues :
         """
         Extracts ClassTemplate instances in the dict of pages using LLM. ClassTemplate is based on Pydantic BaseModel.
@@ -251,7 +232,6 @@ class IndexerWorkflow(BaseModel):
         Args:
             inputFileName (str) - original file name
             dictText (dict[str,str]) - dict of pages
-            context (dict) - context record
             ClassTemplate (BaseModel) - description of structured data
 
         Returns:
@@ -263,30 +243,31 @@ class IndexerWorkflow(BaseModel):
         for key in dictText:
             startOneIssue = time.time()
 
-            if context["llmProvider"] == "Ollama":
+            if self._context["llmProvider"] == "Ollama":
                 oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)    
-            if context["llmProvider"] == "Gemini":
+            if self._context["llmProvider"] == "Gemini":
+                time.sleep(10)
                 oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)    
-            if context["llmProvider"] == "Mistral":
+            if self._context["llmProvider"] == "Mistral":
                 oneIssue, usageStats = self.parseIssueMistral(dictText[key], ClassTemplate)
             allIssues.issue_dict[key] = oneIssue
             endOneIssue = time.time()
             if usageStats:
                 msg = f"Fetched issue {key}. {usageStats.requests} LLM requests. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
-                context["llmrequesttokens"] += usageStats.request_tokens
-                context["llmresponsetokens"] += usageStats.response_tokens
+                self._context["llmrequests"] += 1
+                self._context["llmrequesttokens"] += usageStats.request_tokens
+                self._context["llmresponsetokens"] += usageStats.response_tokens
             else:
                 msg = f"Fetched issue {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
-            self.workerSnapshot(context, msg)
+            self.workerSnapshot(msg)
 
         return allIssues
 
-    def loadPDF(self, context : dict, inputFile : str) -> str :
+    def loadPDF(self, inputFile : str) -> str :
         """
         Use PyDPF to load PDF and extract all text
 
         Args:
-            context (dict) - context record
             inputFile (str) - PDF file name
 
         Returns:
@@ -295,20 +276,17 @@ class IndexerWorkflow(BaseModel):
 
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
         docs = loader.load()
-        msg = f"{inputFile} loaded. Pages: {len(docs)}"
-        self.workerSnapshot(context, msg)
 
         textCombined = ""
         for page in docs:
             textCombined += "\n" + page.page_content
         return textCombined
 
-    def vectorize(self, context : dict, allIssues : AllReportIssues) :
+    def vectorize(self, allIssues : AllReportIssues) :
         """
         Add all structured records to vector database
         
         Args:
-            context (dict) - context record
             allIssues (AllReportIssues) - list of issues
 
         Returns:
@@ -323,7 +301,7 @@ class IndexerWorkflow(BaseModel):
             )
         except Exception as e:
             msg = f"Error: OpenAI API exception: {e}"
-            self.workerError(context, msg)
+            self.workerError(msg)
             return
         
         ef = OllamaEmbeddingFunction(
@@ -338,7 +316,7 @@ class IndexerWorkflow(BaseModel):
                 embedding_function=ef
             )
             msg = f"Opened collections REPORTISSUES with {chromaReportIssues.count()} documents."
-            self.workerSnapshot(context, msg)
+            self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             try:
                 chromaReportIssues = chromaClient.create_collection(
@@ -347,15 +325,15 @@ class IndexerWorkflow(BaseModel):
                     metadata={ "hnsw:space": self._config["rag_hnsw_space"]  }
                 )
                 msg = f"Created collection REPORTISSUES"
-                self.workerSnapshot(context, msg)
+                self.workerSnapshot(msg)
             except Exception as e:
                 msg = f"Error: exception creating collection REPORTISSUES: {e}"
-                self.workerError(context, msg)
+                self.workerError(msg)
                 return
 
         except Exception as e:
             msg = f"Error: exception opening collection REPORTISSUES: {e}"
-            self.workerError(context, msg)
+            self.workerError(msg)
             return
 
         ids : list[str] = []
@@ -373,7 +351,7 @@ class IndexerWorkflow(BaseModel):
             if (len(queryResult["ids"])) :
 
                 msg = f"Record found in database {reportIssue.identifier}"
-                self.workerSnapshot(context, msg)
+                self.workerSnapshot(msg)
 
                 existingRecordJSON = json.loads(queryResult["documents"][0])
                 existingRecord = ReportIssue.model_validate(existingRecordJSON)
@@ -383,21 +361,21 @@ class IndexerWorkflow(BaseModel):
 
                 if recordHash == existingHash:
                     msg = f"Record hash match for {reportIssue.identifier} - skipping"
-                    self.workerSnapshot(context, msg)
+                    self.workerSnapshot(msg)
                     continue
                 else:
                     msg = f"Record hash different for {reportIssue.identifier}"
-                    self.workerSnapshot(context, msg)
+                    self.workerSnapshot(msg)
                     chromaReportIssues.delete(ids=[uniqueId])
                     msg = f"Deleted record {reportIssue.identifier}"
-                    self.workerSnapshot(context, msg)
+                    self.workerSnapshot(msg)
 
             ids.append(uniqueId)
             docs.append(reportIssue.model_dump_json())
             docMetadata.append({ "docName" : recordHash } )
             embeddings.append(ef([reportIssue.description])[0])
             msg = f"Record added in database {reportIssue.identifier}."
-            self.workerSnapshot(context, msg)
+            self.workerSnapshot(msg)
 
         if len(ids):
             chromaReportIssues.add(
@@ -409,12 +387,12 @@ class IndexerWorkflow(BaseModel):
 
 
 
-    def threadWorker(self, context):
+    def threadWorker(self):
         """
         Workflow to read, parse, vectorize records
         
         Args:
-            context - initial information for index run, can originate in CLI or Django app
+            None
 
         Returns:
             None
@@ -425,71 +403,60 @@ class IndexerWorkflow(BaseModel):
         start = time.time()
         totalStart = start
 
-        context["llmrequesttokens"] = 0
-        context["llmresponsetokens"] = 0
-        inputFileName = context["inputFileName"]
-        context["rawtextfromPDF"] = inputFileName + ".raw.txt"
-        context["rawJSON"] = inputFileName + ".raw.json"
-        context["finalJSON"] = inputFileName + ".json"
-        context['status'] = []
-        context["stage"] = "Read PDF"
-
-        msg = f"Starting processing"
-        self.workerSnapshot(context, msg)
-
-        textCombined = self.loadPDF(context, inputFileName)
-        rawTextfileName = context["rawtextfromPDF"]
-        with open(rawTextfileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
+        textCombined = self.loadPDF(self._context["inputFileName"])
+        with open(self._context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
         end = time.time()
-        msg = f"Read input document ({inputFileName}). Wrote raw text ({rawTextfileName}). Time: {(end-start):9.4f} seconds"
-        self.workerSnapshot(context, msg)
+
+        inputFileBaseName = str(Path(self._context['inputFileName']).name)
+        msg = f"Read input document {inputFileBaseName}. Time: {(end-start):9.4f} seconds"
+        self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
 
         start = time.time()
-        context["stage"] = "Preprocess raw text"
 
         allReportIssues = AllReportIssues()
         pattern = allReportIssues.pattern
         dictIssues = self.preprocessReportRawText(textCombined, pattern)
-        rawJSONFileName = context["rawJSON"]
+        rawJSONFileName = self._context["rawJSON"]
         with open(rawJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(json.dumps(dictIssues, indent=2))
         end = time.time()
-        msg = f"Preprocessed raw text ({rawTextfileName}). Found {len(dictIssues)} potential issues. Time: {(end-start):9.4f} seconds"
-        self.workerSnapshot(context, msg)
+
+        rawTextFromPDFBaseName = str(Path(self._context['rawtextfromPDF']).name)
+        msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictIssues)} potential issues. Time: {(end-start):9.4f} seconds"
+        self.workerSnapshot(msg)
 
         # ---------------stage fetch issues ---------------
 
         start = time.time()
-        context["stage"] = "Fetch Issues"
 
-        allReportIssues = self.parseAllIssues(inputFileName, dictIssues, context, ReportIssue)
-        outputJSONFileName = context["finalJSON"]
+        allReportIssues = self.parseAllIssues(self._context["inputFileName"], dictIssues, ReportIssue)
+        outputJSONFileName = self._context["finalJSON"]
         with open(outputJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(allReportIssues.model_dump_json(indent=2))
 
         end = time.time()
-        msg = f"Fetched {len(allReportIssues.issue_dict)} Wrote final JSON {outputJSONFileName}. {(end-start):9.4f} seconds"
-        self.workerSnapshot(context, msg)
+        finalJSONBaseName = str(Path(self._context['finalJSON']).name)
+        msg = f"Fetched {len(allReportIssues.issue_dict)}. Wrote final JSON {finalJSONBaseName}. {(end-start):9.4f} seconds"
+        self.workerSnapshot(msg)
 
         # ---------------stage vectorize --------------
 
         start = time.time()
-        context["stage"] = "vectorize"
 
-        self.vectorize(context, allReportIssues)
+        self.vectorize(allReportIssues)
 
         end = time.time()
         msg = f"Added {len(allReportIssues.issue_dict)} to vector collections ISSUES. {(end-start):9.4f} seconds"
-        self.workerSnapshot(context, msg)
+        self.workerSnapshot(msg)
 
 
         # ---------------stage completed ---------------
 
-        context["stage"] = "completed"
+        self._context["stage"] = "completed"
 
         totalEnd = time.time()
-        msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. LLM request tokens: {context["llmrequesttokens"]}. LLM response tokens: {context["llmresponsetokens"]}."
-        self.workerSnapshot(context, msg)
+        msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. LLM request tokens: {self._context["llmrequesttokens"]}. LLM response tokens: {self._context["llmresponsetokens"]}."
+        self.workerSnapshot(msg)

@@ -57,9 +57,8 @@ def status(request):
 
     if not request.session.session_key:
         request.session.create() 
-    logger = logging.getLogger(request.session.session_key)
-
-    statusFileName = "status." + request.session.session_key + ".json"
+    logger = logging.getLogger("indexer:" + request.session.session_key)
+    statusFileName = "status.indexer." + request.session.session_key + ".json"
     try:
         with open(statusFileName, "r") as jsonIn:
             statusContext = json.load(jsonIn)
@@ -122,7 +121,7 @@ def process(request):
     logger = logging.getLogger("indexer:" + request.session.session_key)
     logger.info(f"Process: Serving POST")
 
-    statusFileName = "status." + request.session.session_key + ".json"
+    statusFileName = "status.indexer." + request.session.session_key + ".json"
     boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
     if boolResult:
         try:
@@ -139,11 +138,13 @@ def process(request):
     logger.info(f"Serving POST {fileName}")
 
     context = {}
+    context['stage'] = "starting"
     context['session_key'] = request.session.session_key
     context['statusFileName'] = statusFileName
+    context["llmrequests"] = 0
     context['llmrequesttokens'] = 0
     context['llmresponsetokens'] = 0
-    context['llmProvider'] = "Ollama"
+    context['llmProvider'] = "Gemini"
     context['status'] = list()
     context['inputFileName'] = str(fileName)
     context['rawtextfromPDF'] = str(Path("indexer/input/" + request.POST['filename'] + ".raw.txt"))
@@ -151,8 +152,63 @@ def process(request):
     context['finalJSON'] = str(Path("indexer/input/" + request.POST['filename'] + ".json"))
 
     indexerWorkflow = IndexerWorkflow(context, logger)
+    msg = f"Starting indexer"
+    indexerWorkflow.workerSnapshot(msg)
+
     thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={})
     thread.start()
 
     return render(request, "indexer/process.html", context)
+
+
+# use this to display genAI pricing
+#   
+def results(request):
+    """
+    Target of HTTP GET from indexer/process.html.
+    Displays API costs.
+    
+    Args:
+        request
+
+    Returns:
+        render indexer/results.html
+
+    """
+
+    providers = [
+        { "provider" : "anthropic", "model": "claude-3-5-haiku-latest"  },
+        { "provider" : "aws", "model": "nova-pro-v1" },
+        { "provider" : "azure", "model": "gpt-4" },
+        { "provider" : "deepseek", "model": "deepseek-chat" },
+        { "provider" : "google", "model": "gemini-pro-1.5" },
+        { "provider" : "openai", "model": "gpt-4" },
+        { "provider" : "openrouter", "model": "gpt-4" },
+        { "provider" : "x-ai", "model": "grok-3" },
+        { "provider" : "x-ai", "model": "grok-4-0709" }
+    ]
+
+    context = {}
+    context["totalrequests"] = request.GET["totalrequests"]
+    context["totalrequesttokens"] = request.GET["totalrequesttokens"]
+    context["totalresponsetokens"] = request.GET["totalresponsetokens"]
+
+    context["llminfo"] = []
+    for providerInfo in providers:
+        price_data = genai_prices.calc_price(
+            genai_prices.Usage(input_tokens=int(context["totalrequesttokens"]), output_tokens=int(context["totalresponsetokens"])),
+            model_ref= providerInfo["model"],
+            provider_id = providerInfo["provider"]
+        )
+        item = {}
+        item["provider"] = providerInfo["provider"]
+        item["model"] = providerInfo["model"]
+        item["costusd"] = f"{price_data.total_price:.4f}"
+        audValue = float(price_data.total_price) * 1.53
+        item["costaud"] = f"{audValue:.4f}"
+
+        context["llminfo"].append(item)
+
+    return render(request, "indexer/results.html", context)
+
 

@@ -110,7 +110,7 @@ def process(request):
     logger = logging.getLogger("generator:" + request.session.session_key)
     logger.info(f"Process: Serving POST")
 
-    statusFileName = "status." + request.session.session_key + ".json"
+    statusFileName = "status.generator." + request.session.session_key + ".json"
     boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
     if boolResult:
         contextOld = json.loads(sessionInfoOrError)
@@ -139,6 +139,9 @@ def process(request):
     context["llmresponsetokens"] = 0
 
     generatorWorkflow = GeneratorWorkflow(context, logger)
+    msg = f"Starting generator"
+    generatorWorkflow.workerSnapshot(msg)
+
     thread = threading.Thread( target=generatorWorkflow.threadWorker, kwargs={})
     thread.start()
 
@@ -157,7 +160,7 @@ def results(request):
         request
 
     Returns:
-        render generator/process.html
+        render generator/results.html
 
     """
 
@@ -174,11 +177,6 @@ def results(request):
     ]
 
     context = {}
-    if not request.session.session_key:
-        request.session.create() 
-    logger = logging.getLogger(request.session.session_key)
-    logger.info(f"Results: Serving GET")
-
     context["totalrequests"] = request.GET["totalrequests"]
     context["totalrequesttokens"] = request.GET["totalrequesttokens"]
     context["totalresponsetokens"] = request.GET["totalresponsetokens"]

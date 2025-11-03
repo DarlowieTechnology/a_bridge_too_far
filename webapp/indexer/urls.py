@@ -6,8 +6,10 @@ app_name = "indexer"
 urlpatterns = [
     # ex: /indexer/
     path("", views.index, name="index"),
-    # ex: /generator/status/
+    # ex: /indexer/status/
     path("status/", views.status, name="status"),
+    # ex: /indexer/results/
+    path("results/", views.results, name="results"),
     # ex: /indexer/process/
     path("process/", views.process, name="process"),
 ]

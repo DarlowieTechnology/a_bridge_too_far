@@ -10,7 +10,7 @@ import re
 import time
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ValidationError
 import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
@@ -29,9 +29,8 @@ from langchain_community.document_loaders.pdf import PyPDFLoader
 
 
 # local
-from common import ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile
+from common import RecordCollection
 from workflowbase import WorkflowBase 
-
 
 class IndexerWorkflow(WorkflowBase):
 
@@ -44,19 +43,18 @@ class IndexerWorkflow(WorkflowBase):
         super().__init__(context, logger)
 
 
-    def preprocessReportRawText(self, rawText : str, pattern: str ) -> dict[str, str] :
+    def preprocessReportRawText(self, rawText : str) -> dict[str, str] :
         """
         Split raw text into pages using separator. An example of expected format of separator is `SR-102-116`. 
         
         Args:
             rawText (str) - Text to parse
-            pattern (str) - re pattern for separation of pages
         
         Returns:
             dict of pages with unique key derived from separator
         """
 
-        compiledPattern = re.compile(pattern)
+        compiledPattern = re.compile(self._context["issuePattern"])
         start = -1
         end = -1
         dictIssues = {}
@@ -67,11 +65,13 @@ class IndexerWorkflow(WorkflowBase):
             end = match.start()
             if start > 0 and end > 0:
                 # insert previous page with unique key
-                key = prevMatch.group(0)
+                key = prevMatch.group(1)
                 if key in dictIssues:
-                    key = key + str(uniqIdx)
-                    uniqIdx += 1
-                dictIssues[key] = rawText[start:end]
+                    if key:
+                        key = key + str(uniqIdx)
+                        uniqIdx += 1
+                if key:
+                    dictIssues[key] = rawText[start:end]
                 
             start = match.start()
             prevMatch = match
@@ -95,8 +95,8 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         systemPrompt = f"""
-        The prompt contains an issue. Here is the JSON schema for the ReportIssue model you must use as context for what information is expected:
-        {json.dumps(ReportIssue.model_json_schema(), indent=2)}
+        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
+        {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
         """
         prompt = f"{docs}"
 
@@ -106,20 +106,26 @@ class IndexerWorkflow(WorkflowBase):
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
                     system_prompt = systemPrompt,
-                    retries=5,
-                    output_retries=5)
+                    retries=3,
+                    output_retries=3)
         try:
             result = agent.run_sync(prompt)
+
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
             for attr in oneIssue.__dict__:
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
+                if oneIssue.__dict__[attr]:
+                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
+                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
             runUsage = result.usage()
-    #        DebugUtils.logPydanticObject(oneIssue, "Issue")
-    #        self._logger.info(runUsage)
+
+
             return oneIssue, runUsage
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            self._logger.info(f"Exception: pydantic_ai.exceptions.UnexpectedModelBehavior")
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerError(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerError(msg)
         return None, None
 
 
@@ -143,25 +149,44 @@ class IndexerWorkflow(WorkflowBase):
         )
 
         systemPrompt = f"""
-        The prompt contains an issue. Here is the JSON schema for the ReportIssue model you must use as context for what information is expected:
-        {json.dumps(ReportIssue.model_json_schema(), indent=2)}
+        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
+        {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
         """
         userPrompt = f"{docs}"
 
+        try:
+            completion = openAIClient.beta.chat.completions.parse(
+#                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
+                temperature=0.0,
+                messages=[
+                    {"role": "system", "content": systemPrompt},
+                    {"role": "user", "content": userPrompt},
+                ],
+                response_format=ClassTemplate,
+            )
+            oneIssue = completion.choices[0].message.parsed
+            if not oneIssue:
+                msg = f"Gemini API error"
+                self.workerError(msg)
+                return None, None
+            
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            return None, None
 
-        completion = openAIClient.beta.chat.completions.parse(
-            model="gemini-2.0-flash",
-            messages=[
-                {"role": "system", "content": systemPrompt},
-                {"role": "user", "content": userPrompt},
-            ],
-            response_format=ClassTemplate,
-        )
-
-        oneIssue = completion.choices[0].message.parsed
         for attr in oneIssue.__dict__:
-            oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-            oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
+            if oneIssue.__dict__[attr]:
+                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
+                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
+        
+        try:
+            oneIssue = ClassTemplate.model_validate_json(oneIssue.model_dump_json())
+        except ValidationError as e:
+            msg = "Exception: {e}"
+            self.workerSnapshot(msg)
+            return None, None
 
         # map Open AI usage to Pydantic usage            
         usage = Usage()
@@ -197,7 +222,7 @@ class IndexerWorkflow(WorkflowBase):
                 messages=[
                     {
                         "role": "system",
-                        "content": f"The prompt contains text. Here is the JSON schema for the ReportIssue model you must use as context for what information is expected: {schema}"
+                        "content": f"The prompt contains text. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected: {schema}"
                     },
                     {
                         "role": "user",
@@ -206,10 +231,17 @@ class IndexerWorkflow(WorkflowBase):
                 ],
                 response_format = ClassTemplate
             )
-            oneIssue = ClassTemplate.model_validate_json(res.choices[0].message.content)
+            try:
+                oneIssue = ClassTemplate.model_validate_json(res.choices[0].message.content)
+            except Exception as e:
+                msg = f"Mistral API error: {e}"
+                self.workerError(msg)
+                return None, None
+
             for attr in oneIssue.__dict__:
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
+                if oneIssue.__dict__[attr]:
+                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
+                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
 
             # map Open AI usage to Pydantic usage            
             usage = Usage()
@@ -219,41 +251,43 @@ class IndexerWorkflow(WorkflowBase):
 
             return oneIssue, usage
 
+        msg = f"Mistral API error"
+        self.workerError(msg)
         return None, None
 
-    def parseAllIssues(
-            self,
-            inputFileName : str, 
-            dictText: dict[str,str], 
-            ClassTemplate : BaseModel) -> AllReportIssues :
+    def parseAllIssues(self, inputFileName : str, dictText: dict[str,str], ClassTemplate : BaseModel) -> RecordCollection :
         """
         Extracts ClassTemplate instances in the dict of pages using LLM. ClassTemplate is based on Pydantic BaseModel.
         
         Args:
             inputFileName (str) - original file name
             dictText (dict[str,str]) - dict of pages
-            ClassTemplate (BaseModel) - description of structured data
+            ClassTemplate (BaseModel) - issue template
 
         Returns:
-            Instance of AllReportIssues
+            RecordCollection with keys from input dict
         """
 
-        allIssues = AllReportIssues(name = inputFileName, issue_dict = {})
+        recordCollection = RecordCollection(finding_dict = {})
 
         for key in dictText:
             startOneIssue = time.time()
 
             if self._context["llmProvider"] == "Ollama":
-                oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)    
+                oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Gemini":
-                time.sleep(10)
-                oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)    
+                time.sleep(15)
+                oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Mistral":
                 oneIssue, usageStats = self.parseIssueMistral(dictText[key], ClassTemplate)
-            allIssues.issue_dict[key] = oneIssue
+            if not oneIssue:
+                continue
+
+            recordCollection[key] = oneIssue
+
             endOneIssue = time.time()
             if usageStats:
-                msg = f"Fetched issue {key}. {usageStats.requests} LLM requests. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"Fetched issue {key}. {usageStats.requests} request(s). {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
                 self._context["llmrequests"] += 1
                 self._context["llmrequesttokens"] += usageStats.request_tokens
                 self._context["llmresponsetokens"] += usageStats.response_tokens
@@ -261,7 +295,8 @@ class IndexerWorkflow(WorkflowBase):
                 msg = f"Fetched issue {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
             self.workerSnapshot(msg)
 
-        return allIssues
+        return recordCollection
+
 
     def loadPDF(self, inputFile : str) -> str :
         """
@@ -271,7 +306,7 @@ class IndexerWorkflow(WorkflowBase):
             inputFile (str) - PDF file name
 
         Returns:
-            str
+            str - combined text with pages separated by \n
         """
 
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
@@ -282,15 +317,18 @@ class IndexerWorkflow(WorkflowBase):
             textCombined += "\n" + page.page_content
         return textCombined
 
-    def vectorize(self, allIssues : AllReportIssues) :
+
+    def vectorize(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
         """
         Add all structured records to vector database
         
         Args:
-            allIssues (AllReportIssues) - list of issues
+            allItems (RecordCollection) - all items
+            ClassTemplate (BaseModel) - issue template
 
         Returns:
-            None
+            accepted (int) - number of records accepted to database
+            rejected (int) - number of records rejected from database
         """
         try:
             chromaClient = chromadb.PersistentClient(
@@ -302,7 +340,7 @@ class IndexerWorkflow(WorkflowBase):
         except Exception as e:
             msg = f"Error: OpenAI API exception: {e}"
             self.workerError(msg)
-            return
+            return 0, 0
         
         ef = OllamaEmbeddingFunction(
             model_name=self._config["rag_embed_llm"],
@@ -315,7 +353,7 @@ class IndexerWorkflow(WorkflowBase):
                 name=collectionName,
                 embedding_function=ef
             )
-            msg = f"Opened collections REPORTISSUES with {chromaReportIssues.count()} documents."
+            msg = f"Opened vector collections with {chromaReportIssues.count()} documents."
             self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             try:
@@ -324,58 +362,55 @@ class IndexerWorkflow(WorkflowBase):
                     embedding_function=ef,
                     metadata={ "hnsw:space": self._config["rag_hnsw_space"]  }
                 )
-                msg = f"Created collection REPORTISSUES"
+                msg = f"Created vector collection"
                 self.workerSnapshot(msg)
             except Exception as e:
-                msg = f"Error: exception creating collection REPORTISSUES: {e}"
+                msg = f"Error: exception creating vector collection: {e}"
                 self.workerError(msg)
-                return
+                return 0, 0
 
         except Exception as e:
-            msg = f"Error: exception opening collection REPORTISSUES: {e}"
+            msg = f"Error: exception opening vector collection: {e}"
             self.workerError(msg)
-            return
+            return 0, 0
 
         ids : list[str] = []
         docs : list[str] = []
         docMetadata : list[str] = []
         embeddings = []
+        accepted = 0
+        rejected = 0
 
-        for key in allIssues.issue_dict:
-            reportIssue = allIssues.issue_dict[key]
-    #        self._logger.info(f"New record: {reportIssue.model_dump_json(indent=2)}")
-            recordHash = hash(reportIssue)
-    #        self._logger.info(f"New hash: {recordHash}")
+        for key in recordCollection.finding_dict:
+            reportItem = ClassTemplate.model_validate(recordCollection[key])
+            recordHash = hash(reportItem)
             uniqueId = key
             queryResult = chromaReportIssues.get(ids=[uniqueId])
             if (len(queryResult["ids"])) :
 
-                msg = f"Record found in database {reportIssue.identifier}"
-                self.workerSnapshot(msg)
-
                 existingRecordJSON = json.loads(queryResult["documents"][0])
-                existingRecord = ReportIssue.model_validate(existingRecordJSON)
-    #            self._logger.info(f"Existing record: {existingRecord.model_dump_json(indent=2)}")
+                existingRecord = ClassTemplate.model_validate(existingRecordJSON)
                 existingHash = hash(existingRecord)
-    #            self._logger.info(f"Existing hash: {existingHash}")
 
                 if recordHash == existingHash:
-                    msg = f"Record hash match for {reportIssue.identifier} - skipping"
+                    rejected += 1
+                    msg = f"Existing vector hash matches for {reportItem.identifier} - skipping"
                     self.workerSnapshot(msg)
                     continue
                 else:
-                    msg = f"Record hash different for {reportIssue.identifier}"
+                    accepted += 1
+                    msg = f"Existing vector hash is different for {reportItem.identifier} - replacing"
                     self.workerSnapshot(msg)
                     chromaReportIssues.delete(ids=[uniqueId])
-                    msg = f"Deleted record {reportIssue.identifier}"
-                    self.workerSnapshot(msg)
+            else:
+                accepted += 1
+                msg = f"No vector found for {reportItem.identifier} - adding"
+                self.workerSnapshot(msg)
 
             ids.append(uniqueId)
-            docs.append(reportIssue.model_dump_json())
+            docs.append(reportItem.model_dump_json())
             docMetadata.append({ "docName" : recordHash } )
-            embeddings.append(ef([reportIssue.description])[0])
-            msg = f"Record added in database {reportIssue.identifier}."
-            self.workerSnapshot(msg)
+            embeddings.append(ef([reportItem.description])[0])
 
         if len(ids):
             chromaReportIssues.add(
@@ -385,78 +420,99 @@ class IndexerWorkflow(WorkflowBase):
                 metadatas=docMetadata
             )
 
+        return accepted, rejected
 
 
-    def threadWorker(self):
+    def threadWorker(self, issueTemplate : BaseModel):
         """
         Workflow to read, parse, vectorize records
         
         Args:
-            None
-
+            issueTemplate (BaseModel) - issue template
+        
         Returns:
             None
         """
 
         # ---------------stage readpdf ---------------
 
-        start = time.time()
-        totalStart = start
+        startTime = time.time()
+        totalStart = startTime
+        self._context["stage"] = "reading document"
+        self.workerSnapshot(None)
 
         textCombined = self.loadPDF(self._context["inputFileName"])
         with open(self._context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
-        end = time.time()
+        endTime = time.time()
 
         inputFileBaseName = str(Path(self._context['inputFileName']).name)
-        msg = f"Read input document {inputFileBaseName}. Time: {(end-start):9.4f} seconds"
+        msg = f"Read input document {inputFileBaseName}. Time: {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
 
-        start = time.time()
+        startTime = time.time()
+        self._context["stage"] = "pre-processing document"
+        self.workerSnapshot(None)
 
-        allReportIssues = AllReportIssues()
-        pattern = allReportIssues.pattern
-        dictIssues = self.preprocessReportRawText(textCombined, pattern)
+        dictRawIssues = self.preprocessReportRawText(textCombined)
         rawJSONFileName = self._context["rawJSON"]
         with open(rawJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(json.dumps(dictIssues, indent=2))
-        end = time.time()
+            jsonOut.writelines(json.dumps(dictRawIssues, indent=2))
+        endTime = time.time()
 
         rawTextFromPDFBaseName = str(Path(self._context['rawtextfromPDF']).name)
-        msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictIssues)} potential issues. Time: {(end-start):9.4f} seconds"
+        msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage fetch issues ---------------
 
-        start = time.time()
+        startTime = time.time()
+        self._context["stage"] = "fetching issues"
+        self.workerSnapshot(None)
 
-        allReportIssues = self.parseAllIssues(self._context["inputFileName"], dictIssues, ReportIssue)
-        outputJSONFileName = self._context["finalJSON"]
-        with open(outputJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(allReportIssues.model_dump_json(indent=2))
+        recordCollection = self.parseAllIssues(self._context["inputFileName"], dictRawIssues, issueTemplate)
 
-        end = time.time()
+        # ignore error state coming from item parser
+        #if self._context["stage"] == "error":
+        #    return
+
+        with open(self._context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
+            jsonOut.writelines('{\n"finding_dict": {\n')
+            idx = 0
+            for key in recordCollection.finding_dict:
+                jsonOut.writelines(f'"{key}" : ')
+                jsonOut.writelines(recordCollection.finding_dict[key].model_dump_json(indent=2))
+                idx += 1
+                if (idx < len(recordCollection.finding_dict)):
+                    jsonOut.writelines(',\n')
+            jsonOut.writelines('}\n}\n')
+
+        endTime = time.time()
+
         finalJSONBaseName = str(Path(self._context['finalJSON']).name)
-        msg = f"Fetched {len(allReportIssues.issue_dict)}. Wrote final JSON {finalJSONBaseName}. {(end-start):9.4f} seconds"
+        msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage vectorize --------------
 
-        start = time.time()
+        startTime = time.time()
+        self._context["stage"] = "vectorizing"
+        self.workerSnapshot(None)
 
-        self.vectorize(allReportIssues)
+        accepted, rejected = self.vectorize(recordCollection, issueTemplate)
+        if self._context["stage"] == "error":
+            return
 
-        end = time.time()
-        msg = f"Added {len(allReportIssues.issue_dict)} to vector collections ISSUES. {(end-start):9.4f} seconds"
+        endTime = time.time()
+        msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
         self.workerSnapshot(msg)
-
 
         # ---------------stage completed ---------------
 
         self._context["stage"] = "completed"
 
         totalEnd = time.time()
-        msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. LLM request tokens: {self._context["llmrequesttokens"]}. LLM response tokens: {self._context["llmresponsetokens"]}."
+        msg = f"Processing completed. {self._context["llmrequests"]} requests. {self._context["llmrequesttokens"]} request tokens. {self._context["llmresponsetokens"]} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
         self.workerSnapshot(msg)

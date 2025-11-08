@@ -95,7 +95,18 @@ class AllEmployers(BaseModel):
     """represents all employers"""
     employer_list: list[OneEmployer] = Field(..., description="list of employers")
 
+class OneResultWithType(BaseModel):
+    """one result from RAG with expected data type name and data"""
+    data: str = Field(..., description="Data from RAG document field")
+    parser_typename: str = Field(..., description="Type name from RAG metadata field")
 
+    def __hash__(self):
+        return hash((self.data, self.parser_typename))
+
+
+class ResultWithTypeList(BaseModel):
+    """represents result list from LLM call"""
+    results_list: list[OneResultWithType] = Field(..., description="list of results")
 
 
 class ConfigSingleton(object):

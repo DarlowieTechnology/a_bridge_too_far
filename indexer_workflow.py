@@ -46,6 +46,9 @@ class IndexerWorkflow(WorkflowBase):
     def preprocessReportRawText(self, rawText : str) -> dict[str, str] :
         """
         Split raw text into pages using separator. An example of expected format of separator is `SR-102-116`. 
+        Regexp pattern contains two OR match groups: group one is an issue identifier, group two is the issue section terminator.
+        If group one match, this is a start of the issue
+        Ff group two match, processing is terminated.
         
         Args:
             rawText (str) - Text to parse
@@ -66,17 +69,25 @@ class IndexerWorkflow(WorkflowBase):
             if start > 0 and end > 0:
                 # insert previous page with unique key
                 key = prevMatch.group(1)
+
                 if key in dictIssues:
                     if key:
                         key = key + str(uniqIdx)
                         uniqIdx += 1
                 if key:
                     dictIssues[key] = rawText[start:end]
-                
+            
+            if match.group(2):
+                # current match is terminator
+                break
+
             start = match.start()
             prevMatch = match
 
-        # process last issue
+        # process last match only if it is not a terminator 
+        if match.group(2):
+            return dictIssues    
+
         end = len(rawText)
         dictIssues[prevMatch.group(0)] = rawText[start:end]
         return dictIssues
@@ -148,20 +159,13 @@ class IndexerWorkflow(WorkflowBase):
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
 
-        systemPrompt = f"""
-        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
-        {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
-        """
-        userPrompt = f"{docs}"
-
         try:
             completion = openAIClient.beta.chat.completions.parse(
-#                model="gemini-2.0-flash",
-                model="gemini-2.5-flash",
+                model = self._context["llmGeminiVersion"],
                 temperature=0.0,
                 messages=[
-                    {"role": "system", "content": systemPrompt},
-                    {"role": "user", "content": userPrompt},
+                    {"role": "system", "content": f"JSON schema for the ClassTemplate model you must use as context for what information is expected:  {json.dumps(ClassTemplate.model_json_schema(), indent=2)}"},
+                    {"role": "user", "content": f"{docs}"},
                 ],
                 response_format=ClassTemplate,
             )
@@ -276,7 +280,7 @@ class IndexerWorkflow(WorkflowBase):
             if self._context["llmProvider"] == "Ollama":
                 oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Gemini":
-                time.sleep(15)
+                time.sleep(2)
                 oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Mistral":
                 oneIssue, usageStats = self.parseIssueMistral(dictText[key], ClassTemplate)
@@ -383,6 +387,7 @@ class IndexerWorkflow(WorkflowBase):
 
         for key in recordCollection.finding_dict:
             reportItem = ClassTemplate.model_validate(recordCollection[key])
+
             recordHash = hash(reportItem)
             uniqueId = key
             queryResult = chromaReportIssues.get(ids=[uniqueId])
@@ -407,10 +412,11 @@ class IndexerWorkflow(WorkflowBase):
                 msg = f"No vector found for {reportItem.identifier} - adding"
                 self.workerSnapshot(msg)
 
+            vectorSource = reportItem.model_dump_json()
             ids.append(uniqueId)
-            docs.append(reportItem.model_dump_json())
-            docMetadata.append({ "docName" : recordHash } )
-            embeddings.append(ef([reportItem.description])[0])
+            docs.append(vectorSource)
+            docMetadata.append({ "recordType" : type(reportItem).__name__ } )
+            embeddings.append(ef([vectorSource])[0])
 
         if len(ids):
             chromaReportIssues.add(

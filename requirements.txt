@@ -26,6 +26,7 @@ accelerate
 einops
 pydantic
 pydantic_ai
+pydantic-ai-slim[google]
 pydantic[email]
 python-dotenv
 genai-prices

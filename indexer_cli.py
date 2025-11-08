@@ -17,7 +17,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 # local
 from common import ConfigSingleton, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
-from parserClasses import ReportIssue, ReportFinding, CDReportIssue
+from parserClasses import ParserClassFactory
 
 
 def loadPDF(context, indexerWorkflow) :
@@ -107,24 +107,14 @@ def testRun(context : dict, issueTemplate: BaseModel) :
     
     if not testLock(context, logger) : 
         return
-    loadPDF(context, indexerWorkflow)
-    preprocess(context, indexerWorkflow)
-    parseIssues(context, indexerWorkflow, issueTemplate)
+#    loadPDF(context, indexerWorkflow)
+#    preprocess(context, indexerWorkflow)
+#    parseIssues(context, indexerWorkflow, issueTemplate)
     vectorize(context, indexerWorkflow, issueTemplate)
 
     context["stage"] = "completed"
     msg = f"Processing completed."
     indexerWorkflow.workerSnapshot(msg)
-
-
-def templateFactory(class_name) -> BaseModel :
-    classes = {
-        "ReportFinding": ReportFinding,
-        "ReportIssue": ReportIssue,
-        "CDReportIssue" : CDReportIssue
-    }
-    return classes[class_name]
-
 
 
 
@@ -133,30 +123,56 @@ def main():
     context = {}
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
-    context["inputFileName"] = "webapp/indexer/input/Firewall Review.pdf"
+    context["inputFileName"] = "webapp/indexer/input/Wikimedia.pdf"
     context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
     context["rawJSON"] = context["inputFileName"] + ".raw.json"
     context["finalJSON"] = context["inputFileName"] + ".json"
     context["llmProvider"] = "Gemini"
+#    context["llmGeminiVersion"] = "gemini-2.0-flash"
+#    context["llmGeminiVersion"] = "gemini-2.5-flash"
+    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
     context['status'] = []
 
+    fileList = [
+        "Architecture Review - Threat Model Report.pdf",
+#        "AWS_Review.pdf",
+#        "CD_and_DevOps Review.pdf",
+#        "Database Review.pdf",
+#        "Firewall Review.pdf",
+#        "phpMyAdmin.pdf",
+#        "PHP_Code_Review.pdf",
+#        "Refinery-CMS.pdf",
+#        "WASPT_Report.pdf",
+#        "Web App and Ext Infrastructure Report .pdf",
+#        "Wikimedia.pdf",
+#        "Web App and Infrastructure and Mobile Report.pdf"
+    ]
+
     # read template description
     with open("webapp/indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    context["issuePattern"] = None
-    context["issueTemplate"] = None
-    inputFileBaseName = str(Path(context["inputFileName"]).name)
-    if inputFileBaseName in dictDocuments:
-        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+    for fileName in fileList:
+        context["inputFileName"] = "webapp/indexer/input/" + fileName
+        context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+        context["rawJSON"] = context["inputFileName"] + ".raw.json"
+        context["finalJSON"] = context["inputFileName"] + ".json"
+        context["issuePattern"] = None
+        context["issueTemplate"] = None
+        inputFileBaseName = str(Path(context["inputFileName"]).name)
+        if inputFileBaseName in dictDocuments:
+            context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+            context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+        else:
+            print(f"ERROR: no definition for document {inputFileBaseName}")
+            return
+        issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
+        testRun(context=context, issueTemplate=issueTemplate)
 
-    issueTemplate = templateFactory(context["issueTemplate"])
-
-    testRun(context=context, issueTemplate=issueTemplate)
     return
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)

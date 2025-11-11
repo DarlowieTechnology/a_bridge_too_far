@@ -6,6 +6,8 @@ django-multiselectfield
 elevenlabs
 fastembed
 jinja2
+jira
+jiraone
 instructor
 keyboard
 langchain

@@ -10,7 +10,8 @@ class ParserClassFactory(BaseModel) :
             "ReportFinding": ReportFinding,
             "ReportIssue": ReportIssue,
             "IssueDescription" : IssueDescription,
-            "ISECIssue" : ISECIssue
+            "ISECIssue" : ISECIssue,
+            "JiraIssueRAG" : JiraIssueRAG
         }
         return classes[class_name]
 
@@ -180,3 +181,28 @@ class ISECIssue(BaseModel):
     
     def __hash__(self):
         return hash((self.title, self.vulnClass, self.severity, self.difficulty, self.identifier, self.targets, self.description, self.exploitScenario, self.shortTermSolution, self.longTermSolution))
+
+
+class JiraIssueRAG(BaseModel):
+    """represents data from Jira issue relevant to RAG
+    This record is not used in text comprehension, rather this is a minimized
+    internal Jira issue record. Actual Jira issue record is much larger and subject 
+    to change without notice. Actual records are exported from Jira using REST APIs
+    List of minimized records is created before vectorization
+    Note that the identifier field corresponds to Jira key field - a unique identifier
+    """
+    identifier: str = Field(..., description="Jira issue key") 
+    project_key: str = Field(..., description="Jira project key for the issue")
+    project_name: str = Field(..., description="Jira project name for the issue")
+    status_category_key: str = Field(..., description="Jira status key for the issue")
+    priority_name: str = Field(..., description="Jira priority name for the issue")
+    issue_updated: str = Field(..., description="Datetime of issue last update")
+    status_name: str = Field(..., description="Jira name of status of issue")
+    summary: str = Field(..., description="Issue summary")
+    progress: int = Field(..., description="Issue progress")
+    worklog: list[str] = Field(..., description="List of worklogs for issue")
+
+    def __hash__(self):
+        return hash((self.identifier, self.project_key, self.project_name, self.status_category_key, 
+                    self.priority_name, self.issue_updated, self.status_name,
+                    self.summary, self.progress, "|".join(self.worklog)))

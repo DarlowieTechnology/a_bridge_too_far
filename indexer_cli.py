@@ -4,15 +4,18 @@
 
 import sys
 import logging
+from logging import Logger
 import threading
 import json
+import re
 from pathlib import Path
 
 from typing import Any
 from typing import List
 
+from jira import JIRA
 
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field
 
 # local
 from common import ConfigSingleton, DebugUtils, OpenFile, RecordCollection
@@ -73,6 +76,13 @@ def vectorize(context, indexerWorkflow, issueTemplate):
     indexerWorkflow.workerSnapshot(msg)
 
 
+def jiraExport(indexerWorkflow, issueTemplate) -> bool:
+    exportedIssues = indexerWorkflow.jiraExport(issueTemplate)
+    msg = f"Exported {exportedIssues} Jira issues."
+    indexerWorkflow.workerSnapshot(msg)
+
+
+
 def testLock(context, logger) -> bool : 
     boolResult, sessionInfoOrError = OpenFile.open(context["statusFileName"], True)
     if boolResult:
@@ -88,8 +98,7 @@ def testLock(context, logger) -> bool :
     return True
 
 
-
-def testRun(context : dict, issueTemplate: BaseModel) :
+def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel) :
     """ 
     Test for indexer stages 
     
@@ -101,21 +110,21 @@ def testRun(context : dict, issueTemplate: BaseModel) :
     
     """
     
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger(context["session_key"])
-    indexerWorkflow = IndexerWorkflow(context, logger) 
-    
     if not testLock(context, logger) : 
         return
-#    loadPDF(context, indexerWorkflow)
-#    preprocess(context, indexerWorkflow)
-#    parseIssues(context, indexerWorkflow, issueTemplate)
-    vectorize(context, indexerWorkflow, issueTemplate)
+    
+    if context["JiraExport"]:
+        jiraExport(indexerWorkflow, issueTemplate)
+        vectorize(context, indexerWorkflow, issueTemplate)
+    else:
+#        loadPDF(context, indexerWorkflow)
+#        preprocess(context, indexerWorkflow)
+#        parseIssues(context, indexerWorkflow, issueTemplate)
+        vectorize(context, indexerWorkflow, issueTemplate)
 
     context["stage"] = "completed"
     msg = f"Processing completed."
     indexerWorkflow.workerSnapshot(msg)
-
 
 
 def main():
@@ -136,9 +145,14 @@ def main():
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
     context['status'] = []
+    context["issuePattern"] = None
+    context["issueTemplate"] = None
+    context["JiraExport"] = False
+
 
     fileList = [
-        "Architecture Review - Threat Model Report.pdf",
+        "jira:SCRUM",
+#        "Architecture Review - Threat Model Report.pdf",
 #        "AWS_Review.pdf",
 #        "CD_and_DevOps Review.pdf",
 #        "Database Review.pdf",
@@ -157,30 +171,37 @@ def main():
         dictDocuments = json.load(JsonIn)
 
     for fileName in fileList:
-        context["inputFileName"] = "webapp/indexer/input/" + fileName
-        context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-        context["rawJSON"] = context["inputFileName"] + ".raw.json"
-        context["finalJSON"] = context["inputFileName"] + ".json"
-        context["issuePattern"] = None
-        context["issueTemplate"] = None
-        inputFileBaseName = str(Path(context["inputFileName"]).name)
+        if re.match('jira:', fileName):
+            # Jira export processing
+            context["JiraExport"] = True
+            context["inputFileName"] = fileName[5:]
+            context["finalJSON"] = "webapp/indexer/input/" + fileName[5:] + ".json"
+            inputFileBaseName = fileName
+        else:
+            context["inputFileName"] = "webapp/indexer/input/" + fileName
+            context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+            context["rawJSON"] = context["inputFileName"] + ".raw.json"
+            context["finalJSON"] = context["inputFileName"] + ".json"
+            inputFileBaseName = str(Path(context["inputFileName"]).name)
+
         if inputFileBaseName in dictDocuments:
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
             context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
         else:
             print(f"ERROR: no definition for document {inputFileBaseName}")
             return
+        
         issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-        testRun(context=context, issueTemplate=issueTemplate)
 
-    return
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        logger = logging.getLogger(context["session_key"])
+        indexerWorkflow = IndexerWorkflow(context, logger)
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger(context["session_key"])
-    indexerWorkflow = IndexerWorkflow(context, logger)
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
-    thread.start()
-    thread.join()
+#        testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
+
+        thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
+        thread.start()
+        thread.join()
 
 
 if __name__ == "__main__":

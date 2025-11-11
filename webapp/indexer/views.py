@@ -20,6 +20,7 @@ import tomli
 import logging
 import json
 import sys
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -38,7 +39,7 @@ sys.path.append("../..")
 
 from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile
 from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, AllEmployers
-
+from parserClasses import ParserClassFactory
 from indexer_workflow import IndexerWorkflow
 
 
@@ -134,8 +135,9 @@ def process(request):
         except:
             logger.info(f"Process: Removing corrupt session file : {statusFileName}")
 
-    fileName = Path("indexer/input/" + request.POST['filename'])
-    logger.info(f"Serving POST {fileName}")
+    # read template description
+    with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
+        dictDocuments = json.load(JsonIn)
 
     context = {}
     context['stage'] = "starting"
@@ -145,19 +147,44 @@ def process(request):
     context['llmrequesttokens'] = 0
     context['llmresponsetokens'] = 0
     context['llmProvider'] = "Gemini"
-    context['status'] = list()
-    context['inputFileName'] = str(fileName)
-    context['rawtextfromPDF'] = str(Path("indexer/input/" + request.POST['filename'] + ".raw.txt"))
-    context['rawJSON'] =  str(Path("indexer/input/" + request.POST['filename'] + ".raw.json"))
-    context['finalJSON'] = str(Path("indexer/input/" + request.POST['filename'] + ".json"))
+#    context["llmGeminiVersion"] = "gemini-2.0-flash"
+#    context["llmGeminiVersion"] = "gemini-2.5-flash"
+    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+    context['status'] = []
+    context["issuePattern"] = None
+    context["issueTemplate"] = None
+    context["JiraExport"] = False
+
+    if re.match('jira:', request.POST['filename']):
+        # Jira export processing
+        context["JiraExport"] = True
+        context["inputFileName"] = request.POST['filename'][5:]
+        context["finalJSON"] = "indexer/input/" + request.POST['filename'][5:] + ".json"
+        inputFileBaseName = request.POST['filename']
+    else:
+        context["inputFileName"] = "indexer/input/" + request.POST['filename']
+        context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+        context["rawJSON"] = context["inputFileName"] + ".raw.json"
+        context["finalJSON"] = context["inputFileName"] + ".json"
+        inputFileBaseName = str(Path(context["inputFileName"]).name)
+
+    if inputFileBaseName in dictDocuments:
+        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+    else:
+        logger.error(f"ERROR: no definition for document {inputFileBaseName}")
+        return render(request, "indexer/process.html", context)
+
+    logger.info(f"Serving POST {inputFileBaseName}")
+
+    issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
 
     indexerWorkflow = IndexerWorkflow(context, logger)
     msg = f"Starting indexer"
     indexerWorkflow.workerSnapshot(msg)
 
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, kwargs={})
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
     thread.start()
-
     return render(request, "indexer/process.html", context)
 
 

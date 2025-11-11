@@ -22,6 +22,8 @@ from chromadb import Collection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
+from jira import JIRA
+
 from openai import OpenAI
 from mistralai import Mistral
 
@@ -156,7 +158,7 @@ class IndexerWorkflow(WorkflowBase):
 
         openAIClient = OpenAI(
             api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            base_url=self._config["gemini_base_url"]
         )
 
         try:
@@ -280,7 +282,7 @@ class IndexerWorkflow(WorkflowBase):
             if self._context["llmProvider"] == "Ollama":
                 oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Gemini":
-                time.sleep(2)
+                time.sleep(self._config["gemini_time_delay"])
                 oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
             if self._context["llmProvider"] == "Mistral":
                 oneIssue, usageStats = self.parseIssueMistral(dictText[key], ClassTemplate)
@@ -322,12 +324,66 @@ class IndexerWorkflow(WorkflowBase):
         return textCombined
 
 
+    def jiraExport(self, ClassTemplate : BaseModel) -> RecordCollection :
+        """
+        Export issues from Jira project
+        Transform to smaller records
+        Write as final JSON for vectorization
+
+        Args:
+            ClassTemplate (BaseModel) - issue template
+
+        Returns:
+            RecordCollection - all items
+        """
+        jira_server = self._config["jira_url"]
+        jira_user = self._config["Jira_user"]
+        jira_api_token = self._config["Jira_api_token"]
+
+        # Connect to Jira
+        try:
+            jira = JIRA(server=jira_server, basic_auth=(jira_user, jira_api_token))
+        except Exception as e:
+            msg = f"Jira API exception: {e}"
+            self.workerError(msg)
+            return 0
+        if not jira:
+            msg = f"Jira REST API connection error"
+            self.workerError(msg)
+            return 0
+
+        jql_query = f'project = {self._context["inputFileName"]}'
+        recordCollection = RecordCollection(finding_dict = {})
+
+        # Fetch issues from Jira
+        # default maxResults is 50, we need more than that
+        issues = jira.search_issues(jql_query, maxResults=self._config["jira_max_results"], json_result = True)
+        for val in issues["issues"]:
+            issueTemplate = ClassTemplate(
+                identifier = val["key"],
+                project_key = val["fields"]["project"]["key"],
+                project_name = val["fields"]["project"]["name"],
+                status_category_key = val["fields"]["statusCategory"]["key"],
+                priority_name = val["fields"]["priority"]["name"],
+                issue_updated = val["fields"]["updated"],
+                status_name = val["fields"]["status"]["name"],
+                summary = val["fields"]["summary"],
+                progress = val["fields"]["progress"]["progress"],
+                worklog = val["fields"]["worklog"]["worklogs"]
+            )
+            recordCollection.finding_dict[val["key"]] = issueTemplate
+
+        self.writeFinalJSON(recordCollection)
+
+        return recordCollection
+
+
     def vectorize(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
         """
         Add all structured records to vector database
         
         Args:
-            allItems (RecordCollection) - all items
+            recordCollection (RecordCollection) - all items
             ClassTemplate (BaseModel) - issue template
 
         Returns:
@@ -348,10 +404,13 @@ class IndexerWorkflow(WorkflowBase):
         
         ef = OllamaEmbeddingFunction(
             model_name=self._config["rag_embed_llm"],
-            url=self._config["rag_embed_url"]    
+            url=self._config["rag_embed_url"]
         )
 
-        collectionName = "reportissues"
+        if self._context["JiraExport"]:
+            collectionName = self._config["rag_indexer_jira"]
+        else:
+            collectionName = self._config["rag_indexer_reports"]
         try:
             chromaReportIssues = chromaClient.get_collection(
                 name=collectionName,
@@ -429,6 +488,30 @@ class IndexerWorkflow(WorkflowBase):
         return accepted, rejected
 
 
+    def writeFinalJSON(self, recordCollection : RecordCollection) :
+        """
+        Write final version of JSON as a result of LLM text comprehension.
+        This JSON can be vectorized
+        
+        Args:
+            recordCollection (RecordCollection) - all items
+            ClassTemplate (BaseModel) - issue template
+
+        Returns:
+            None
+        """
+        with open(self._context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
+            jsonOut.writelines('{\n"finding_dict": {\n')
+            idx = 0
+            for key in recordCollection.finding_dict:
+                jsonOut.writelines(f'"{key}" : ')
+                jsonOut.writelines(recordCollection.finding_dict[key].model_dump_json(indent=2))
+                idx += 1
+                if (idx < len(recordCollection.finding_dict)):
+                    jsonOut.writelines(',\n')
+            jsonOut.writelines('}\n}\n')
+
+
     def threadWorker(self, issueTemplate : BaseModel):
         """
         Workflow to read, parse, vectorize records
@@ -440,10 +523,28 @@ class IndexerWorkflow(WorkflowBase):
             None
         """
 
-        # ---------------stage readpdf ---------------
+        totalStart = time.time()
 
+
+        # ---------------stage Jira export
+        if self._context["JiraExport"]:
+
+            startTime = totalStart
+            self._context["stage"] = "vectorizing"
+
+            recordCollection = self.jiraExport(issueTemplate)
+            accepted, rejected = self.vectorize(recordCollection, issueTemplate)
+            if self._context["stage"] == "error":
+                return
+
+            endTime = time.time()
+            msg = f"Exported {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
+            self.workerSnapshot(msg)
+            return
+
+        # ---------------stage readpdf ---------------
         startTime = time.time()
-        totalStart = startTime
+
         self._context["stage"] = "reading document"
         self.workerSnapshot(None)
 
@@ -483,17 +584,7 @@ class IndexerWorkflow(WorkflowBase):
         # ignore error state coming from item parser
         #if self._context["stage"] == "error":
         #    return
-
-        with open(self._context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
-            jsonOut.writelines('{\n"finding_dict": {\n')
-            idx = 0
-            for key in recordCollection.finding_dict:
-                jsonOut.writelines(f'"{key}" : ')
-                jsonOut.writelines(recordCollection.finding_dict[key].model_dump_json(indent=2))
-                idx += 1
-                if (idx < len(recordCollection.finding_dict)):
-                    jsonOut.writelines(',\n')
-            jsonOut.writelines('}\n}\n')
+        self.writeFinalJSON(recordCollection)
 
         endTime = time.time()
 

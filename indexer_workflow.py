@@ -523,12 +523,10 @@ class IndexerWorkflow(WorkflowBase):
             None
         """
 
-        totalStart = time.time()
-
-
         # ---------------stage Jira export
         if self._context["JiraExport"]:
 
+            totalStart = time.time()
             startTime = totalStart
             self._context["stage"] = "vectorizing"
 
@@ -538,12 +536,20 @@ class IndexerWorkflow(WorkflowBase):
                 return
 
             endTime = time.time()
-            msg = f"Exported {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
+            msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
+            self.workerSnapshot(msg)
+
+            # ---------------stage completed ---------------
+
+            self._context["stage"] = "completed"
+            totalEnd = time.time()
+            msg = f"Processing completed. Total time {(totalEnd - totalStart):9.4f} seconds."
             self.workerSnapshot(msg)
             return
 
         # ---------------stage readpdf ---------------
-        startTime = time.time()
+        totalStart = time.time()
+        startTime = totalStart
 
         self._context["stage"] = "reading document"
         self.workerSnapshot(None)

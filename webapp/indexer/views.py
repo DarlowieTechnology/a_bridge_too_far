@@ -97,6 +97,7 @@ def index(request):
     data_folder = Path("indexer/input/")
     fileNames = list(data_folder.glob("*.pdf"))
     context["filelist"] = []
+    context["filelist"].append("jira:SCRUM")
     for item in fileNames:
         context["filelist"].append(str(item.name))
 

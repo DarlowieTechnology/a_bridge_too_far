@@ -27,8 +27,9 @@ from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # local
-from common import OneRecord, OneDesc, AllDesc, OneQueryResult, OneResultList, ConfigSingleton, DebugUtils, ReportIssue, AllReportIssues, OpenFile, OneEmployer, AllEmployers
+from common import OneRecord, OneDesc, AllDesc, OneQueryResult, OneResultList, ConfigSingleton, DebugUtils, OpenFile, OneEmployer, AllEmployers
 from workflowbase import WorkflowBase 
+from parserClasses import ParserClassFactory
 
 class GeneratorWorkflow(WorkflowBase):
 

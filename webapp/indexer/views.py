@@ -1,3 +1,4 @@
+
 from django.shortcuts import render
 from django.http import JsonResponse
 
@@ -77,14 +78,16 @@ def status(request):
 
 def index(request):
     """
-    Front page of web app with the form. 
-    Read file list and pass it to template.
+    Front page of indexer web app with the form. 
+    Open documents.json and show list of known data sources.
+    Accept chosen data source name.
+    Pass local context dict to renderer. IndexerWorkflow is not created yet.
     
     Args:
         request
 
     Returns:
-        render generator/index.html
+        render indexer/index.html
 
     """
     if not request.session.session_key:
@@ -92,16 +95,16 @@ def index(request):
     logger = logging.getLogger("indexer:" + request.session.session_key)
     logger.info(f"Starting session")
 
-    context = {}
+    localContext = {}
 
-    data_folder = Path("indexer/input/")
-    fileNames = list(data_folder.glob("*.pdf"))
-    context["filelist"] = []
-    context["filelist"].append("jira:SCRUM")
-    for item in fileNames:
-        context["filelist"].append(str(item.name))
+    # read and display known data sources
+    with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
+        dictDocuments = json.load(JsonIn)
 
-    return render(request, "indexer/index.html", context)
+    localContext["filelist"] = []
+    for fileName in dictDocuments:
+        localContext["filelist"].append(fileName)
+    return render(request, "indexer/index.html", localContext)
 
 
 def process(request):
@@ -113,7 +116,7 @@ def process(request):
         request
 
     Returns:
-        render generator/process.html
+        render indexer/process.html
 
     """
 
@@ -136,7 +139,7 @@ def process(request):
         except:
             logger.info(f"Process: Removing corrupt session file : {statusFileName}")
 
-    # read template description
+    # read known data sources
     with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 

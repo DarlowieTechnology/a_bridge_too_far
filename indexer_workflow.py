@@ -1,11 +1,10 @@
 #
-# workflow class used by Django app and command line
+# Indexer workflow class used by Django app and command line
 #
 import sys
 import logging
 from logging import Logger
 import json
-import tomli
 import re
 import time
 from pathlib import Path
@@ -458,8 +457,8 @@ class IndexerWorkflow(WorkflowBase):
 
                 if recordHash == existingHash:
                     rejected += 1
-                    msg = f"Existing vector hash matches for {reportItem.identifier} - skipping"
-                    self.workerSnapshot(msg)
+#                    msg = f"Existing vector hash matches for {reportItem.identifier} - skipping"
+#                    self.workerSnapshot(msg)
                     continue
                 else:
                     accepted += 1

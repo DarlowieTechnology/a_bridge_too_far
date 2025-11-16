@@ -109,12 +109,16 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
         None
     
     """
-    
+
     if not testLock(context, logger) : 
         return
-    
+
+    context["stage"] = "starting"
+    msg = f"Processing data source {context['inputFileName']}"
+    indexerWorkflow.workerSnapshot(msg)
+
     if context["JiraExport"]:
-        jiraExport(indexerWorkflow, issueTemplate)
+ #       jiraExport(indexerWorkflow, issueTemplate)
         vectorize(context, indexerWorkflow, issueTemplate)
     else:
 #        loadPDF(context, indexerWorkflow)
@@ -149,7 +153,11 @@ def main():
     context["issueTemplate"] = None
     context["JiraExport"] = False
 
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logger = logging.getLogger(context["session_key"])
 
+
+    # test list - only process data sources from this list
     fileList = [
         "jira:SCRUM",
 #        "Architecture Review - Threat Model Report.pdf",
@@ -170,38 +178,36 @@ def main():
     with open("webapp/indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    for fileName in fileList:
-        if re.match('jira:', fileName):
-            # Jira export processing
-            context["JiraExport"] = True
-            context["inputFileName"] = fileName[5:]
-            context["finalJSON"] = "webapp/indexer/input/" + fileName[5:] + ".json"
-            inputFileBaseName = fileName
-        else:
-            context["inputFileName"] = "webapp/indexer/input/" + fileName
-            context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-            context["rawJSON"] = context["inputFileName"] + ".raw.json"
-            context["finalJSON"] = context["inputFileName"] + ".json"
-            inputFileBaseName = str(Path(context["inputFileName"]).name)
+    # drive test with list of known data sources
+    for fileName in dictDocuments:
 
-        if inputFileBaseName in dictDocuments:
+        # filter by test list of names
+        if fileName in fileList:
+            if re.match('jira:', fileName):
+                # Jira export processing
+                context["JiraExport"] = True
+                context["inputFileName"] = fileName[5:]
+                context["finalJSON"] = "webapp/indexer/input/" + fileName[5:] + ".json"
+                inputFileBaseName = fileName
+            else:
+                context["inputFileName"] = "webapp/indexer/input/" + fileName
+                context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+                context["rawJSON"] = context["inputFileName"] + ".raw.json"
+                context["finalJSON"] = context["inputFileName"] + ".json"
+                inputFileBaseName = str(Path(context["inputFileName"]).name)
+
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
             context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-        else:
-            print(f"ERROR: no definition for document {inputFileBaseName}")
-            return
         
-        issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
+            issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
 
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-        logger = logging.getLogger(context["session_key"])
-        indexerWorkflow = IndexerWorkflow(context, logger)
+            indexerWorkflow = IndexerWorkflow(context, logger)
 
-#        testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
+            testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
 
-        thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
-        thread.start()
-        thread.join()
+#            thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
+#            thread.start()
+#            thread.join()
 
 
 if __name__ == "__main__":

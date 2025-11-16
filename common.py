@@ -139,6 +139,7 @@ class ConfigSingleton(object):
             self._conf['mistral_key'] = os.environ['mistral_key']
             self._conf["Jira_api_token"] = os.environ['Jira_api_token']
             self._conf["Jira_user"] = os.environ['Jira_user']
+            self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']            
 
     def __new__(cls):
         """ overwrite of __new__ to enforce one instance via class attribute 'instance' """

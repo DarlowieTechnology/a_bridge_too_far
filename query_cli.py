@@ -22,12 +22,10 @@ import pydantic_ai.exceptions
 from pydantic import BaseModel, Field
 from pydantic_ai.usage import Usage
 
-
 from openai import OpenAI
 
-
 # local
-from common import OneResultWithType, ResultWithTypeList
+from common import OpenFile
 from query_workflow import QueryWorkflow
 from parserClasses import ParserClassFactory
 
@@ -42,20 +40,14 @@ def testRun(context : dict, queryWorkflow : QueryWorkflow) :
     Returns:
         None
     """
-    
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger(context["session_key"])
 
     if not queryWorkflow.startup():
         return
 
-    if context["llmProvider"] == "ChatGPT":
-        queryWorkflow.agentPromptChatGPT()
     if context["llmProvider"] == "Gemini":
         queryWorkflow.agentPromptGemini()
-
-#    while queryWorkflow.prompt("Query or c to cancel:"):
-#        print("Continues")
+    if context["llmProvider"] == "Ollama":
+        queryWorkflow.agentPromptOllama()
 
     context["stage"] = "completed"
     msg = f"Processing completed."
@@ -69,17 +61,43 @@ def main():
 #    context["llmProvider"] = "ChatGPT"
 #    context["llmChatGPTVersion"] = "gpt-3.5-turbo"
     context["llmProvider"] = "Gemini"
-    context["llmGeminiVersion"] = "gemini-2.0-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash"
+#    context["llmGeminiVersion"] = "gemini-2.0-flash"
+    context["llmGeminiVersion"] = "gemini-2.5-flash"
 #    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+#    context["llmProvider"] = "Ollama"
+#    context["llmOllamaVersion"] = "llama3.1:latest"
+
 
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
     context['status'] = []
+    context['query'] = 'XSS'
+    context['cutIssueDistance'] = 0.40
+    context['bm25sCutOffScore'] = 0.0
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
     logger = logging.getLogger(context["session_key"])
+
+    # test list - perform bm25-sparse on data sources from this list
+    context["bm25sJSON"] = [
+        "webapp/indexer/input/Architecture Review - Threat Model Report.pdf.bm25s",
+        "webapp/indexer/input/AWS_Review.pdf.bm25s",
+        "webapp/indexer/input/CD_and_DevOps Review.pdf.bm25s",
+        "webapp/indexer/input/Database Review.pdf.bm25s",
+        "webapp/indexer/input/Firewall Review.pdf.bm25s",
+        "webapp/indexer/input/phpMyAdmin.pdf.bm25s",
+        "webapp/indexer/input/PHP_Code_Review.pdf.bm25s",
+        "webapp/indexer/input/Refinery-CMS.pdf.bm25s",
+        "webapp/indexer/input/WASPT_Report.pdf.bm25s",
+        "webapp/indexer/input/Web App and Ext Infrastructure Report.pdf.bm25s",
+        "webapp/indexer/input/Wikimedia.pdf.bm25s",
+        "webapp/indexer/input/Web App and Infrastructure and Mobile Report.pdf.bm25s"
+    ]
+
+    # check if workflow is already executed
+    if not QueryWorkflow.testLock("status.QUERY.json", logger) : 
+        return
 
     queryWorkflow = QueryWorkflow(context, logger) 
 
@@ -88,9 +106,6 @@ def main():
 #    thread = threading.Thread( target=queryWorkflow.threadWorker)
 #    thread.start()
 #    thread.join()
-
-
-
 
 if __name__ == "__main__":
     main()

@@ -45,6 +45,14 @@ def preprocess(context, indexerWorkflow):
     indexerWorkflow.workerSnapshot(msg)
 
 
+def bm25prepare(context, indexerWorkflow):
+    with open(context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
+        pagedText = json.load(jsonIn)
+    indexerWorkflow.bm25sProcessRawText(pagedText)
+    msg = f"Stored bm25s index in {context["bm25sJSON"]}."
+    indexerWorkflow.workerSnapshot(msg)
+
+
 def parseIssues(context, indexerWorkflow, issueTemplate):
     with open(context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
         dictIssues = json.load(jsonIn)
@@ -81,8 +89,6 @@ def jiraExport(indexerWorkflow, issueTemplate) -> bool:
     msg = f"Exported {exportedIssues} Jira issues."
     indexerWorkflow.workerSnapshot(msg)
 
-
-
 def testLock(context, logger) -> bool : 
     boolResult, sessionInfoOrError = OpenFile.open(context["statusFileName"], True)
     if boolResult:
@@ -118,13 +124,14 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
     indexerWorkflow.workerSnapshot(msg)
 
     if context["JiraExport"]:
- #       jiraExport(indexerWorkflow, issueTemplate)
+        jiraExport(indexerWorkflow, issueTemplate)
         vectorize(context, indexerWorkflow, issueTemplate)
     else:
 #        loadPDF(context, indexerWorkflow)
 #        preprocess(context, indexerWorkflow)
+        bm25prepare(context, indexerWorkflow)
 #        parseIssues(context, indexerWorkflow, issueTemplate)
-        vectorize(context, indexerWorkflow, issueTemplate)
+#        vectorize(context, indexerWorkflow, issueTemplate)
 
     context["stage"] = "completed"
     msg = f"Processing completed."
@@ -136,14 +143,10 @@ def main():
     context = {}
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
-    context["inputFileName"] = "webapp/indexer/input/Wikimedia.pdf"
-    context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-    context["rawJSON"] = context["inputFileName"] + ".raw.json"
-    context["finalJSON"] = context["inputFileName"] + ".json"
     context["llmProvider"] = "Gemini"
 #    context["llmGeminiVersion"] = "gemini-2.0-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash"
-    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+    context["llmGeminiVersion"] = "gemini-2.5-flash"
+#    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
 
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
@@ -159,7 +162,7 @@ def main():
 
     # test list - only process data sources from this list
     fileList = [
-        "jira:SCRUM",
+#        "jira:SCRUM",
 #        "Architecture Review - Threat Model Report.pdf",
 #        "AWS_Review.pdf",
 #        "CD_and_DevOps Review.pdf",
@@ -193,6 +196,9 @@ def main():
                 context["inputFileName"] = "webapp/indexer/input/" + fileName
                 context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
                 context["rawJSON"] = context["inputFileName"] + ".raw.json"
+                
+                # folder for bm25-sparse files
+                context["bm25sJSON"] = context["inputFileName"] + ".bm25s"
                 context["finalJSON"] = context["inputFileName"] + ".json"
                 inputFileBaseName = str(Path(context["inputFileName"]).name)
 

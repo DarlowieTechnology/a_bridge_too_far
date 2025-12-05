@@ -35,6 +35,7 @@ ALLOWED_HOSTS = ['.localhost', '127.0.0.1', '[::1]', '172.31.9.172', 'darlowiepo
 INSTALLED_APPS = [
     "indexer.apps.IndexerConfig",
     "generator.apps.GeneratorConfig",
+    "query.apps.QueryConfig",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

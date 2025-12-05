@@ -3,6 +3,8 @@
 #
 import json
 from logging import Logger
+from typing import List
+
 
 import chromadb
 from chromadb import Collection
@@ -12,16 +14,23 @@ from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 from pydantic import BaseModel
 import pydantic_ai
 from pydantic_ai import Agent
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.providers.google_gla import GoogleGLAProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import Usage
 
 from jira import JIRA
 from openai import OpenAI
 
+import Stemmer
+
+import bm25s
+
 
 # local
-from common import OneResultWithType, ResultWithTypeList
+from common import OneResultWithType, ResultWithTypeList, OneResultList
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
 
@@ -32,13 +41,32 @@ class QueryWorkflow(WorkflowBase):
     _chromaJiraItems: chromadb.Collection = None
 
 
+
     def __init__(self, context : dict, logger : Logger):
         """
         Args:
             context (dict)
             logger (Logger) - can originate in CLI or Django app
         """
+
         super().__init__(context, logger)
+
+        # TODO - ask LLM for synonyms
+        self._dictSynonyms = {
+            "XSS" : [
+                "Cross-Site Scripting Attack",
+                "cross-site scripting",
+                "Cross-Site Scripting (XSS)",
+                "HTML Injection",
+                "Client-Side Code Injection",
+                "JavaScript Injection",
+                "DOM-Based Injection",
+                "Reflected XSS",
+                "Stored XSS",
+                "DOM-Based XSS"
+            ]
+        }
+
 
     def startup(self) -> bool:
         try:
@@ -88,42 +116,45 @@ class QueryWorkflow(WorkflowBase):
         return True
     
 
-    def prompt(self, userPrompt : str) -> bool:
-        queryString = input(userPrompt)
-        if queryString == "c":
-            return False
-        
-        totals = set()
-        queryResult = self._chromaReportIssues.query(query_texts=[queryString], n_results=10)
-        print(json.dumps(queryResult, indent=2))
-        cutDist = 0.7
-        resultIdx = -1
-        for distFloat in queryResult["distances"][0] :
-            resultIdx += 1
-            docText = ""
-            if (queryResult["documents"]) :
-                docText = queryResult["documents"][0][resultIdx]
-
-            if (distFloat > cutDist) :
-                break
-
-            totals.add(docText)
-
-        if not len(totals) :
-            self._logger.info(f"Query {queryString} did not get matches less than {self._config['rag_distmatch']}")
-        else:
-            oneResultList = OneResultWithType(results_list=list(totals))
-            oneResultList.model_dump_json(indent = 2)
-
-        return True
-
     def agentPromptOllama(self):
 
-#        queryString = input(userPrompt)
-#        if queryString == "c":
-#            return False
+        query = self._context["query"]
+        msg = f"Query: {query}"
+        self.workerSnapshot(msg)
 
-        query = "XSS or Reflected"
+        systemPrompt = f"""
+        You are an expert in cyber security. Retrieve list of synonyms for a definition. Output just the result.
+        Here is the JSON schema for the OneResultList model you must use as context for what information is expected:
+        {json.dumps(OneResultList.model_json_schema(), indent=2)}
+        """
+
+        userPrompt = f"{query}"
+
+        ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
+                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+        agent = Agent(ollModel, 
+                    output_type=OneResultList,
+                    system_prompt = systemPrompt,
+                    retries=3,
+                    output_retries=3)
+
+        try:
+            result = agent.run_sync(userPrompt)
+            oneResultList = OneResultList.model_validate_json(result.output.model_dump_json())
+        except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
+            msg = f"extractExecSection: Skipping due to exception: {e}"
+            self.workerError(msg)
+            return None, None
+
+        self._logger.info(f"\n------{OneResultList}---------\n{oneResultList.model_dump_json(indent=2)}")
+        return
+
+
+
+
+
+
+
         oneResultList = self.getDBIssueMatch(query)
         IssueTemplate = ParserClassFactory.factory(oneResultList.results_list[0].parser_typename)
         oneIssue = IssueTemplate.model_validate_json(oneResultList.results_list[0].data)
@@ -141,7 +172,7 @@ class QueryWorkflow(WorkflowBase):
         userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
         print(f"======User prompt=======\n\n{userPrompt}")
 
-        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
+        ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
                             provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
         agent = Agent(ollModel,
                     system_prompt = systemPrompt)
@@ -154,58 +185,180 @@ class QueryWorkflow(WorkflowBase):
             self.workerError(msg)
             return
         
-    def agentPromptChatGPT(self):
-        systemPrompt = f"""
-        You are an expert in PCI DSS standard.
-        Explain why the vulnerability described in user prompt makes application non-compliant with PCI DSS requirements. 
-        List relevant PCI DSS requirements.
-        Limit output to one paragraph.
-        """
-
-        client = OpenAI()
-
-        # Call the Chat Completion endpoint
-        response = client.chat.completions.create(
-            model=self._context["llmChatGPTVersion"],
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Hello, how do I connect to ChatGPT with Python?"}
-            ]
-        )
-        # Print the output
-        print(response.choices[0].message.content)
-
 
     def agentPromptGemini(self):
+        """
+        Compile list of synonyms to query
+        Get RAG data for list of synonyms
+        Ask Gemini for final reply
+        """
 
-#        query = input("Enter query or c to cancel:")
-#        if query == "c":
-#            return False
+        geminiModel = GeminiModel(
+            model_name=self._context["llmGeminiVersion"], 
+            provider=GoogleGLAProvider(
+                api_key = self._config["gemini_key"]
+            ),
+            settings=ModelSettings(temperature = 0.0)
+        )
 
-        oneIssue = None
-        oneJiraItem = None
-        query = "Reflected Cross-Site Scripting"
+
+        # use HyDE (Hypothetical Document Embedding) approach
+        systemPrompt = f"""
+        Write a two sentence answer to the user prompt query
+        """
+
+        agentHyDE = Agent(geminiModel, system_prompt = systemPrompt)
+        userPrompt = f"{self._context["query"]}"
+        try:
+            result = agentHyDE.run_sync(userPrompt)
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            return None, None
+        print(f"Query:{self._context["query"]}")
+        print(f"\n------HyDE Gemini Reply---------\n{result.output}")
+
+        queryList = []
+        queryList.append(self._context["query"])
+        queryList.append(result.output)
+        oneResultList = self.getDBIssueMatch(queryList)
+        print(f"Found {len(oneResultList.results_list)} issue related to query list")
+        #print(f"'n---------------\n{oneResultList.model_dump_json(indent=2)}")
+
+
+        systemPrompt = f"""
+        Return subcategories of user prompt.
+        """
+
+        agentSynonyms = Agent(
+            geminiModel,
+            output_type=OneResultList,
+            system_prompt = systemPrompt,
+            retries=3,
+            output_retries=3)
+        userPrompt = f"{self._context["query"]}"
+        try:
+            result = agentSynonyms.run_sync(userPrompt)
+            synonymsResultList = OneResultList.model_validate_json(result.output.model_dump_json())
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            return None, None
+        
+        synonymsResultList.results_list.append(self._context["query"])
+#        print(f"\n------Expanded query list---------\n{synonymsResultList.model_dump_json(indent=2)}")
+#        query_tokens = bm25s.tokenize(synonymsResultList.results_list, stemmer=Stemmer.Stemmer("english"), return_ids=False)
+        query_tokens = bm25s.tokenize(synonymsResultList.results_list, return_ids=False)
+#        print("\n----Tokenised Expanded query list-----\n")
+#        print(f"{query_tokens}\n")
+
+        # for all data sources for bm25s
+        for folderName in self._context["bm25sJSON"]:
+            # read bm25s configuration for the document
+            with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
+                bm25sParams = json.load(jsonIn)
+            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
+            numDocs = bm25sParams["num_docs"]
+            results, scores = retriever.retrieve(query_tokens, k=numDocs)
+#            results, scores = retriever.retrieve(synonymsResultList.results_list, k=numDocs)
+
+#            print(f"bm25s in report {folderName}")
+
+            for i in range(results.shape[1]):
+                docN, score = results[0, i], scores[0, i]
+                outTitle = docN["text"].splitlines()[0]
+                if score > self._context["bm25sCutOffScore"]:
+                    print(f"Report {folderName}  Rank {i+1} (score: {score:.2f}): {outTitle}  ")
+ #                   print("===============")
+
+        return
+
+
+
+
+        synList = []
+        synList.append(self._context["query"])
+        synList = synList + self._dictSynonyms[self._context["query"]]
+        msg = f"Query: {synList}"
+        self.workerSnapshot(msg)
+
+        resultWithTypeList = ResultWithTypeList(results_list = [])
+        for query in synList:
+            oneResultList = self.getDBIssueMatch(query)
+            if len(oneResultList.results_list):
+                for item in oneResultList.results_list:
+                    recordHash = hash(item)
+                    toAdd = True
+                    for existingItem in resultWithTypeList.results_list:
+                        if recordHash == hash(existingItem):
+                            toAdd = False
+                            break
+                    if toAdd:
+                        resultWithTypeList.results_list.append(item)
+
+
+
+        msg = f"Found {len(resultWithTypeList.results_list)} issue related to query list"
+        self.workerSnapshot(msg)
+
+        IssueTemplate = None
+        for item in resultWithTypeList.results_list:
+            IssueTemplate = ParserClassFactory.factory(item.parser_typename)
+            oneIssue = IssueTemplate.model_validate_json(item.data)
+#            print(oneIssue.model_dump_json(indent=2))
+
+        systemPrompt = f"""
+        You are an expert in PCI DSS standard.
+        Explain why the vulnerability described in user prompt makes 
+        application non-compliant with PCI DSS requirements. 
+        List relevant PCI DSS requirements.
+        Limit output to one paragraph.
+        Here is the JSON schema for the vulnerability record:
+        {json.dumps(IssueTemplate.model_json_schema(), indent=2)}            
+        """
+
+        agent = Agent(
+            geminiModel,
+            output_type=OneResultList,
+            system_prompt = systemPrompt,
+            retries=3,
+            output_retries=3)
+
+        userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
+
+        try:
+            result = agent.run_sync(userPrompt)
+            oneIssue = OneResultList.model_validate_json(result.output.model_dump_json())
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            return None, None
+
+        print(f"\n------Gemini Reply---------\n{oneIssue.model_dump_json(indent=2)}")
+        return
+
+
+
+
+
+
         oneResultList = self.getDBIssueMatch(query)
         item = oneResultList.results_list[0]
         IssueTemplate = ParserClassFactory.factory(item.parser_typename)
         oneIssue = IssueTemplate.model_validate_json(item.data)
+
+        msg = f"Found issue related to query" 
+        self.workerSnapshot(msg)
 #        print(f"{oneIssue.model_dump_json(indent=2)}")
+
         oneJiraResultList = self.getDBJiraMatch(oneIssue)
         jiraItem = oneJiraResultList.results_list[0]
         JiraTemplate = ParserClassFactory.factory(jiraItem.parser_typename)
         oneJiraItem = JiraTemplate.model_validate_json(jiraItem.data)
 #        print(f"{oneJiraItem.model_dump_json(indent=2)}")
-
-        print(f"=========RAG Output=====\n\nIdentifier: {oneIssue.identifier}\nTitle:{oneIssue.title}\nRisk:{oneIssue.risk}\nAffects:{oneIssue.affects}")
-
-
-#        systemPrompt = f"""
-#            You are an expert in PCI DSS standard. 
-#            Describe PCI DSS Requirement 6.5.7 Cross-Side Scripting compliance requirements.
-#            Incorporate in the answer vulnerabilities descriptions from user prompt as an example of non-compliance.
-#            Here is the JSON schema for the vulnerability record:
-#            {json.dumps(IssueTemplate.model_json_schema(), indent=2)}            
-#            """
+#        print(f"=========RAG Output=====\n\nIdentifier: {oneIssue.identifier}\nTitle:{oneIssue.title}\nRisk:{oneIssue.risk}\nAffects:{oneIssue.affects}")
+        msg = f"Found jira ticket related to query" 
+        self.workerSnapshot(msg)
 
         systemPrompt = f"""
         You are an expert in PCI DSS standard.
@@ -221,13 +374,6 @@ class QueryWorkflow(WorkflowBase):
         userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
  
  #       print(f"======User prompt=======\n{userPrompt}\n==============")
-
-        api_key = self._config["gemini_key"]
-
-        openAIClient = OpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
 
         try:
             completion = openAIClient.beta.chat.completions.parse(
@@ -252,8 +398,8 @@ class QueryWorkflow(WorkflowBase):
         print(f"======Gemini Output=======\n\n{geminiResult}")
 
         if oneJiraItem.status_name == "To Do":
-            print("====Jira Item=====\nXSS is found by external test. Item is recorded in Jira as not fixed\n=======")
-
+            msg = f"Item is recorded in Jira as not fixed"
+            self.workerSnapshot(msg)
 
         # map Open AI usage to Pydantic usage            
         usage = Usage()
@@ -265,30 +411,42 @@ class QueryWorkflow(WorkflowBase):
 
 
 
-    def getDBIssueMatch(self, queryString : str) -> ResultWithTypeList :
+    def getDBIssueMatch(self, queryList : list[str]) -> ResultWithTypeList :
         """
         Query collection and select vectors within cut-off distance
         
         Args:
-            queryString (str) - query
+            queryList (list[str]) - query string list
 
         Returns:
             ResultWithTypeList
         """
 
         resultWithTypeList = ResultWithTypeList(results_list = [])
-        queryResult = self._chromaReportIssues.query(query_texts=[queryString], n_results=1000)
-        cutDist = 0.99
+        queryResult = self._chromaReportIssues.query(query_texts=queryList, n_results=1000)
+        cutDist = self._context['cutIssueDistance']
         resultIdx = -1
-        for distFloat in queryResult["distances"][0] :
+
+        for distFloat in queryResult["distances"][0]:
             resultIdx += 1
             if (distFloat > cutDist) :
                 break
+
+#            print("-------------------------")
+#            print(type(queryResult["documents"][0][resultIdx]))
+#            print(queryResult["documents"][0][resultIdx])
+#            print("-------------------------")
+#            print(type(queryResult["metadatas"][0][resultIdx]))
+#            print(queryResult["metadatas"][0][resultIdx])
+#            print("============================")
+
             # result from RAG table has typename attached as metadata
             oneResultWithType = OneResultWithType(
-                data = queryResult["documents"][0][0], 
-                parser_typename = queryResult["metadatas"][0][0]["recordType"]
+                data = queryResult["documents"][0][resultIdx], 
+                parser_typename = queryResult["metadatas"][0][resultIdx]["recordType"],
+                vector_dist = distFloat
             )
+
             recordHash = hash(oneResultWithType)
             toAdd = True
             for existingItem in resultWithTypeList.results_list:
@@ -298,10 +456,12 @@ class QueryWorkflow(WorkflowBase):
             if toAdd:
                 resultWithTypeList.results_list.append(oneResultWithType)
 
-        if not len(resultWithTypeList.results_list) :
-            msg = f"Query {queryString} did not get matches less than {cutDist}"
+        if len(resultWithTypeList.results_list) :
+            msg = f"Query {queryList} get {len(resultWithTypeList.results_list)} matches less than {cutDist}"
             self.workerError(msg)
-            return ResultWithTypeList(results_list = [])
+        else:
+            msg = f"Query {queryList} did not get matches less than {cutDist}"
+            self.workerError(msg)
         return resultWithTypeList
 
 
@@ -354,7 +514,7 @@ class QueryWorkflow(WorkflowBase):
 
     def threadWorker(self):
         """
-        Workflow to perform query. Workflow starts when query is received.
+        Workflow to perform query. 
         
         Args:
             None
@@ -364,8 +524,9 @@ class QueryWorkflow(WorkflowBase):
 
         """
 
-        self._context["stage"] = "startup"
         if not self.startup():
+            msg = f"ERROR: Cannot initialize RAG database"
+            self.workerError(msg)
             return
 
         if self._context["llmProvider"] == "Gemini":

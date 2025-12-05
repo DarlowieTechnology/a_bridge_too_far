@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block headcontent %}
+    <title>Query</title>
+{% endblock %} 
+
+
+{% block content %}
+
+    <h1>Query App</h1>
+
+    <form action="{% url 'query:process' %}" method="post">
+        {% csrf_token %}
+        <fieldset>
+            Query: <input id="query" type="text" size=100 name="query" value="" />
+        </fieldset>
+        <input type="submit" class="submitbutton" value="Process">
+    </form>
+
+{% endblock %} 

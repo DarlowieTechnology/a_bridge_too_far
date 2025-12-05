@@ -99,6 +99,7 @@ class OneResultWithType(BaseModel):
     """one result from RAG with expected data type name and data"""
     data: str = Field(..., description="Data from RAG document field")
     parser_typename: str = Field(..., description="Type name from RAG metadata field")
+    vector_dist: float = Field(..., description="Vector distance")
 
     def __hash__(self):
         return hash((self.data, self.parser_typename))

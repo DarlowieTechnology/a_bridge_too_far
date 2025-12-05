@@ -1,4 +1,4 @@
-tomli
+bm25s
 dataclasses
 chromadb
 django
@@ -18,9 +18,13 @@ langchain_openai
 langchain_text_splitters
 logfire
 nest_asyncio
+nltk
+numba
 ollama
 pdfplumber
+pystemmer
 sentence-transformers
+tomli
 transformers
 xformers
 bitsandbytes

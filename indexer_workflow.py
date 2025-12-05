@@ -1,8 +1,7 @@
 #
 # Indexer workflow class used by Django app and command line
 #
-import sys
-import logging
+from typing import List
 from logging import Logger
 import json
 import re
@@ -28,6 +27,10 @@ from mistralai import Mistral
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
 
+import Stemmer
+import bm25s
+
+
 
 # local
 from common import RecordCollection
@@ -49,8 +52,8 @@ class IndexerWorkflow(WorkflowBase):
         Split raw text into pages using separator. An example of expected format of separator is `SR-102-116`. 
         Regexp pattern contains two OR match groups: group one is an issue identifier, group two is the issue section terminator.
         If group one match, this is a start of the issue
-        Ff group two match, processing is terminated.
-        
+        If group two match, processing is terminated.
+
         Args:
             rawText (str) - Text to parse
         
@@ -92,6 +95,36 @@ class IndexerWorkflow(WorkflowBase):
         end = len(rawText)
         dictIssues[prevMatch.group(0)] = rawText[start:end]
         return dictIssues
+
+
+    def bm25sProcessRawText(self, pagedText : dict[str, str]) -> List[List[str]] :
+        """
+        Prepare text for BM25 keyword search
+        Lower case
+        Remove English stop words
+        Apply English stemming
+        Store results in a folder
+
+        Args:
+            pagedText (dict[str, str]) - Text to prepare for BM25
+        
+        Returns:
+            bm25s compatible index
+        """
+
+        corpus = []
+        stemmer = Stemmer.Stemmer("english")
+
+        for key in pagedText:
+            corpus.append(pagedText[key].lower())
+
+        corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+        retriever = bm25s.BM25(corpus=corpus)
+        retriever.index(corpus_tokens)
+        retriever.save(self._context["bm25sJSON"])
+
+        return corpus_tokens
+
 
 
     def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
@@ -379,7 +412,11 @@ class IndexerWorkflow(WorkflowBase):
 
     def vectorize(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
         """
-        Add all structured records to vector database
+        Add all structured records to vector database.
+        Before vectorization improve English text
+        1. Lowercase
+        2. Drop stop words
+
         
         Args:
             recordCollection (RecordCollection) - all items

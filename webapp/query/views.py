@@ -1,18 +1,23 @@
 import sys
 import logging
 import json
+import re
 from pathlib import Path
 import threading
 
 from django.shortcuts import render
 from django.http import JsonResponse
 
+import genai_prices
 
 # local
 sys.path.append("..")
 sys.path.append("../..")
 
 from common import OpenFile
+from parserClasses import ParserClassFactory
+from query_workflow import QueryWorkflow
+
 
 
 def status(request):
@@ -63,7 +68,8 @@ def index(request):
     logger = logging.getLogger("query:" + request.session.session_key)
     logger.info(f"Starting session")
 
-    return render(request, "query/index.html")
+    localContext = {}
+    return render(request, "query/index.html", localContext)
 
 
 def process(request):
@@ -83,9 +89,10 @@ def process(request):
         request.session.create() 
 
     logger = logging.getLogger("query:" + request.session.session_key)
-    logger.info(f"Process: Serving POST")
+    logger.info(f"Query Process POST")
 
     statusFileName = "status.query." + request.session.session_key + ".json"
+    logger.info(f"Process: session file name: {statusFileName}")
     boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
     if boolResult:
         try:
@@ -103,6 +110,7 @@ def process(request):
         dictDocuments = json.load(JsonIn)
 
     context = {}
+    context['query'] = request.POST['query']
     context['stage'] = "starting"
     context['session_key'] = request.session.session_key
     context['statusFileName'] = statusFileName
@@ -114,43 +122,63 @@ def process(request):
 #    context["llmGeminiVersion"] = "gemini-2.5-flash"
     context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
     context['status'] = []
-    context["issuePattern"] = None
-    context["issueTemplate"] = None
-    context["JiraExport"] = False
 
-    if re.match('jira:', request.POST['filename']):
-        # Jira export processing
-        context["JiraExport"] = True
-        context["inputFileName"] = request.POST['filename'][5:]
-        context["finalJSON"] = "indexer/input/" + request.POST['filename'][5:] + ".json"
-        inputFileBaseName = request.POST['filename']
-    else:
-        context["inputFileName"] = "indexer/input/" + request.POST['filename']
-        context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-        context["rawJSON"] = context["inputFileName"] + ".raw.json"
-        context["finalJSON"] = context["inputFileName"] + ".json"
-        inputFileBaseName = str(Path(context["inputFileName"]).name)
+    queryWorkflow = QueryWorkflow(context, logger)
 
-    if inputFileBaseName in dictDocuments:
-        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-    else:
-        logger.error(f"ERROR: no definition for document {inputFileBaseName}")
-        return render(request, "indexer/process.html", context)
+    msg = f"Starting query app"
+    queryWorkflow.workerSnapshot(msg)
 
-    logger.info(f"Serving POST {inputFileBaseName}")
-
-    issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-
-    indexerWorkflow = IndexerWorkflow(context, logger)
-    msg = f"Starting indexer"
-    indexerWorkflow.workerSnapshot(msg)
-
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
+    thread = threading.Thread( target=queryWorkflow.threadWorker)
     thread.start()
-    return render(request, "indexer/process.html", context)
+    return render(request, "query/process.html", context)
 
+# use this to display genAI pricing
+#   
+def results(request):
+    """
+    Target of HTTP GET from query/process.html.
+    Displays API costs.
+    
+    Args:
+        request
 
+    Returns:
+        render query/results.html
 
+    """
 
+    providers = [
+        { "provider" : "anthropic", "model": "claude-3-5-haiku-latest"  },
+        { "provider" : "aws", "model": "nova-pro-v1" },
+        { "provider" : "azure", "model": "gpt-4" },
+        { "provider" : "deepseek", "model": "deepseek-chat" },
+        { "provider" : "google", "model": "gemini-pro-1.5" },
+        { "provider" : "openai", "model": "gpt-4" },
+        { "provider" : "openrouter", "model": "gpt-4" },
+        { "provider" : "x-ai", "model": "grok-3" },
+        { "provider" : "x-ai", "model": "grok-4-0709" }
+    ]
+
+    context = {}
+    context["totalrequests"] = request.GET["totalrequests"]
+    context["totalrequesttokens"] = request.GET["totalrequesttokens"]
+    context["totalresponsetokens"] = request.GET["totalresponsetokens"]
+
+    context["llminfo"] = []
+    for providerInfo in providers:
+        price_data = genai_prices.calc_price(
+            genai_prices.Usage(input_tokens=int(context["totalrequesttokens"]), output_tokens=int(context["totalresponsetokens"])),
+            model_ref= providerInfo["model"],
+            provider_id = providerInfo["provider"]
+        )
+        item = {}
+        item["provider"] = providerInfo["provider"]
+        item["model"] = providerInfo["model"]
+        item["costusd"] = f"{price_data.total_price:.4f}"
+        audValue = float(price_data.total_price) * 1.53
+        item["costaud"] = f"{audValue:.4f}"
+
+        context["llminfo"].append(item)
+
+    return render(request, "query/results.html", context)
 

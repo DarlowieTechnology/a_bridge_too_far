@@ -20,5 +20,6 @@ from django.urls import include, path
 urlpatterns = [
     path("generator/", include("generator.urls")),
     path("indexer/", include("indexer.urls")),
+    path("query/", include("query.urls")),
     path('admin/', admin.site.urls),
 ]

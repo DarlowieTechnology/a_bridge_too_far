@@ -93,10 +93,10 @@ class QueryWorkflow(WorkflowBase):
                 name=collectionName,
                 embedding_function=ef
             )
-            msg = f"Opened report issue collection with {self._chromaReportIssues.count()} documents."
+            msg = f"Opened report collection with {self._chromaReportIssues.count()} documents."
             self.workerSnapshot(msg)
         except Exception as e:
-            msg = f"Error: exception opening report issue collection: {e}"
+            msg = f"Error: exception opening report collection: {e}"
             self.workerError(msg)
             return False
         
@@ -107,10 +107,10 @@ class QueryWorkflow(WorkflowBase):
                 name=collectionName,
                 embedding_function=ef
             )
-            msg = f"Opened Jira item collection with {self._chromaJiraItems.count()} documents."
+            msg = f"Opened Jira collection with {self._chromaJiraItems.count()} documents."
             self.workerSnapshot(msg)
         except Exception as e:
-            msg = f"Error: exception opening Jira item collection: {e}"
+            msg = f"Error: exception opening Jira collection: {e}"
             self.workerError(msg)
             return False
         return True
@@ -193,6 +193,9 @@ class QueryWorkflow(WorkflowBase):
         Ask Gemini for final reply
         """
 
+        msg = f"Original query:{self._context["query"]}"
+        self.workerSnapshot(msg)
+
         geminiModel = GeminiModel(
             model_name=self._context["llmGeminiVersion"], 
             provider=GoogleGLAProvider(
@@ -201,8 +204,7 @@ class QueryWorkflow(WorkflowBase):
             settings=ModelSettings(temperature = 0.0)
         )
 
-
-        # use HyDE (Hypothetical Document Embedding) approach
+        # use HyDE (Hypothetical Document Embedding)
         systemPrompt = f"""
         Write a two sentence answer to the user prompt query
         """
@@ -212,64 +214,63 @@ class QueryWorkflow(WorkflowBase):
         try:
             result = agentHyDE.run_sync(userPrompt)
         except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-            return None, None
-        print(f"Query:{self._context["query"]}")
-        print(f"\n------HyDE Gemini Reply---------\n{result.output}")
+            msg = f"Gemini exception on HyDE request: {e}"
+            self.workerError(msg)
+            return
+       
+        msg = f"HyDE response:{result.output}"
+        self.workerSnapshot(msg)
 
         queryList = []
         queryList.append(self._context["query"])
         queryList.append(result.output)
         oneResultList = self.getDBIssueMatch(queryList)
-        print(f"Found {len(oneResultList.results_list)} issue related to query list")
-        #print(f"'n---------------\n{oneResultList.model_dump_json(indent=2)}")
-
+#        print(f"'n---------------\n{oneResultList.model_dump_json(indent=2)}")
 
         systemPrompt = f"""
-        Return subcategories of user prompt.
+        return subcategories and variants of user prompt.
+        Here is the JSON schema for the output:
+        {json.dumps(OneResultList.model_json_schema(), indent=2)}            
         """
 
         agentSynonyms = Agent(
             geminiModel,
             output_type=OneResultList,
-            system_prompt = systemPrompt,
-            retries=3,
-            output_retries=3)
+            system_prompt = systemPrompt)
         userPrompt = f"{self._context["query"]}"
         try:
             result = agentSynonyms.run_sync(userPrompt)
             synonymsResultList = OneResultList.model_validate_json(result.output.model_dump_json())
         except Exception as e:
             msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-            return None, None
-        
+            self.workerError(msg)
+            return
+
         synonymsResultList.results_list.append(self._context["query"])
-#        print(f"\n------Expanded query list---------\n{synonymsResultList.model_dump_json(indent=2)}")
+        msg = f"Expanded bm25s query: {json.dumps(synonymsResultList.results_list)}"
+        self.workerSnapshot(msg)
+
+
 #        query_tokens = bm25s.tokenize(synonymsResultList.results_list, stemmer=Stemmer.Stemmer("english"), return_ids=False)
         query_tokens = bm25s.tokenize(synonymsResultList.results_list, return_ids=False)
-#        print("\n----Tokenised Expanded query list-----\n")
-#        print(f"{query_tokens}\n")
+
+        msg = f"Tokenised bm25s query: {json.dumps(query_tokens)}"
+        self.workerSnapshot(msg)
 
         # for all data sources for bm25s
         for folderName in self._context["bm25sJSON"]:
-            # read bm25s configuration for the document
+            # first read bm25s configuration for the document
             with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
                 bm25sParams = json.load(jsonIn)
             retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
             numDocs = bm25sParams["num_docs"]
             results, scores = retriever.retrieve(query_tokens, k=numDocs)
-#            results, scores = retriever.retrieve(synonymsResultList.results_list, k=numDocs)
-
-#            print(f"bm25s in report {folderName}")
-
             for i in range(results.shape[1]):
                 docN, score = results[0, i], scores[0, i]
                 outTitle = docN["text"].splitlines()[0]
                 if score > self._context["bm25sCutOffScore"]:
-                    print(f"Report {folderName}  Rank {i+1} (score: {score:.2f}): {outTitle}  ")
- #                   print("===============")
+                    msg = f"{folderName}  Rank {i+1} (score: {score:.2f}): {outTitle}"
+                    self.workerSnapshot(msg)
 
         return
 
@@ -457,7 +458,7 @@ class QueryWorkflow(WorkflowBase):
                 resultWithTypeList.results_list.append(oneResultWithType)
 
         if len(resultWithTypeList.results_list) :
-            msg = f"Query {queryList} get {len(resultWithTypeList.results_list)} matches less than {cutDist}"
+            msg = f"Query returned {len(resultWithTypeList.results_list)} vectors less than {cutDist} distance"
             self.workerError(msg)
         else:
             msg = f"Query {queryList} did not get matches less than {cutDist}"

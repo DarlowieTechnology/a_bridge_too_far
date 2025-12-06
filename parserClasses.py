@@ -67,6 +67,14 @@ class ReportFinding(BaseModel):
         else:
             return hash((self.title, self.risk, self.impact, self.exploitability, self.identifier, self.category, self.location, self.impact, self.description, self.recommendation))
 
+    # join all fields for bm25s tokenization
+    def bm25s(self):
+        if self.component:
+            return " ".join([self.title, "\n", self.risk, self.impact, self.exploitability, self.identifier, self.category, self.component, self.location, self.impact, self.description, self.recommendation])
+        else:
+            return " ".join([self.title, "\n", self.risk, self.impact, self.exploitability, self.identifier, self.category, self.location, self.impact, self.description, self.recommendation])
+
+
     
 class ReportIssue(BaseModel):
     """An issue description in cyber security report. 
@@ -109,6 +117,14 @@ class ReportIssue(BaseModel):
         else:
             return hash((self.identifier, self.title, self.risk, self.description, self.recommendation))
 
+    # join all fields for bm25s tokenization
+    def bm25s(self):
+        if self.affects:
+            return " ".join([self.title, "\n", self.identifier, self.risk, self.description, self.recommendation, self.affects])
+        else:
+            return " ".join([self.title, "\n", self.identifier, self.risk, self.description, self.recommendation])
+
+
 class IssueDescription(BaseModel):
     """An issue description in cyber security report. 
     This is a section of the report. The section contains information on the issue.
@@ -137,6 +153,10 @@ class IssueDescription(BaseModel):
     
     def __hash__(self):
         return hash((self.identifier, self.title, self.description))
+
+    # join all fields for bm25s tokenization
+    def bm25s(self):
+        return " ".join([self.title, "\n", self.identifier, self.description])
 
 
 class ISECIssue(BaseModel):
@@ -182,6 +202,11 @@ class ISECIssue(BaseModel):
     def __hash__(self):
         return hash((self.title, self.vulnClass, self.severity, self.difficulty, self.identifier, self.targets, self.description, self.exploitScenario, self.shortTermSolution, self.longTermSolution))
 
+    # join all fields for bm25s tokenization
+    def bm25s(self):
+        return " ".join([self.title, "\n", self.vulnClass, self.severity, self.difficulty, self.identifier, self.targets, self.description, self.exploitScenario, self.shortTermSolution, self.longTermSolution])
+
+
 
 class JiraIssueRAG(BaseModel):
     """represents data from Jira issue relevant to RAG
@@ -206,3 +231,9 @@ class JiraIssueRAG(BaseModel):
         return hash((self.identifier, self.project_key, self.project_name, self.status_category_key, 
                     self.priority_name, self.issue_updated, self.status_name,
                     self.summary, self.progress, "|".join(self.worklog)))
+
+    # join all fields for bm25s tokenization
+    def bm25s(self):
+        return " ".join([self.identifier, "\n", self.project_key, self.project_name, self.status_category_key, 
+                    self.priority_name, self.issue_updated, self.status_name,
+                    self.summary, self.progress, "|".join(self.worklog)])

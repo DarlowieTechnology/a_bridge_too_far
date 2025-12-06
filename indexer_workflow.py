@@ -97,16 +97,17 @@ class IndexerWorkflow(WorkflowBase):
         return dictIssues
 
 
-    def bm25sProcessRawText(self, pagedText : dict[str, str]) -> List[List[str]] :
+    def bm25sProcessIssueText(self, issues: RecordCollection, ClassTemplate : BaseModel) -> List[List[str]] :
         """
-        Prepare text for BM25 keyword search
+        Prepare issue text for BM25 keyword search
         Lower case
         Remove English stop words
         Apply English stemming
         Store results in a folder
 
         Args:
-            pagedText (dict[str, str]) - Text to prepare for BM25
+            issues (RecordCollection) - issues extracted from data source 
+            ClassTemplate (BaseModel) - description of structured data
         
         Returns:
             bm25s compatible index
@@ -115,8 +116,10 @@ class IndexerWorkflow(WorkflowBase):
         corpus = []
         stemmer = Stemmer.Stemmer("english")
 
-        for key in pagedText:
-            corpus.append(pagedText[key].lower())
+        for key in issues.finding_dict:
+            reportItem = ClassTemplate.model_validate(issues.finding_dict[key])
+            issueText = key + " " + reportItem.bm25s()
+            corpus.append(issueText.lower())
 
         corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
         retriever = bm25s.BM25(corpus=corpus)
@@ -633,6 +636,20 @@ class IndexerWorkflow(WorkflowBase):
         finalJSONBaseName = str(Path(self._context['finalJSON']).name)
         msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
+
+        # ---------------stage bm25s index ---------------
+
+        startTime = time.time()
+        self._context["stage"] = "bm25s index"
+        self.workerSnapshot(None)
+
+        self.bm25sProcessIssueText(recordCollection, issueTemplate)
+
+        endTime = time.time()
+
+        msg = f"Created BM25s index in {self._context["bm25sJSON"]}. {(endTime - startTime):9.4f} seconds"
+        self.workerSnapshot(msg)
+
 
         # ---------------stage vectorize --------------
 

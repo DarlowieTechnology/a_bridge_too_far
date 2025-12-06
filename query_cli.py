@@ -73,10 +73,12 @@ def main():
     context["llmresponsetokens"] = 0
     context['status'] = []
     context['query'] = 'XSS'
-    context['cutIssueDistance'] = 0.40
+    context['cutIssueDistance'] = 0.70
     context['bm25sCutOffScore'] = 0.0
 
-    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+#    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+#    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logger = logging.getLogger(context["session_key"])
 
     # test list - perform bm25-sparse on data sources from this list

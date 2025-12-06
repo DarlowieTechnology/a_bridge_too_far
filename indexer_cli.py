@@ -45,10 +45,11 @@ def preprocess(context, indexerWorkflow):
     indexerWorkflow.workerSnapshot(msg)
 
 
-def bm25prepare(context, indexerWorkflow):
-    with open(context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
-        pagedText = json.load(jsonIn)
-    indexerWorkflow.bm25sProcessRawText(pagedText)
+def bm25prepare(context, indexerWorkflow, issueTemplate):
+    with open(context['finalJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
+        jsonStr = json.load(jsonIn)
+        recordCollection = RecordCollection.model_validate(jsonStr)
+    indexerWorkflow.bm25sProcessIssueText(recordCollection, issueTemplate)
     msg = f"Stored bm25s index in {context["bm25sJSON"]}."
     indexerWorkflow.workerSnapshot(msg)
 
@@ -129,7 +130,7 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
     else:
 #        loadPDF(context, indexerWorkflow)
 #        preprocess(context, indexerWorkflow)
-        bm25prepare(context, indexerWorkflow)
+        bm25prepare(context, indexerWorkflow, issueTemplate)
 #        parseIssues(context, indexerWorkflow, issueTemplate)
 #        vectorize(context, indexerWorkflow, issueTemplate)
 
@@ -173,7 +174,7 @@ def main():
 #        "Refinery-CMS.pdf",
 #        "WASPT_Report.pdf",
 #        "Web App and Ext Infrastructure Report .pdf",
-#        "Wikimedia.pdf",
+        "Wikimedia.pdf",
 #        "Web App and Infrastructure and Mobile Report.pdf"
     ]
 

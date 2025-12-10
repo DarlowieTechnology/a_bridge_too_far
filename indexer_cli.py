@@ -130,9 +130,9 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
     else:
 #        loadPDF(context, indexerWorkflow)
 #        preprocess(context, indexerWorkflow)
-        bm25prepare(context, indexerWorkflow, issueTemplate)
 #        parseIssues(context, indexerWorkflow, issueTemplate)
-#        vectorize(context, indexerWorkflow, issueTemplate)
+#        bm25prepare(context, indexerWorkflow, issueTemplate)
+        vectorize(context, indexerWorkflow, issueTemplate)
 
     context["stage"] = "completed"
     msg = f"Processing completed."
@@ -144,9 +144,10 @@ def main():
     context = {}
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
-    context["llmProvider"] = "Gemini"
+    context["llmProvider"] = "Ollama"
+#    context["llmProvider"] = "Gemini"
 #    context["llmGeminiVersion"] = "gemini-2.0-flash"
-    context["llmGeminiVersion"] = "gemini-2.5-flash"
+#    context["llmGeminiVersion"] = "gemini-2.5-flash"
 #    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
 
     context["llmrequests"] = 0
@@ -169,12 +170,12 @@ def main():
 #        "CD_and_DevOps Review.pdf",
 #        "Database Review.pdf",
 #        "Firewall Review.pdf",
-#        "phpMyAdmin.pdf",
+        "phpMyAdmin.pdf",
 #        "PHP_Code_Review.pdf",
 #        "Refinery-CMS.pdf",
 #        "WASPT_Report.pdf",
-#        "Web App and Ext Infrastructure Report .pdf",
-        "Wikimedia.pdf",
+#        "Web App and Ext Infrastructure Report.pdf",
+#        "Wikimedia.pdf",
 #        "Web App and Infrastructure and Mobile Report.pdf"
     ]
 
@@ -204,6 +205,10 @@ def main():
                 inputFileBaseName = str(Path(context["inputFileName"]).name)
 
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+            if dictDocuments[inputFileBaseName]["extract"]:
+                context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
+            if dictDocuments[inputFileBaseName]["assign"]:
+                context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
             context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
         
             issueTemplate = ParserClassFactory.factory(context["issueTemplate"])

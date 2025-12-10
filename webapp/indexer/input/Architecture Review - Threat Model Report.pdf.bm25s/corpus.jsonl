@@ -1,0 +1,13 @@
+{"id":0,"text":"ncc-examplecorp001-003 lack of authorization controls for storage api \n high high high ncc-examplecorp001-003"}
+{"id":1,"text":"ncc-examplecorp001-011 finding weak administrative credentials \n high high medium ncc-examplecorp001-011"}
+{"id":2,"text":"ncc-examplecorp001-012 finding plaintext passwords written to logs \n high high medium ncc-examplecorp001-012"}
+{"id":3,"text":"ncc-examplecorp001-001 sensitive production data used in staging \n medium high medium ncc-examplecorp001-001"}
+{"id":4,"text":"ncc-examplecorp001-002 use of shared administrator credentials \n medium high medium ncc-examplecorp001-002"}
+{"id":5,"text":"ncc-examplecorp001-004 firmware or bootloader downgrades not prevented \n medium medium high ncc-examplecorp001-004"}
+{"id":6,"text":"ncc-examplecorp001-005 ineffective firmware integrity validation \n medium medium medium ncc-examplecorp001-005"}
+{"id":7,"text":"ncc-examplecorp001-007 unencrypted communication channel (camera web services) \n medium medium medium ncc-examplecorp001-007"}
+{"id":8,"text":"ncc-examplecorp001-008 finding horizontal authorization bypass in storage api \n medium high medium ncc-examplecorp001-008"}
+{"id":9,"text":"ncc-examplecorp001-010 finding application uses weak hash to store passwords \n medium medium medium ncc-examplecorp001-010"}
+{"id":10,"text":"ncc-examplecorp001-013 insecure random number generation \n medium medium medium ncc-examplecorp001-013"}
+{"id":11,"text":"ncc-examplecorp001-006 revenue generating advertisement delivery can be bypassed \n low medium low ncc-examplecorp001-006"}
+{"id":12,"text":"ncc-examplecorp001-009 finding weak password complexity requirements \n low medium low ncc-examplecorp001-009"}

@@ -1,0 +1,111 @@
+{
+"finding_dict": {
+"NCC-1604_MOSS_phpMyAdmin-006" : {
+  "title": "CSV Export Allows Arbitrary Command Execution in CSV File ",
+  "risk": "Medium",
+  "impact": "Medium",
+  "exploitability": "High",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-006",
+  "category": null,
+  "component": null,
+  "location": null,
+  "description": null,
+  "recommendation": null
+},
+"NCC-1604_MOSS_phpMyAdmin-007" : {
+  "title": "Login/Logout Actions Vulnerable to CSRF ",
+  "risk": "Medium",
+  "impact": "Medium",
+  "exploitability": "High",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-007",
+  "category": null,
+  "component": null,
+  "location": null,
+  "description": null,
+  "recommendation": null
+},
+"NCC-1604_MOSS_phpMyAdmin-009" : {
+  "title": "Ability to Unset Arbitrary Server Global Variables ",
+  "risk": "Medium",
+  "impact": "Undetermined",
+  "exploitability": "Medium",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-009",
+  "category": null,
+  "component": null,
+  "location": null,
+  "description": null,
+  "recommendation": null
+},
+"NCC-1604_MOSS_phpMyAdmin-005" : {
+  "title": "Vulnerability Sensitive Values Vulnerable to Session Fixation",
+  "risk": "Low",
+  "impact": "An attacker can perform various targeted attacks, such as CSRF, against a victim user or administrator.",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-005",
+  "category": "SessionManagement",
+  "component": "null",
+  "location": "The Cross-Site Request Forgery (CSRF) protection token and the phpMyAdmin cookie,7",
+  "description": "Session fixation is a type of session hijacking attack that can occur when a user is not assigned an new session identifier post-authentication. When a user first visits the phpMyAdmin login page, the server sets the token CSRF protection value and phpMyAdmin cookie. When the user authenticates, these values are not reset. If an attacker knows the value of the user's to-ken before the user has logged in, the attacker will be able to perform other targeted attacks, such as cross-sites scripting (see finding NCC-1604_MOSS_phpMyAdmin-008 on page 13 ) or CSRF, against the user. Currently all state-changing and other sensitive actions require additional cookies to successfully execute requests. Consequently, the risk associated with the phpMyAdmin cookie session fixation vulnerability is informational however, if this were to change in future, any action relying on this cookie for validation would be vulnerable to attack.",
+  "recommendation": "+ When users authenticate, change rights levels, or identity, they should immediately be assigned an new session cookie. This can be done by invalidating the old session ID and issuing a new one. In addition, CSRF tokens should be reset with each new user session post-authentication."
+},
+"NCC-1604_MOSS_phpMyAdmin-001" : {
+  "title": "Sensitive Data in URL GET Query Parameters ",
+  "risk": "Low",
+  "impact": "Medium",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-001",
+  "category": null,
+  "component": null,
+  "location": null,
+  "description": null,
+  "recommendation": null
+},
+"NCC-1604_MOSS_phpMyAdmin-002" : {
+  "title": "Vulnerability Overly Permissive Content Security Policy ",
+  "risk": "Low",
+  "impact": "Low,Exploitability: Low",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-002",
+  "category": "Authentication",
+  "component": null,
+  "location": "TheContentSecurityPolicydefinedinlibraries/Header.php 12",
+  "description": " Content Security Policy is a security feature that allows web sites to specify settings for modern browsers to enforce protection on web content. In the case of phpMyAdmin,the following Content-Security-Policy header allows inline elements such as <script>and<style> to be included in alll pages as long as they are loaded in the context of the same origin.",
+  "recommendation": "Tighten the Content Security Policy as much as possible. Disable `unsafe-eval' and`unsafe-inline' if its use cannot be justified.When adding functionality to the sites in the future, keep the scope for allowed scripts, styles, and JavaScript callbacks as small as possible."
+},
+"NCC-1604_MOSS_phpMyAdmin-004" : {
+  "title": "Vulnerability File Traversal Protection Bypass on Error Reporting ",
+  "risk": "Low",
+  "impact": "Low",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-004",
+  "category": "DataExposure",
+  "component": "",
+  "location": "",
+  "description": "The PMA_countLines() function available online 229 of error_report.lib.php 16 contains logic to prevent malicious user input from opening files outside the JavaScript directory. However, it is possible to bypass the protections and access files anywhere on the system.",
+  "recommendation": "Use PHP's realpath function17 to verify that the target JavaScript directory is in the path."
+},
+"NCC-1604_MOSS_phpMyAdmin-008" : {
+  "title": "Self XSS in table_row_action.php",
+  "risk": "Low",
+  "impact": "Low",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-008",
+  "category": null,
+  "component": null,
+  "location": null,
+  "description": null,
+  "recommendation": null
+},
+"NCC-1604_MOSS_phpMyAdmin-003" : {
+  "title": "Vulnerability Multiple HTTP Plaintext Links ",
+  "risk": "Informational",
+  "impact": "Medium,Exploitability: Low",
+  "exploitability": "Low",
+  "identifier": "NCC-1604_MOSS_phpMyAdmin-003",
+  "category": "DataExposure",
+  "component": null,
+  "location": "Linked pages in the following:  index.php21  changelog.php22  libraries/config/messages.inc.php23  libraries/Util.php24",
+  "description": "Multiple pages linked from the phpMyAdmin are hardcoded to make use of plaintext HTTP connections. An attacker in a privileged network position could arbitrarily modify the returned content in order to perform a variety of attacks such as SSL stripping, cross-site scripting, phishing, etc. In addition, pages linked from the changelog (/phpmyadmin/changelog.php) and the phpMyAdmin setup site ( /phpmyadmin/setup/index.php) do not make use of url.  As a result, links from either the changelog or setup site will leak the token to third parties via the Referer header (see finding NCC-1604_MOSS_phpMyAdmin-001 on page 10 ).",
+  "recommendation": "Update all links to use HTTPS exclusively. It should be noted that each of the cited linked pages support HTTPS versions, which should make securing links relatively painless. Enforcing all links to employ HTTPS will significantly reduce the unnecessary risk placed on users when switching between HTTPS and HTTP connections, and will help mitigate data exposure and man-in-the-middle attacks. Enable HTTP Strict Transport Security (HSTS)  to prevent users from accidentally visiting the site over unsecured HTTP and exposing themselves to the risk of an SSL Stripping attack. It must be sent over HTTPS connections."
+}}
+}

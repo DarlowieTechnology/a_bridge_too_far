@@ -97,37 +97,36 @@ class IndexerWorkflow(WorkflowBase):
         return dictIssues
 
 
-    def bm25sProcessIssueText(self, issues: RecordCollection, ClassTemplate : BaseModel) -> List[List[str]] :
+    def parseFallback(self, docs : str, ClassTemplate : BaseModel) -> BaseModel :
         """
-        Prepare issue text for BM25 keyword search
-        Lower case
-        Remove English stop words
-        Apply English stemming
-        Store results in a folder
-
-        Args:
-            issues (RecordCollection) - issues extracted from data source 
-            ClassTemplate (BaseModel) - description of structured data
+        Fallback on regexp parsing of source data if LLM call failed to extract
         
+        Args:
+            docs (str) - text with unstructured data
+            ClassTemplate (BaseModel) - description of structured data
+
         Returns:
-            bm25s compatible index
+            BaseModel
         """
 
-        corpus = []
-        stemmer = Stemmer.Stemmer("english")
+        if self._context["extractPattern"] and self._context["assignList"]:
+            compiledExtract = re.compile(self._context["extractPattern"])
+            match = re.search(compiledExtract, docs)
+            if match:
+                oneIssue = ClassTemplate()
+                for i in range(len(self._context["assignList"])):
+                    setattr(oneIssue, self._context["assignList"][i], match.group(i+1))
+                msg = f"{oneIssue.identifier} - regexp parser"
+                self.workerSnapshot(msg)
+                return oneIssue
+            else:
+                msg = f"regexp parser produced no match"
+                self.workerError(msg)
+                return None
 
-        for key in issues.finding_dict:
-            reportItem = ClassTemplate.model_validate(issues.finding_dict[key])
-            issueText = key + " " + reportItem.bm25s()
-            corpus.append(issueText.lower())
-
-        corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
-        retriever = bm25s.BM25(corpus=corpus)
-        retriever.index(corpus_tokens)
-        retriever.save(self._context["bm25sJSON"])
-
-        return corpus_tokens
-
+        msg = f"regexp parser not configured"
+        self.workerError(msg)
+        return None
 
 
     def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
@@ -158,23 +157,23 @@ class IndexerWorkflow(WorkflowBase):
                     output_retries=3)
         try:
             result = agent.run_sync(prompt)
-
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
             for attr in oneIssue.__dict__:
                 if oneIssue.__dict__[attr]:
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
             runUsage = result.usage()
-
-
             return oneIssue, runUsage
+        
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
             msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
             self.workerError(msg)
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
             self.workerError(msg)
-        return None, None
+
+        # attempt regexp match only if LLM match failed
+        return self.parseFallback(docs, ClassTemplate), None
 
 
     def parseIssueGemini(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
@@ -207,94 +206,33 @@ class IndexerWorkflow(WorkflowBase):
                 response_format=ClassTemplate,
             )
             oneIssue = completion.choices[0].message.parsed
-            if not oneIssue:
+            if oneIssue:
+                for attr in oneIssue.__dict__:
+                    if oneIssue.__dict__[attr]:
+                        oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
+                        oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
+                oneIssue = ClassTemplate.model_validate_json(oneIssue.model_dump_json())
+
+                # map Open AI usage to Pydantic usage            
+                usage = Usage()
+                usage.requests = 1
+                usage.request_tokens = completion.usage.prompt_tokens
+                usage.response_tokens = completion.usage.completion_tokens
+                   
+                return oneIssue, usage
+            else:
                 msg = f"Gemini API error"
                 self.workerError(msg)
-                return None, None
             
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-            return None, None
-
-        for attr in oneIssue.__dict__:
-            if oneIssue.__dict__[attr]:
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-                oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-        
-        try:
-            oneIssue = ClassTemplate.model_validate_json(oneIssue.model_dump_json())
         except ValidationError as e:
             msg = "Exception: {e}"
             self.workerSnapshot(msg)
-            return None, None
 
-        # map Open AI usage to Pydantic usage            
-        usage = Usage()
-        usage.requests = 1
-        usage.request_tokens = completion.usage.prompt_tokens
-        usage.response_tokens = completion.usage.completion_tokens
-            
-        return oneIssue, usage
-
-
-    def parseIssueMistral(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
-        """
-        Use Mistral AI Agent to extracts one ClassTemplate structured record. ClassTemplate is based on Pydantic BaseModel.
-        
-        Args:
-            docs (str) - text with unstructured data
-            ClassTemplate (BaseModel) - description of structured data
-
-        Returns:
-            Tuple of BaseModel and Usage
-        """
-
-        api_key = self._config["mistral_key"]
-
-        schema = json.dumps(ClassTemplate.model_json_schema(), indent=2)
-        
-        with Mistral(
-            api_key=api_key
-        ) as mistral:
-
-            res = mistral.chat.parse(
-                model="mistral-small-latest", 
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"The prompt contains text. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected: {schema}"
-                    },
-                    {
-                        "role": "user",
-                        "content": docs
-                    }
-                ],
-                response_format = ClassTemplate
-            )
-            try:
-                oneIssue = ClassTemplate.model_validate_json(res.choices[0].message.content)
-            except Exception as e:
-                msg = f"Mistral API error: {e}"
-                self.workerError(msg)
-                return None, None
-
-            for attr in oneIssue.__dict__:
-                if oneIssue.__dict__[attr]:
-                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-                    oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-
-            # map Open AI usage to Pydantic usage            
-            usage = Usage()
-            usage.requests = 1
-            usage.request_tokens = res.usage.prompt_tokens
-            usage.response_tokens = res.usage.completion_tokens
-
-            return oneIssue, usage
-
-        msg = f"Mistral API error"
-        self.workerError(msg)
-        return None, None
+        # attempt regexp match only if LLM match failed
+        return self.parseFallback(docs, ClassTemplate), None
 
     def parseAllIssues(self, inputFileName : str, dictText: dict[str,str], ClassTemplate : BaseModel) -> RecordCollection :
         """
@@ -319,8 +257,6 @@ class IndexerWorkflow(WorkflowBase):
             if self._context["llmProvider"] == "Gemini":
                 time.sleep(self._config["gemini_time_delay"])
                 oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
-            if self._context["llmProvider"] == "Mistral":
-                oneIssue, usageStats = self.parseIssueMistral(dictText[key], ClassTemplate)
             if not oneIssue:
                 continue
 
@@ -328,12 +264,12 @@ class IndexerWorkflow(WorkflowBase):
 
             endOneIssue = time.time()
             if usageStats:
-                msg = f"Fetched issue {key}. {usageStats.requests} request(s). {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"{key}. {usageStats.requests} request(s). {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
                 self._context["llmrequests"] += 1
                 self._context["llmrequesttokens"] += usageStats.request_tokens
                 self._context["llmresponsetokens"] += usageStats.response_tokens
             else:
-                msg = f"Fetched issue {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"{key}. {(endOneIssue - startOneIssue):9.4f} seconds."
             self.workerSnapshot(msg)
 
         return recordCollection
@@ -412,6 +348,36 @@ class IndexerWorkflow(WorkflowBase):
 
         return recordCollection
 
+    def bm25sProcessIssueText(self, issues: RecordCollection, ClassTemplate : BaseModel) -> List[List[str]] :
+        """
+        Prepare issue text for BM25 keyword search
+        Lower case
+        Remove English stop words
+        Apply English stemming
+        Store results in a folder
+
+        Args:
+            issues (RecordCollection) - issues extracted from data source 
+            ClassTemplate (BaseModel) - description of structured data
+        
+        Returns:
+            bm25s compatible index
+        """
+
+        corpus = []
+        stemmer = Stemmer.Stemmer("english")
+
+        for key in issues.finding_dict:
+            reportItem = ClassTemplate.model_validate(issues.finding_dict[key])
+            issueText = key + " " + reportItem.bm25s()
+            corpus.append(issueText.lower())
+
+        corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+        retriever = bm25s.BM25(corpus=corpus)
+        retriever.index(corpus_tokens)
+        retriever.save(self._context["bm25sJSON"])
+
+        return corpus_tokens
 
     def vectorize(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
         """
@@ -497,17 +463,17 @@ class IndexerWorkflow(WorkflowBase):
 
                 if recordHash == existingHash:
                     rejected += 1
-#                    msg = f"Existing vector hash matches for {reportItem.identifier} - skipping"
+#                    msg = f"Skip {reportItem.identifier}"
 #                    self.workerSnapshot(msg)
                     continue
                 else:
                     accepted += 1
-                    msg = f"Existing vector hash is different for {reportItem.identifier} - replacing"
+                    msg = f"Replacing {reportItem.identifier}"
                     self.workerSnapshot(msg)
                     chromaReportIssues.delete(ids=[uniqueId])
             else:
                 accepted += 1
-                msg = f"No vector found for {reportItem.identifier} - adding"
+                msg = f"Adding {reportItem.identifier}"
                 self.workerSnapshot(msg)
 
             vectorSource = reportItem.model_dump_json()

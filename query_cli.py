@@ -44,6 +44,8 @@ def testRun(context : dict, queryWorkflow : QueryWorkflow) :
     if not queryWorkflow.startup():
         return
 
+    queryWorkflow.preprocessQuery()
+
     if context["llmProvider"] == "Gemini":
         queryWorkflow.agentPromptGemini()
     if context["llmProvider"] == "Ollama":
@@ -60,20 +62,20 @@ def main():
     context["statusFileName"] = "status.QUERY.json"
 #    context["llmProvider"] = "ChatGPT"
 #    context["llmChatGPTVersion"] = "gpt-3.5-turbo"
-    context["llmProvider"] = "Gemini"
+#    context["llmProvider"] = "Gemini"
 #    context["llmGeminiVersion"] = "gemini-2.0-flash"
-    context["llmGeminiVersion"] = "gemini-2.5-flash"
+#    context["llmGeminiVersion"] = "gemini-2.5-flash"
 #    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
-#    context["llmProvider"] = "Ollama"
-#    context["llmOllamaVersion"] = "llama3.1:latest"
+    context["llmProvider"] = "Ollama"
+    context["llmOllamaVersion"] = "llama3.1:latest"
 
 
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
     context['status'] = []
-    context['query'] = 'XSS'
-    context['cutIssueDistance'] = 0.70
+    context['query'] = 'all\n  \t\t\nXSS\n'
+    context['cutIssueDistance'] = 0.50
     context['bm25sCutOffScore'] = 0.0
 
 #    logging.basicConfig(stream=sys.stdout, level=logging.WARN)

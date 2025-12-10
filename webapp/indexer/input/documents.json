@@ -1,0 +1,79 @@
+{
+    "Architecture Review - Threat Model Report.pdf" : {
+        "pattern" : "Finding .+\\nRisk .+ Impact: .+.Exploitability: .+\\nIdenti.+ (NCC-.+-\\d\\d\\d)\\n|(Appendix A: Finding Field Definitions\\n)",
+        "extract" : "Finding (.+)\\nRisk (.+) Impact: (.+),Exploitability: (.+)\\nIdenti.+ (NCC-\\d{2,4}.+)\\n",
+        "assign" : ["title", "risk", "impact", "exploitability", "identifier"],
+        "templateName" : "ReportFinding"
+    },
+    "WASPT_Report.pdf" : {
+        "pattern" : "Finding .+\\nRisk .+ Impact: .+.Exploitability: .+\\nIdenti.+ (NCC-.+-\\d\\d\\d)\\n|(Appendix A: Finding Field Definitions\\n)",
+        "extract" : "Finding (.+)\\nRisk (.+) Impact: (.+), Exploitability: (.+)\\nIdenti.+ (NCC-.+)\\nStatus",
+        "assign" : ["title", "risk", "impact", "exploitability", "identifier"],
+        "templateName" : "ReportFinding"
+    },
+    "AWS_Review.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\nDescription:|(Document Control\\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\nDescription:|(Document Control\\n)",
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "CD_and_DevOps Review.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,2}-\\d{1,2}) .+\\nRisk Rating .+\\n.+\\nDescription:|(3 Supplemental Data \\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,2}-\\d{1,2}) (.+)\\nRisk Rating (.+)\\n.+\\nDescription:",
+        "assign" : ["identifier", "title", "risk"],
+        "templateName" : "ReportIssue"
+    },
+    "Database Review.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,3}) .+\\nRisk Rating.+Status.+\\n+Description:|(5 Supplemental Data - Missing Oracle Security Patches\\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\n+Description:",        
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "Firewall Review.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,3}).+\\n+Risk Rating.+Status.+\\n+Description:|(5 Supplemental Data - Widely Scoped ACLs\\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\n+Description:",        
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "PHP_Code_Review.pdf" : {
+        "pattern" : "(NCCGRPPHP-\\d{1,3}).+\\n+Risk Rating.+Status.+\\n+Description:|(3 Technical Summary\\n)",
+        "extract" : "(NCCGRPPHP-\\d{1,3}) (.+)\\n+Risk Rating (.+) Status (.+)\\n+Description:",
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "phpMyAdmin.pdf" : {
+        "pattern" : "Vulnerability .+\\nRisk .+ Impact: .+,Exploitability: .+\\nIdenti.+ (NCC-\\d{2,4}.+-\\d\\d\\d)\n|(Appendix A: Vulnerability Field )",
+        "extract" : "Vulnerability (.+)\\nRisk (.+) Impact: (.+),Exploitability: (.+)\\nIdenti.+ (NCC-\\d{2,4}.+)\\n",
+        "assign" : ["title", "risk", "impact", "exploitability", "identifier"],
+        "templateName" : "ReportFinding"
+    },
+    "Refinery-CMS.pdf" : {
+        "pattern" : "(PT-.+-\\d{1,3}): .+[^0-9]\\n|(P a g e\\Z)",
+        "extract" : "(PT-.+-\\d{1,3}): (.+)\\n\\(.+\\)",
+        "assign" : ["identifier", "title"],
+        "templateName" : "IssueDescription"
+    },
+    "Web App and Ext Infrastructure Report.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,3}) .+\\nRisk Rating.+Status.+\\n+Description:|(5 Supplemental Data - SSLScan Output\\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\n+Description:",
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "Web App and Infrastructure and Mobile Report.pdf" : {
+        "pattern" : "(SR-\\d{1,3}-\\d{1,3}) .+\\nRisk Rating.+Status.+\\n+Description:|(5 Supplemental Data - Reflected Cross-Site Scripting\\n)",
+        "extract" : "(SR-\\d{1,3}-\\d{1,3}) (.+)\\nRisk Rating (.+) Status (.+)\\n+Description:",
+        "assign" : ["identifier", "title", "risk", "status"],
+        "templateName" : "ReportIssue"
+    },
+    "Wikimedia.pdf" : {
+        "pattern" : "\\d{1,2}\\. .+\\nClass:.+Severity:.+\\nFINDING ID: (iSEC-.+-\\d{1,2})\\n|(Appendices\\nA Web Application Testing\\n)",
+        "extract" : "\\d{1,2}\\. (.+)\\nClass: (.+) Severity: (.+) Di.+: (.+)\\nFINDING ID: (iSEC-.+-\\d{1,2})\\n",
+        "assign" : ["title", "vulnClass", "severity", "difficulty", "identifier"],
+        "templateName" : "ISECIssue"
+    },
+    "jira:SCRUM" : {
+        "pattern" : "",
+        "templateName" : "JiraIssueRAG"
+    }
+
+}

@@ -1,0 +1,93 @@
+{
+"finding_dict": {
+"SR-109-001" : {
+  "identifier": "SR-109-001 IAM Roles Assigned With Excessive Permissions",
+  "title": "IAM Roles Assigned With Excessive Permissions",
+  "risk": "High",
+  "status": "Open",
+  "description": "An analysis of the configured roles that were then assigned to running EC2 instances indicated that some of them would receive excessive permissions that could allow arbitrary commands to be launched across all the instances, read arbitrary S3 objects, etc.",
+  "recommendation": "Create managed security policies following the least privileges security principle (i.e. including only the minimal set of API commands necessary for operations and listing the resources that would be affected by these commands) and attach these to the roles in use.1, 2, 3, 4",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-002" : {
+  "identifier": "SR-109-002",
+  "title": "Overly Permissive Network Configuration",
+  "risk": "High",
+  "status": "Open",
+  "description": "Examination of the high level architecture diagram and configured firewall rules indicated that the network configuration was excessively permissive and a number of resources were publicly available.",
+  "recommendation": "Unless necessary for normal business operation, ensure that the network is only accessible from internal addresses,",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-003" : {
+  "identifier": "SR-109-003 Unauthorised Access to S3 Buckets",
+  "title": "Unauthorised Access to S3 Buckets",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "An S3 bucket was found to be configured with excessive permissions that could allow unauthorised access to the stored objects. This bucket included access to logs of the portal web application.",
+  "recommendation": "Edit the permissions associated to the affected S3 buckets ensuring that no permissions are granted to the anonymous or Any Authenticated AWS User group.",
+  "affects": "AWS Account   123456789012"
+},
+"SR-109-004" : {
+  "identifier": "SR-109-004 User Without MFA Enabled",
+  "title": "User Without MFA Enabled",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "Multiple accounts were identified which had password authentication enabled but did not have multi-factor authentication (MFA) enabled, contrary to security best practice. If MFA is not enabled, attackers could be able to access the AWS web console with just a username and password combination. The following users had password-enabled access but were not configured to use multi-factor authentication: <<List of users without MFA enabled>>",
+  "recommendation": "Implement MFA for the users with password authentication enabled.",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-005" : {
+  "identifier": "SR-109-005 IAM Password Policy",
+  "title": "No password policy was enabled in the IAM settings.",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "No password policy was enabled in the IAM settings. This could result in the creation of weak user passwords.",
+  "recommendation": null,
+  "affects": null
+},
+"SR-109-006" : {
+  "identifier": "SR-109-006 Automated Backups Not Enabled for RDS Instances",
+  "title": "Automated Backups Not Enabled for RDS Instances",
+  "risk": "Low",
+  "status": "Open",
+  "description": "Automated backups had not been enabled for a number of Relational Database Service (RDS) instances. This feature facilitates the creation of periodic RDS instance snapshots, which in turn ensure that data restoration is possible in the event of an incident affecting the source database. The following screenshot from the Management Console shows that the production-data and development-db RDS instances had automated backups disabled:Figure 7: RDS Instance with automated backups disabled",
+  "recommendation": "Ensure that all RDS database instances that host sensitive data have automated backups enabled for point-in-time recovery.",
+  "affects": "AWS Account 123456789012 16Amazon Relational Database Service (RDS)https://aws.amazon.com/rds/ 17Amazon Relational Database Service Documentationhttps://aws.amazon.com/documentation/rds/ 18AWS Documentation Backing Up and Restoring Amazon RDS DB Instanceshttps://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_CommonTasks.BackupRestore.html"
+},
+"SR-109-007" : {
+  "identifier": "SR-109-007 Single Availability Zone RDS Instance",
+  "title": "Single Availability Zone RDS Instance",
+  "risk": "Low",
+  "status": "Open",
+  "description": "A number of Relational Database Service (RDS) instances were configured without the Multi-Availability Zone (Multi-AZ) enabled. Without this, should an availability zone specific database failure occur, then Amazon RDS cannot automatically fail over to the standby availability zone so that database operations can resume quickly without administrative intervention. The following database instances (based on the aurora engine) were configured with Multi-AZ disabled: u preproduction-data u test-data u development-db The following screenshot shows that Multi-AZ was disabled for one of the instances listed above: Figure 8: RDS Availability Zone",
+  "recommendation": "Consideration should be given to modifying the configuration of the database instances to enable Multi-AZ. This is especially important if the applications using the databases require high availability.19, 20, 21",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-008" : {
+  "identifier": "SR-109-008 Unused Security Groups",
+  "title": "Unused Security Groups",
+  "risk": "Low",
+  "status": "Open",
+  "description": "A number of security groups were defined which were unused and may not be required. This being the case, their existence in the configuration increases the risk that they may be inappropriately assigned.",
+  "recommendation": "The unused security groups should be reviewed and removed if no longer required.22, 23, 24",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-009" : {
+  "identifier": "SR-109-009 Subnets Using Default Network ACLs",
+  "title": "Subnets Using Default Network ACLs",
+  "risk": "Low",
+  "status": "Open",
+  "description": "A number of subnets were identified to be using the default Network Access Control List (NACL), allowing all incoming and outgoing network traffic. In this configuration, the affected NACLs do not provide the secondary layer of security defence that they are supposed to. The following network ACLs were affected by this issue in the us-east-1 region: u NACL name (NACL IDacl-123456789) u NACL name (NACL IDacl-123456789) u NACL name (NACL IDacl-123456789) The following screenshot was taken from the AWS Management Console and shows the inbound rules available for the first of the NACLs listed above:Figure 9: Default network ACL in useThe outbound rules were similar, allowing all outgoing traffic.It should be noted that default NACLs were also available across the remaining AWS regions/VPC.",
+  "recommendation": "Network ACLs should be considered as the secondary layer of security defence against unwanted traffic. Consequently, consideration should be given to implementing NACLs that only allow the necessary inbound and outbound traffic to the associated VPC subnets.25, 26, 27, 28, 29",
+  "affects": "AWS Account 123456789012"
+},
+"SR-109-010" : {
+  "identifier": "SR-109-010",
+  "title": "CloudFormation Stack Without Termination Protection",
+  "risk": "Low",
+  "status": "Open",
+  "description": "The Termination Protection setting available for the CloudFormation service was not found to be enabled for one stack. When this feature is enabled for a stack, deletion attempts will fail and the stack (including its current status), will remain unchanged. Security best practice for CloudFormation management recommends enabling this feature for production environments.",
+  "recommendation": "Ensure that Amazon CloudFormation stacks have Termination Protection enabled in order to protect them from being accidentally deleted.",
+  "affects": "AWS Account 123456789012"
+}}
+}

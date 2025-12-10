@@ -4,6 +4,8 @@
 import json
 from logging import Logger
 from typing import List
+from pathlib import Path
+import re
 
 
 import chromadb
@@ -41,31 +43,13 @@ class QueryWorkflow(WorkflowBase):
     _chromaJiraItems: chromadb.Collection = None
 
 
-
     def __init__(self, context : dict, logger : Logger):
         """
         Args:
             context (dict)
             logger (Logger) - can originate in CLI or Django app
         """
-
         super().__init__(context, logger)
-
-        # TODO - ask LLM for synonyms
-        self._dictSynonyms = {
-            "XSS" : [
-                "Cross-Site Scripting Attack",
-                "cross-site scripting",
-                "Cross-Site Scripting (XSS)",
-                "HTML Injection",
-                "Client-Side Code Injection",
-                "JavaScript Injection",
-                "DOM-Based Injection",
-                "Reflected XSS",
-                "Stored XSS",
-                "DOM-Based XSS"
-            ]
-        }
 
 
     def startup(self) -> bool:
@@ -114,39 +98,99 @@ class QueryWorkflow(WorkflowBase):
             self.workerError(msg)
             return False
         return True
-    
+
+
+    def preprocessQuery(self) -> str:
+        """
+        Preprocess query string with lowercase, remove whitespace, normalise spaces
+        
+        Args:
+            None
+        Returns:
+            updated query string
+
+        """
+        query = self._context["query"]
+        query = query.strip().lower()
+        query = re.sub(r'[^\w\s?!]', '', query)
+        self._context["query"] = " ".join(query.split())
+        return self._context["query"]
 
     def agentPromptOllama(self):
-
-        query = self._context["query"]
-        msg = f"Query: {query}"
-        self.workerSnapshot(msg)
-
-        systemPrompt = f"""
-        You are an expert in cyber security. Retrieve list of synonyms for a definition. Output just the result.
-        Here is the JSON schema for the OneResultList model you must use as context for what information is expected:
-        {json.dumps(OneResultList.model_json_schema(), indent=2)}
         """
+        Use Ollama host, embedded vector database, bm25s tokens to retrieve query results
+        
+        Args:
+            docs (str) - text with unstructured data
+            ClassTemplate (BaseModel) - description of structured data
 
-        userPrompt = f"{query}"
+        Returns:
+            Tuple of BaseModel and Usage
+        
+        """
 
         ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
                             provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
-        agent = Agent(ollModel, 
-                    output_type=OneResultList,
-                    system_prompt = systemPrompt,
-                    retries=3,
-                    output_retries=3)
 
+        runUsage = Usage()
+
+        # use HyDE (Hypothetical Document Embedding)
+        systemPrompt = f"""
+        Write a two sentence answer to the user prompt query
+        """
+
+        agentHyDE = Agent(ollModel, system_prompt = systemPrompt)
+        userPrompt = f"{self._context["query"]}"
         try:
-            result = agent.run_sync(userPrompt)
-            oneResultList = OneResultList.model_validate_json(result.output.model_dump_json())
-        except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
-            msg = f"extractExecSection: Skipping due to exception: {e}"
+            result = agentHyDE.run_sync(userPrompt)
+            runUsage = runUsage + result.usage()
+        except Exception as e:
+            msg = f"LLM exception on HyDE request: {e}"
             self.workerError(msg)
-            return None, None
+            return
+       
+        msg = f"HyDE:{result.output}"
+        self.workerSnapshot(msg)
 
-        self._logger.info(f"\n------{OneResultList}---------\n{oneResultList.model_dump_json(indent=2)}")
+        # get HyDE query match in RAG database
+        queryList = []
+        queryList.append(result.output)
+        oneResultList = self.getDBIssueMatch(queryList)
+
+        return
+
+        msg = f"bm25s query: {json.dumps(queryList)}"
+        self.workerSnapshot(msg)
+
+        query_tokens = bm25s.tokenize(queryList, return_ids=False)
+
+        msg = f"Tokenised bm25s query: {json.dumps(query_tokens)}"
+        self.workerSnapshot(msg)
+
+        # for all data sources for bm25s
+        for folderName in self._context["bm25sJSON"]:
+            # first read bm25s configuration for the document
+            with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
+                bm25sParams = json.load(jsonIn)
+            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
+            numDocs = bm25sParams["num_docs"]
+            results, scores = retriever.retrieve(query_tokens, k=numDocs)
+            for i in range(results.shape[1]):
+                docN, score = results[0, i], scores[0, i]
+                if score > self._context["bm25sCutOffScore"]:
+                    outTitle = docN["text"].splitlines()[0]
+                    folderBaseName = str(Path(folderName).name)
+                    msg = f"{folderBaseName}   {outTitle}  Rank: {i+1} Score: {score:.2f})"
+                    self.workerSnapshot(msg)
+
+
+        if runUsage:
+            msg = f"{runUsage.requests} request(s). {runUsage.request_tokens} request tokens. {runUsage.response_tokens} response tokens."
+            self._context["llmrequests"] += 1
+            self._context["llmrequesttokens"] += runUsage.request_tokens
+            self._context["llmresponsetokens"] += runUsage.response_tokens
+            self.workerSnapshot(msg)
+
         return
 
 
@@ -193,9 +237,6 @@ class QueryWorkflow(WorkflowBase):
         Ask Gemini for final reply
         """
 
-        msg = f"Original query:{self._context["query"]}"
-        self.workerSnapshot(msg)
-
         geminiModel = GeminiModel(
             model_name=self._context["llmGeminiVersion"], 
             provider=GoogleGLAProvider(
@@ -218,11 +259,11 @@ class QueryWorkflow(WorkflowBase):
             self.workerError(msg)
             return
        
-        msg = f"HyDE response:{result.output}"
+        msg = f"HyDE:{result.output}"
         self.workerSnapshot(msg)
 
         queryList = []
-        queryList.append(self._context["query"])
+ #       queryList.append(self._context["query"])
         queryList.append(result.output)
         oneResultList = self.getDBIssueMatch(queryList)
 #        print(f"'n---------------\n{oneResultList.model_dump_json(indent=2)}")
@@ -246,7 +287,7 @@ class QueryWorkflow(WorkflowBase):
             self.workerError(msg)
             return
 
-        synonymsResultList.results_list.append(self._context["query"])
+#        synonymsResultList.results_list.append(self._context["query"])
         msg = f"Expanded bm25s query: {json.dumps(synonymsResultList.results_list)}"
         self.workerSnapshot(msg)
 
@@ -267,21 +308,13 @@ class QueryWorkflow(WorkflowBase):
             results, scores = retriever.retrieve(query_tokens, k=numDocs)
             for i in range(results.shape[1]):
                 docN, score = results[0, i], scores[0, i]
-                outTitle = docN["text"].splitlines()[0]
                 if score > self._context["bm25sCutOffScore"]:
-                    msg = f"{folderName}  Rank {i+1} (score: {score:.2f}): {outTitle}"
+                    outTitle = docN["text"].splitlines()[0]
+                    folderBaseName = str(Path(folderName).name)
+                    msg = f"{folderBaseName}   {outTitle}  Rank: {i+1} Score: {score:.2f})"
                     self.workerSnapshot(msg)
 
         return
-
-
-
-
-        synList = []
-        synList.append(self._context["query"])
-        synList = synList + self._dictSynonyms[self._context["query"]]
-        msg = f"Query: {synList}"
-        self.workerSnapshot(msg)
 
         resultWithTypeList = ResultWithTypeList(results_list = [])
         for query in synList:
@@ -433,13 +466,12 @@ class QueryWorkflow(WorkflowBase):
             if (distFloat > cutDist) :
                 break
 
-#            print("-------------------------")
+#            print(f"------dist {distFloat}-------------------")
 #            print(type(queryResult["documents"][0][resultIdx]))
 #            print(queryResult["documents"][0][resultIdx])
 #            print("-------------------------")
 #            print(type(queryResult["metadatas"][0][resultIdx]))
 #            print(queryResult["metadatas"][0][resultIdx])
-#            print("============================")
 
             # result from RAG table has typename attached as metadata
             oneResultWithType = OneResultWithType(
@@ -458,10 +490,10 @@ class QueryWorkflow(WorkflowBase):
                 resultWithTypeList.results_list.append(oneResultWithType)
 
         if len(resultWithTypeList.results_list) :
-            msg = f"Query returned {len(resultWithTypeList.results_list)} vectors less than {cutDist} distance"
+            msg = f"Query returned {len(resultWithTypeList.results_list)} vectors within the distance of {cutDist}"
             self.workerError(msg)
         else:
-            msg = f"Query {queryList} did not get matches less than {cutDist}"
+            msg = f"Query {queryList} did not return vectors within the distance of {cutDist}"
             self.workerError(msg)
         return resultWithTypeList
 
@@ -532,6 +564,8 @@ class QueryWorkflow(WorkflowBase):
 
         if self._context["llmProvider"] == "Gemini":
             self.agentPromptGemini()
+        if self._context["llmProvider"] == "Ollama":
+            self.agentPromptOllama()
 
         self._context["stage"] = "completed"
         msg = f"Processing completed."

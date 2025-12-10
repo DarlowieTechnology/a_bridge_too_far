@@ -1,0 +1,138 @@
+{
+"finding_dict": {
+"SR-102-001" : {
+  "identifier": "SR-102-001",
+  "title": "Reflected Cross-Site Scripting (XSS)",
+  "risk": "Medium",
+  "status": "Open",
+  "description": null,
+  "recommendation": null,
+  "affects": null
+},
+"SR-102-002" : {
+  "identifier": "SR-102-002 Uploaded File Types Were Not Restricted",
+  "title": "Uploaded File Types Were Not Restricted",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "The web application allowed any type of file to be uploaded, although anti-virus scanning was in place and would detect any attempt to upload malware. The lack of restrictions could allow an attacker to upload an otherwise legitimate file containing malicious code. For example, an attacker might be able target the server itself, by uploading a web shell that would provide the attacker with the capability to run commands on the server and access the file system with the full privileges of the web server process. As a proof of concept, a .php file was uploaded containing malicious code. If triggered, this would have given the attacker command line execution. Figure 1: Uploaded PHP file Although it was possible to upload a file containing malicious code, access to the directory used to store the uploaded files required an Active Directory account. Accordingly, the risk associated with this issue has been lowered to Medium.",
+  "recommendation": "The file types allowed to be uploaded should be restricted to only those that are necessary for business functionality. The application should perform filtering and content checking on any files which are uploaded to the server. Files should be thoroughly scanned and validated before being made available to other users. If in doubt, the file should be discarded. Note that the effectiveness of content-checking controls should not be wholly relied upon, and that they will only provide benefit if the anti-virus and malware signatures are regularly updated. It is also recommended that some consideration should be given to storing uploaded files in a database, rather than on the file system. This would significantly reduce the risk associated with the file upload facility, but it is recognised that this might require extensive changes to the current application design",
+  "affects": "IP Address DNS Name 192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-003" : {
+  "identifier": "SR-102-003",
+  "title": "HTTP Header Discloses Internal IP Address",
+  "risk": "Low",
+  "status": "Open",
+  "description": "It was possible to determine an internal IP address by sending a crafted request to the application. An attacker could use this information to gain a greater understanding of the internal network and tailor further attacks. The HTTP request and response shown below illustrate this issue.",
+  "recommendation": "On IIS version 7 and above, this issue can be addressed by setting the IIS alternateHostname property (as described at the www.iis.net link below). This allows the specified hostname to be used in place of the internal IP address in redirection responses. Testing should be performed to ensure that this does not adversely affect any legitimate redirection functionality in the application. 1, 2",
+  "affects": "IP Address DNS Name\\n192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-004" : {
+  "identifier": "SR-102-004",
+  "title": "Username Enumeration via Login Function",
+  "risk": "Low",
+  "status": "Open",
+  "description": "It was possible to enumerate users of the website through the login mechanism. This provided different responses to failed login attempts depending on whether or not the supplied username was valid. An attacker could potentially use this difference in behaviour to compile a list of valid usernames which could then be used as the basis for further attacks against the application.\\nWhen an authentication attempt was made with a valid username but an incorrect password, the application returned \\u3010Invalid password\\u3030please try again\\u300d. When the username was not in use, the application returned \\u3010Your user name has not been recognised\\u3030please re-enter it\\u300d.",
+  "recommendation": "The login mechanism should be modified to return the same error message for a failed login attempt regardless of whether or not the supplied username is valid.3, 4",
+  "affects": "IP Address DNS Name\\n192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-005" : {
+  "identifier": "SR-102-005",
+  "title": "Verbose Error Messages",
+  "risk": "Low",
+  "status": "Open",
+  "description": "The web application was configured to display detailed error messages when an application exception was generated. Printing debugging information in the form of a stack trace associated with an error can leak information about the internal structure of the application which could potentially lead to the discovery or classification of additional vulnerabilities.",
+  "recommendation": "Application errors should be handled gracefully, and unnecessary technical information should not be presented to users. Applications should return suitably generic but user friendly error messages that do not disclose sensitive information.",
+  "affects": "IP Address DNS Name 192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-006" : {
+  "identifier": "SR-102-006 Unsupported Operating System",
+  "title": "Unsupported Operating System",
+  "risk": "High",
+  "status": "Open",
+  "description": "Windows Server 2008 was found to be installed on the affected host. This software reached its end of life date in January\\2020 and is no longer supported by Microsoft. It may contain security vulnerabilities that will never be addressed by\\Microsoft. Figure 5: Windows Server 2008 login page In addition, the length of time this issue has remained unaddressed may indicate a gap in the software patching process. ",
+  "recommendation": "This software should be upgraded to the latest stable, secure and supported version of the software.5 Investigate the software patching policy and procedures and ensure that updates are applied to all software installations, including third party applications, on a regular basis. 5Microsoft Product Support Statushttps://docs.microsoft.com/en-us/lifecycle/products/windows-server-2003- Version 3.0- Page 15 of 32 Client Confidential In particular, it should be ensured that the patching procedures are sufficient to identify software which is about to reach end of life sufficiently early for extended support to be purchased or alternative software purchasedbefore end of life is reached. These procedures should acknowledge that software upgrades sometime also require hardware upgrades and factor this into the relevant timescales.",
+  "affects": "192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-007" : {
+  "identifier": "SR-102-007 Certificate Signed With MD5 Hash",
+  "title": "Certificate Signed With MD5 Hash",
+  "risk": "Low",
+  "status": "Open",
+  "description": "",
+  "recommendation": "Request that the certificate authority reissue the certificate using a stronger hashing algorithm such as SHA-256.6, 7, 8, 9  Affects:  IP Address DNS Name  192.1.1.111 www.nccgroup-client.co.uk 6SSL Certificate Attack Using MD5 Collisionhttps://www.win.tue.nl/hashclash/rogue-ca/ 7Apple https://support.apple.com/kb/HT4999 8Microsoft https://support.microsoft.com/kb/2862973 9Chromium https://code.google.com/p/chromium/issues/detail?id=101123",
+  "affects": ""
+},
+"SR-102-008" : {
+  "identifier": "SR-102-008 Closed UDP Ports Discovered",
+  "title": "Closed UDP Ports Discovered",
+  "risk": "Informational",
+  "status": "Open",
+  "description": "Port scans revealed the presence of closed UDP ports, which can be useful in fingerprinting systems and greatly speed up an attackers network scans. Open UDP ports do not have to send an acknowledgement in response to a request, and closed ports are not even required to send an error packet. However, some devices do send an ICMP port unreachable packet when a packet is sent to a closed UDP port. Thus it may be possible to determine if a port is not open. Closed UDP ports can be useful for fingerprinting remote systems, and increase the accuracy of scan results. Unused ports allowed through the firewall also provide an attacker with the ability to bind new services to them if a compromise has occurred. This can enable an attacker to gain extended access or to bounce packets to deeper layers within the architecture. Furthermore, closed ports can reveal the administrative habits and history of the device, potentially enabling identification of services that have been active in the past and that could be accessible in the future.",
+  "recommendation": "All attempts to access unused UDP ports should be silently dropped by filtering devices. This can be achieved through blocking the relevant port on the firewall device.",
+  "affects": "IP Address DNS Name 192.1.1.111 www.nccgroup-client.co.uk"
+},
+"SR-102-009" : {
+  "identifier": "SR-102-009",
+  "title": "Hard-Coded Credentials",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "During testing, it was discovered that the application communicated with the web service using HTTP Basic authentication. When HTTP Basic authentication is used, the credentials are sent to the server in a base64 encoded format. No cookie or session is upheld, as the authentication header (the base64 string) is sent with each request to authenticate the applications request to the server. The authentication token was the same for every request sent to the web service, suggesting that authentication was on an application level, and users were only authenticated locally. The base64 encoded authentication token was decoded, as per below: Authentication Token: abcdefghiJKlmnopQrstuvwFtJTRATVhxWV5aSDRV Decoded from Base64: SVC-SITESBCert:R!m123456qY^ZH4U The consultant then inspected the application binary, and discovered that these credentials were hard-coded into the application. If an attacker is able to gain access to the application binary, they would be able to recover the clear-text credentials used to communicate with the web service. Additionally, any attacker performing a successful man in the middle attack could sniff the credentials from the HTTP session. Once the attacker has successfully obtained the credentials, they would then be able to communicate directly with the web service, and carry out transactions with the same permissions as the application.",
+  "recommendation": "Credentials should not be hard-coded into the application as these can easily be recovered by an attacker with access to the binary. If HTTP Basic authentication is used, it should be used in conjunction with properly configured TLS/SSL. In addition to authentication, each user of the application should be identified to the web service using an authorisation token, which should be checked to ensure the user is authorised to carry out the requested action. This ensures that even if an attacker gains access to the web service authentication credentials, they would not be authorised to carry out any transactions without an authorisation token.",
+  "affects": "ABC 123.ipa"
+},
+"SR-102-010" : {
+  "identifier": "SR-102-010",
+  "title": "SSL Certificate Checking Disabled",
+  "risk": "Medium",
+  "status": "Open",
+  "description": null,
+  "recommendation": null,
+  "affects": null
+},
+"SR-102-011" : {
+  "identifier": "SR-102-011 No Jailbreak Detection",
+  "title": "Jailbreak Detection Issue",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "Allowing the application to be installed or run on a jailbroken device exposes the application to trivial and sophisticated attacks, and to reverse engineering. iOS jailbreaking refers to the process of removing the limitations imposed by Apple on devices (such as the iPhone, iPod touch and iPad) through the use of exploit tools.",
+  "recommendation": "It is considered a good security practice to: u Detect the presence of a jailbreak u Refuse to install or run on a system which has been jailbroken",
+  "affects": "\"ABC 123.ipa\""
+},
+"SR-102-012" : {
+  "identifier": "SR-102-012",
+  "title": "SSL/TLS Renegotiation DoS",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "The remote service encrypts traffic using TLS/SSL but allows a client to renegotiate the connection after the initial handshake. The attacker could use this vulnerability to trigger renegotiation of existing SSL connections to cause a denial of service due to resource exhaustion on the server. Publicly available DoS tools could take advantage of the renegotiation to automate an attack against the server.",
+  "recommendation": "Disable renegotiation on the server-side completely.",
+  "affects": "IP Address DNS Name Port 192.1.1.121 nccgroup-client.co.uk 7083"
+},
+"SR-102-014" : {
+  "identifier": "SR-102-014",
+  "title": "Backgrounding Screenshots Enabled",
+  "risk": "Low",
+  "status": "Open",
+  "description": "By default, when an iOS application is sent to the background (e.g. by pressing the Home button), the operating system will take a screenshot of the current UI and store it for future use. The mobile application did not disable this feature, and hence screenshots containing information on an on-going credit card transaction could be written to the device file system.",
+  "recommendation": "The application should prevent iOS from taking a snapshot of sensitive data when the background or suspended state is entered. The application can programmatically hide or eliminate sensitive data from the screen before the snapshot is taken. This can be accomplished by setting window.hidden to YES in the applicationDidEnterBackground delegate and window.hidden to NO in the applicationWillEnterForeground delegate.",
+  "affects": "ABC 123.ipa"
+},
+"SR-102-015" : {
+  "identifier": "SR-102-015 Manual Screenshots Not Disabled",
+  "title": "Manual Screenshots Not Disabled",
+  "risk": "Low",
+  "status": "Open",
+  "description": "It was possible for the user to take screen captures of the mobile application, using iOSs screenshot key combination.  This could lead to images containing sensitive information (such as recently accessed client information) being stored in unencrypted form on the device file system. Although it is perhaps unlikely that the user would deliberately take screenshots of their online banking data, it is relatively easy to press the relevant key combination by accident, and this could lead to the inadvertent leakage of sensitive data.",
+  "recommendation": "There is no documented method to prevent manual screenshots being taken on iOS at the time of writing, and hence this risk has to be accepted by ClientName.14",
+  "affects": "\"ABC 123.ipa\""
+},
+"SR-102-016" : {
+  "identifier": "SR-102-016 No Support for TLS Versions Above 1.0",
+  "title": "No Support for TLS Versions Above 1.0",
+  "risk": "Low",
+  "status": "Open",
+  "description": "The affected server did not support TLS above version 1.0. Since 2008, TLS has been at version 1.2, with version 1.3 being defined in August 2018.",
+  "recommendation": "Add support for TLS v1.2 and v1.3.16, 17, 18, 19, 20, 21, 22",
+  "affects": "IP Address DNS Name Port;192.1.1.121;nccgroup-client.co.uk;7083"
+}}
+}

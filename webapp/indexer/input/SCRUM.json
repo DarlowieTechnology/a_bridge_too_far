@@ -1,0 +1,75 @@
+{
+"finding_dict": {
+"SCRUM-10" : {
+  "identifier": "SCRUM-10",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T19:11:08.820+1100",
+  "status_name": "To Do",
+  "summary": "Fix XSS bug",
+  "progress": 0,
+  "worklog": []
+},
+"SCRUM-9" : {
+  "identifier": "SCRUM-9",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T17:30:06.328+1100",
+  "status_name": "To Do",
+  "summary": "Create RAG database for indexer",
+  "progress": 0,
+  "worklog": []
+},
+"SCRUM-8" : {
+  "identifier": "SCRUM-8",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T17:29:38.992+1100",
+  "status_name": "To Do",
+  "summary": "Develop web app for indexer",
+  "progress": 0,
+  "worklog": []
+},
+"SCRUM-7" : {
+  "identifier": "SCRUM-7",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T17:29:21.563+1100",
+  "status_name": "To Do",
+  "summary": "Develop workflow for indexer",
+  "progress": 0,
+  "worklog": []
+},
+"SCRUM-6" : {
+  "identifier": "SCRUM-6",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T17:28:39.051+1100",
+  "status_name": "To Do",
+  "summary": "Develop indexer app using LLM and RAG database",
+  "progress": 0,
+  "worklog": []
+},
+"SCRUM-5" : {
+  "identifier": "SCRUM-5",
+  "project_key": "SCRUM",
+  "project_name": "Darlowie Software Team",
+  "status_category_key": "new",
+  "priority_name": "Medium",
+  "issue_updated": "2025-11-08T17:24:30.219+1100",
+  "status_name": "To Do",
+  "summary": "Develop generator app using LLM and RAG database",
+  "progress": 0,
+  "worklog": []
+}}
+}

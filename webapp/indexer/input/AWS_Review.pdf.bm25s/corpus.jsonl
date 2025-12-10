@@ -1,0 +1,10 @@
+{"id":0,"text":"sr-109-001 iam roles assigned with excessive permissions \n sr-109-001 iam roles assigned with excessive permissions high open"}
+{"id":1,"text":"sr-109-002 overly permissive network configuration \n sr-109-002 high open"}
+{"id":2,"text":"sr-109-003 unauthorised access to s3 buckets \n sr-109-003 unauthorised access to s3 buckets medium open"}
+{"id":3,"text":"sr-109-004 user without mfa enabled \n sr-109-004 user without mfa enabled medium open"}
+{"id":4,"text":"sr-109-005 no password policy was enabled in the iam settings. \n sr-109-005 iam password policy medium open"}
+{"id":5,"text":"sr-109-006 automated backups not enabled for rds instances \n sr-109-006 automated backups not enabled for rds instances low open"}
+{"id":6,"text":"sr-109-007 single availability zone rds instance \n sr-109-007 single availability zone rds instance low open"}
+{"id":7,"text":"sr-109-008 unused security groups \n sr-109-008 unused security groups low open"}
+{"id":8,"text":"sr-109-009 subnets using default network acls \n sr-109-009 subnets using default network acls low open"}
+{"id":9,"text":"sr-109-010 cloudformation stack without termination protection \n sr-109-010 low open"}

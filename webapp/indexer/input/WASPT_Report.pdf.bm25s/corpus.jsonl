@@ -1,0 +1,13 @@
+{"id":0,"text":"ncc-samplewapt-001 pre-authentication sql injection in dologin \n critical high, exploitability: high high ncc-samplewapt-001"}
+{"id":1,"text":"ncc-samplewapt-002 users can become other users via manipulated jwt \n critical high high ncc-samplewapt-002"}
+{"id":2,"text":"ncc-samplewapt-014 account takeover via sms password reset \n critical high high ncc-samplewapt-014"}
+{"id":3,"text":"ncc-samplewapt-003 validation feedback required \n high severe required tool call ncc-feedback-001"}
+{"id":4,"text":"ncc-samplewapt-004 arbitrary file read inexamplefilesobject \n high high high ncc-samplewapt-004"}
+{"id":5,"text":"ncc-samplewapt-007 finding design pattern creates risk of server-side request forgery (ssrf) \n high high, exploitability: undetermined undetermined ncc-samplewapt-007"}
+{"id":6,"text":"ncc-samplewapt-011 finding application returns incorrect content-type for json responses \n high high, exploitability: high high ncc-samplewapt-011"}
+{"id":7,"text":"ncc-samplewapt-013 finding s3 buckets misconfigured \n high high, exploitability: high high ncc-samplewapt-013"}
+{"id":8,"text":"ncc-samplewapt-006 finding application uses weak hash to store passwords \n medium medium, exploitability: medium medium ncc-samplewapt-006"}
+{"id":9,"text":"ncc-samplewapt-012 iam passrole permission allows potential authorization bypass \n medium high low ncc-samplewapt-012"}
+{"id":10,"text":"ncc-samplewapt-008 verbose error messages disclose sensitive information \n low low medium ncc-samplewapt-008"}
+{"id":11,"text":"ncc-samplewapt-010 potential backdoor user \n low medium low ncc-samplewapt-010"}
+{"id":12,"text":"ncc-samplewapt-009 finding multiple complex authentication methods \n informational undetermined undetermined ncc-samplewapt-009"}

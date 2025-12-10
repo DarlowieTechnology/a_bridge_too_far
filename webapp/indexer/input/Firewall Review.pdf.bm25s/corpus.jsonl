@@ -1,0 +1,14 @@
+{"id":0,"text":"sr-104-001 device software vulnerabilities \n sr-104-001 high"}
+{"id":1,"text":"sr-104-002 widely scoped access controls \n sr-104-002 medium"}
+{"id":2,"text":"sr-104-003 rule permits a legacy clear text protocol \n sr-104-003 medium"}
+{"id":3,"text":"sr-104-004 test / temporary rules present \n sr-104-004 test / temporary rules present low"}
+{"id":4,"text":"sr-104-005 rules allow any icmp message type \n sr-104-005 low"}
+{"id":5,"text":"sr-104-006 proxy address resolution protocol (arp) was enabled \n sr-104-006 low"}
+{"id":6,"text":"sr-104-007 icmp redirect messages were enabled \n sr-104-007 low"}
+{"id":7,"text":"sr-104-008 network time source not authenticated \n sr-104-008 network time source not authenticated low"}
+{"id":8,"text":"sr-104-009 unrestricted administrative interfaces \n sr-104-009 unrestricted administrative interfaces low"}
+{"id":9,"text":"sr-104-010 no pre-logon banner message \n sr-104-010 no pre-logon banner message low"}
+{"id":10,"text":"sr-104-011 local based authentication \n sr-104-011 local based authentication low"}
+{"id":11,"text":"sr-104-012 duplicate/overlapping rules \n sr-104-012 duplicate / overlapping rules low"}
+{"id":12,"text":"sr-104-013 disabled rules present \n sr-104-013 disabled rules present informational"}
+{"id":13,"text":"sr-104-014 rules without comment text or annotation \n sr-104-014 informational"}

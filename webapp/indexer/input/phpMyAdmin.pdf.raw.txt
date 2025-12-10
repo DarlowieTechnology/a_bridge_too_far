@@ -1,0 +1,531 @@
+
+phpMyAdmin
+Web Application Security Assessment
+phpMyAdmin
+May18,2016–Version1.2
+Prepared for
+MichalČihař
+GervaseMarkham
+Prepared by
+CaraMarie
+ValentinLeon
+©2016–NCCGroup
+PreparedbyNCCGroupSecurityServices,Inc.forphpMyAdmin.Portionsofthisdocumentandthetemplatesusedinitsproduction
+arethepropertyofNCCGroupandcannotbecopied(infullorinpart)withoutNCCGroup'spermission.
+Whileprecautionshavebeentakeninthepreparationofthisdocument,NCCGroupthepublisher,andtheauthor(s)assumeno
+responsibilityforerrors,omissions,orfordamagesresultingfromtheuseoftheinformationcontainedherein. UseofNCCGroup's
+servicesdoesnotguaranteethesecurityofasystem,orthatcomputerintrusionswillnotoccur.
+2 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Executive Summary
+Synopsis
+In the spring of 2016, Mozilla engaged NCC Group
+to perform a security assessment of phpMyAdmin as
+part of Mozilla's Secure Open Source (SOS) Fund.1
+phpMyAdmin is a free and open source application
+that has been one of the defacto tools for managing
+and maintaining MySQL databases for years. Its wide
+adoptionmatchedwithitspotentialformisuse,warrants
+regularreviewfromasecurityperspective.
+This assessment was performed remotely by two NCC
+Groupconsultants,CaraMarieandValentinLeon,over
+a period of two weeks from April 25th to May 6th.
+The assessment was conducted as a code-assisted
+penetrationtestofphpMyAdminversion4.6.0(current
+release as of this writing). phpMyAdmin provided
+access to key members of the development team and
+wascommittedtomakingthisprojectasuccess.
+Scope
+NCCGroup'sevaluationincluded:
+• Main application portal: This portal is a MySQL web
+administrationtool. Theinterfacesupportsuserand
+databasemanagement,andaconsolefordirectSQL
+statementandqueryexecution.
+• Setup portal: ProvidesaninterfaceforphpMyAdmin
+application conﬁguration, including security, import,
+export,andSQLquerysettings.
+• Source code: While the focus of the assessment
+was not purely code review, NCC Group reviewed
+sectionsdealingwithauthentication,inputvalidation,
+andcommandexecution.
+Testenvironmentswerecreatedusingtheprecompiled
+phpMyAdmin packages hosted onhttps://launchpad.
+net/~nijel/+archive/ubuntu/phpmyadmin.
+Key Findings
+The assessment uncovered several application ﬂaws.
+Someofthemorenotablewere:
+• AlackofﬁlteringonuserCSVoutputthatcouldallow
+anattackerto run arbitrary code on an administrator's
+computer.
+• Improper cookie invalidation that could allow an
+attackertounsetinternalglobalvariables.
+• Unauthenticated exposure of the Cross-Site Request
+Forgery (CSRF) protection token that could allow an
+attackertoperformvariousattacksagainstphpMyAd-
+minusers.
+• Severaltrafﬁc ﬂows that expose sensitive data ormake
+use of plaintext HTTP communications. This could
+allow an attacker to man-in-the-middle, perform
+CSRF, or various other attacks against phpMyAdmin
+users.
+Limitations
+No major blockers were encountered during this as-
+sessment. Testing environments had to be setup by
+NCC Group consultants but this setup process was
+simple and automated, which helped the consultant
+team deliver value on the ﬁrst day of testing. Source
+code was available on the GitHub project page and
+access to internal repositories was granted on the ﬁrst
+dayoftesting.
+Security Recommendations
+In addition to the recommendations speciﬁed in each
+ofthevulnerabilitydetails,implementingthefollowing
+high-levelrecommendationswillallowphpMyAdminto
+gainastrongersecuritystance.
+• Update phpMyAdmin to support modern security-
+related headers — HTTP Strict Transport Security and
+a stricter Content Security Policy. Toenableastricter
+ContentSecurityPolicies(CSP)(see Vulnerability002),
+NCCGrouprecommendsremovingalllegacyscripts
+insertedasinlineJavaScriptandmovethemtoscript
+ﬁlesseparatefromtheHTMLsource.
+• Restrict all state changing actions to occur via HTTP
+POST.Allowingstatechangingrequeststobesentvia
+GETcanleaksensitivedata(see Vulnerability001)and
+allow attackers to perform numerous attacks against
+phpMyAdmin. Thisviolatessecuritybestpractices.
+• Provide users with hardening guides at install time
+andwarnusersaboutpotentialmisconﬁgurations,to
+reducetheriskofinsecureinstallations.
+• Consider requiring installations to use TLS by default.
+Ifusershavenotalreadyacquiredcertiﬁcates,thenthe
+installation process should direct them through the
+processforacquisitionviaLet'sEncrypt. 2
+• Consider implementing an out-of-date software warn-
+ing toaidusersinmaintainingup-to-dateandsecure
+phpMyAdmininstances.
+1https://wiki.mozilla.org/MOSS/Secure_Open_Source
+2https://letsencrypt.org/
+3 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Project Dashboard
+T arget Metadata
+Name phpMyAdmin
+T ype Webapplication
+Version 4.6.0
+Platform PHP
+Engagement Data
+T ype Webapplicationsecurity
+assessment
+Method Code-assisted
+Dates 2016-04-25to2016-05-06
+Consultants 2
+Level of effort 4person-weeks
+T argets
+Build site https://launchpad.net/~nijel/+archive/ubuntu/phpmyadmin
+Source https://github.com/phpmyadmin/phpmyadmin/tree/RELEASE_4_6_0/—commit
+37b38431d167915675fc8ab512470528147e72de
+Vulnerability Breakdown
+CriticalRiskissues 0
+HighRiskissues 0
+MediumRiskissues 3
+LowRiskissues 5
+Informationalissues 1
+Total issues 9
+Category Breakdown
+Authentication 1
+DataExposure 3
+DataValidation 4
+SessionManagement 1
+Key
+Critical High Medium Low Informational
+4 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+T able of Vulnerabilities
+Foreachﬁnding,NCCGroupusesacompositeriskscorethattakesintoaccounttheseverityoftherisk,application's
+exposureanduserpopulation,technicaldifﬁcultyofexploitation,andotherfactors.ForanexplanationofNCCGroup's
+riskratingandvulnerabilitycategorization,see AppendixAonpage15 .
+Title ID Risk
+CSVExportAllowsArbitraryCommandExecutioninCSVFile 006 Medium
+Login/LogoutActionsVulnerabletoCSRF 007 Medium
+AbilitytoUnsetArbitraryServerGlobalVariables 009 Medium
+SensitiveValuesVulnerabletoSessionFixation 005 Low
+SensitiveDatainURLGETQueryParameters 001 Low
+OverlyPermissiveContentSecurityPolicy 002 Low
+FileTraversalProtectionBypassonErrorReporting 004 Low
+SelfXSSintable_row_action.php 008 Low
+MultipleHTTPPlaintextLinks 003 Informational
+5 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Details
+Vulnerability CSV Export Allows Arbitrary Command Execution in CSV File
+Risk Medium Impact: Medium,Exploitability: High
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-006
+Category DataValidation
+Location TheCSVExportfunctionality 3
+Impact AmalicioususercanchangeadatabaseﬁeldsothatwhenanadministratorusestheExport
+functionalityandopenstheexportedCSVinaspreadsheeteditorsuchasExcel,codemay
+berunontheadministrator'scomputer. Alternatively, amaliciousorcompromisedadmin-
+istrator can add or modify users with formulas in various ﬁelds to target other application
+administratorsandusers.
+Description TheCSVExportfunctionalitydoesnotproperlyescapeexportedCSVﬁeldvalues. Thiscan
+lead to code execution on a user's computer. This is done by including a formula in the
+CSV ﬁle that a spreadsheet editor similar to Excel will evaluate — the formula can include
+commands to be run on the user's computer. For example, if a user changes a database
+name or column value to be=cmd|' /C calc'!A0 and the database is then exported in
+CSVformatbyanotheruser, calc.exe willrunwhentheﬁleisevaluatedbyaspreadsheet
+editor.
+The victim user will be prompted with a warning, but since the user has downloaded the
+CSVfromatrustedsource,theyarelikelytoallowthefunctionality. Itshouldbenotedthat
+encapsulatingthevalueswithquotationmarks(")doesnotmitigatetheissue.
+Reproduction Steps 1. LogintophpMyAdminandinsert =cmd|' /C calc'!A0intoadatabasecolumnvalue.
+2. ExportthedatabaseinCSVformat.
+3. Open the exported CSV ﬁle that was exported in Windows Excel and click through the
+warnings.
+4. Observethecalculatorapplicationnowrunningonthecomputer.
+Recommendation WhenperformingaCSVExport,foranycellthatstartswithan =,-,",@,or +,addaspaceto
+thebeginningandremoveanytabcharacters( 0x09)inthecell. Alternatively,prependeach
+cell ﬁeld with a single quote, so that their content will be read as text by the spreadsheet
+editor.
+3https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/plugins/export/ExportCsv.php
+6 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Login/Logout Actions Vulnerable to CSRF
+Risk Medium Impact: Medium,Exploitability: High
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-007
+Category DataValidation
+Location ThephpMyAdminlogin 4 andlogout5 functionality
+Impact An attacker could cause a user to logout of phpMyAdmin. Alternatively, a malicious user
+could cause a phpMyAdmin administrator to authenticate to phpMyAdmin using their ac-
+count.
+Description Cross-siterequestforgery(CSRF)countermeasuresusedintheapplicationarenotvalidated
+fortheloginorlogoutphpMyAdminfunctionalities. InaCSRFattack,auserisforcedtoper-
+formstate-changingactionswithouttheirknowledge,whileauthenticatedtoanapplication.
+ThecurrentCSRFcountermeasuresrequirethatallstate-changingrequestsincludea token.
+Thelackofvalidationofthisvalueforboththeloginandlogoutfunctionalitiesleavesusers
+vulnerabletothistypeofattack. Asaresult,anattackercouldcauseausertoauthenticate
+usinganotheraccountorendtheircurrentsession.
+Reproduction Steps 1. AuthenticatetophpMyAdmin.
+2. Savethefollowingas csrf.html,openitinthesamebrowser.Besuretomodifythe old_usr
+valuetotheauthenticateduser'snameandthedomaintoreﬂectyourenvironmentifnot
+usingalocaldeployment.
+<html>
+<body>
+<img src="http://localhost /phpmyadmin /index.php?db=&token=8
+ec5d8124049db01413c49351d0acf44 &old_usr=[AUTHENTICATED USER]" />
+</body>
+</html>
+3. Observetheuser'sendedsession.
+Recommendation To ensure that state changing requests are from an authorized user, validate the included
+tokenvalue.Inaddition,toensurethatsensitivedataisnotleakedviaGETURLqueryparam-
+etersperformallstatechangingrequestsasPOSTrequestsandsubmittingdataviarequest
+body(see ﬁndingNCC-1604_MOSS_phpMyAdmin-001onpage10 forfurtherdetails).
+4https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/common.inc.php#L402-L403
+5https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/common.inc.php#L407-L408
+7 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Ability to Unset Arbitrary Server Global Variables
+Risk Medium Impact: Undetermined,Exploitability: Medium
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-009
+Category DataValidation
+Location ThePMA_removeRequestVars()functionincleanup.lib.php 6
+Impact Anattackercanforgerequeststhatwillremove(unset)speciﬁcglobalvariablesontheservice
+side. Thiscanbeusedforatargeteddenialofservice(DoS)andpotentiallyotherattacks.
+Note: Becauseofthelargeamountofglobalvariables,andtherelativelyshortnatureofthis
+assessment,NCCGroupwasunabletofullydeterminetheimpactofthisvulnerability.
+Description AllPHPﬁlesincludelibraries/common.inc.php,whichinturnincludeslibraries/cleanup.lib.php
+forsanitizinguserinputifthecross-siterequestforgerytokenismissing. Thefunction PMA
+_removeRequestVars() iteratesovertheuserinputinGETandPOSTvariables, aswellas
+cookies, and then removes the variables not whitelisted. This function however, appears
+tobecalling unset()on$GLOBAL[$key]insteadof $_COOKIE[$key],effectivelyremoving
+globalvariables.
+An attacker can forge malicious URLs and leverage the cleanup function to remove inter-
+nal variables. For instance, the$GLOBAL['cfg'] array, containing the conﬁguration of the
+application could be targeted. By supplying a parameter namedcfg in the request, the
+phpMyAdminapplicationwillbecompletelyinaccessible(localDoS).
+Reproduction Steps Login to phpMyAdmin then access the following URL:/phpmyadmin/index.php?cfg=foo.
+Noticehowthedisplayedpageiscompletelyblank.
+Recommendation Fixthe PMA_removeRequestVars()functiontocorrectlysanitizethe $_COOKIEarrayinstead
+ofthe $GLOBALarray.
+6https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/cleanup.lib.php#L28
+8 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Sensitive Values Vulnerable to Session Fixation
+Risk Low Impact: Medium,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-005
+Category SessionManagement
+Location TheCross-SiteRequestForgery(CSRF)protection tokenandthe phpMyAdmincookie7
+Impact An attacker can perform various targeted attacks, such as CSRF, against a victim user or
+administrator.
+Description Sessionﬁxationisatypeofsessionhijackingattackthatcanoccurwhenauserisnotassigned
+anewsessionidentiﬁerpost-authentication. WhenauserﬁrstvisitsthephpMyAdminlogin
+page,theserversetsthe token CSRFprotectionvalueand phpMyAdmin cookie. Whenthe
+userauthenticates,thesevaluesarenotreset. Ifanattackerknowsthevalueoftheuser's to-
+kenbeforetheuserhasloggedin,theattackerwillbeabletoperformothertargetedattacks,
+suchascross-sitescripting(see ﬁndingNCC-1604_MOSS_phpMyAdmin-008onpage13 )or
+CSRF,againsttheuser.
+Currently all state-changing and other sensitive actions require additional cookies to suc-
+cessfully execute requests. Consequently, the risk associated with thephpMyAdmin cookie
+sessionﬁxationvulnerabilityisinformational–however,ifthisweretochangeinfuture,any
+actionrelyingonthiscookieforvalidationwouldbevulnerabletoattack.
+Reproduction Steps 1. ProxybrowsertrafﬁcusingaproxysimilartoBurpProxy. 8
+2. VisitthephpMyAdminloginpage, andmakenoteofthe phpMyAdmin cookieandCSRF
+tokenvaluesincludedintheresponse.
+3. AuthenticatetophpMyAdmin.
+4. Observethelackofchangeforthe phpMyAdmincookieandCSRF tokenvalues.
+Recommendation When users authenticate, change rights levels, or identity, they should immediately be as-
+signedanewsessioncookie. ThiscanbedonebyinvalidatingtheoldsessionIDandissuing
+a new one. In addition, CSRFtokens should be reset with each new user session post-
+authentication.
+7https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/session.inc.php
+8https://portswigger.net/burp/download.html
+9 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Sensitive Data in URL GET Query Parameters
+Risk Low Impact: Medium,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-001
+Category DataExposure
+Location Thefollowingparameters: token,sql_query,old_usr
+Impact Sensitive data may be intercepted by an attacker with the ability to read application trafﬁc
+or logs. The attacker may then be able to perform chosen actions via the user's account,
+unbeknownsttotheuser.
+Description SeveralparameterscontainingsensitivevaluesaretransmittedinURLGETqueryparameters.
+Theseparametersincludethe token parameter,usedtomitigatecross-siterequestforgery
+attacks,sql_query,whichcontainsSQLqueriesthathavebeenrunfromphpMyAdmin,and
+old_usr,whichexposesthepreviouslyauthenticatedaccountusername. Itshouldbenoted
+that while plaintext password values are masked for thesql_query parameter, password
+hashesarenot.
+Sending sensitive information via URL GET query parameters unnecessarily exposes these
+valuesinlogs,caches,and Refererheaderstothirdparties.
+GET / HTTP/1.1
+Host: codemirror .net
+---redacted ---
+Referer : http://localhost /phpmyadmin /setup/index.php?
+token=99b4e72f96146d5904c6f6d00539d711&page=form&formset =Sql_queries
+Connection : close
+Refererheadertokenleaksareonlypossiblevialinksfromthechangelog( /phpmyadmin/
+changelog.php)orphpMyAdminsetupsite( /phpmyadmin/setup/index.php).Neitherofthese
+pagesmakeuseofurl.php, 9 whichwouldeffectivelypreventthisleakage.
+Whilecompromiseofthe token parametercanbedamagingforaphpMyAdminuser,itis
+notlikelythatathirdpartywouldabusethevalue. Itdoes,however,expandphpMyAdmin's
+attacksurfaceandputsusersatriskintheeventofanattackonanyofthevariousthirdparty
+systemsornetworktrafﬁc.
+Reproduction Steps 1. ProxybrowsertrafﬁcusingaproxysimilartoBurpProxy.
+2. AuthenticatetophpMyAdmin.
+3. Observethe tokenasaGETqueryparameterintheproxyhistory.
+Recommendation SubmittheaboveparametersusingPOSTrequests,insteadofGETrequests.Theparameters
+shouldbepassedinthePOSTrequestbodyandnotasURLqueryparameters.
+UpdatealllinksfromthechangelogandphpMyAdminsetupsitetouseurl.php 10 toensure
+thatdataisnotunnecessarilyexposedtothird-partysites.
+Donotenable $cfg['LoginCookieRecall'] bydefault.11 Thisisadefense-in-depthsolu-
+tiontoensurethatphpMyAdminusernamesarenotleakedviathe old_usrparameterpost
+logout.
+9https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/url.php
+10https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/url.php
+11https://docs.phpmyadmin.net/en/latest/conﬁg.html#cfg_LoginCookieRecall
+10 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Overly Permissive Content Security Policy
+Risk Low Impact: Low,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-002
+Category Authentication
+Location TheContentSecurityPolicydeﬁnedinlibraries/Header.php 12
+Impact IfanapplicationendpointdisplaysanyuserinputfromtheURLinthecontentsofthepage,
+anattackercouldcraftalinkwithamaliciousJavaScriptpayloadandcreateareﬂectedcross-
+sitescripting(XSS)vulnerability. phpMyAdminisvulnerable,asreﬂectedXSSpayloadsare
+beingservedfrompagecontentsinsidetheorigin'sdomain(whichisallowedtoruninline
+JavaScript).
+Description Content Security Policy13 is a security feature that allows web sites to specify settings for
+modernbrowserstoenforceprotectionsonwebcontent. InthecaseofphpMyAdmin,the
+followingContent-Security-Policyheaderallowsinlineelementssuchas <script>and
+<style> tobeincludedinallpagesaslongastheyareloadedinthecontextofthesame
+origin.
+Content -Security -Policy : default -src 'self' ;script -src 'self' 'unsafe-inline'
+'unsafe-eval' ;;style-src 'self' 'unsafe-inline' ;img-src 'self' data: *.
+tile.openstreetmap .org;
+Listing1: Content-Security-PolicyHeader
+Whiletheintentionofthepolicymayhavebeentorestrictloadingofscriptresourcestothose
+thatoriginatedfromthedomain,thispolicywillprovidenoprotectionagainstmosttypesof
+XSSattacks,asmalicious <script>injectionscanstilloriginatefromthetrusteddomain.
+Reproduction Steps 1. ProxybrowsertrafﬁcusingaproxysimilartoBurpProxy.
+2. Access/phpmyadmin/index.php.
+3. Observe the headers returned by the server, in particular, the ``Content-Security-Policy''
+header.
+Recommendation TightentheContentSecurityPolicyasmuchaspossible.Disable `unsafe-eval'and`unsafe-
+inline'ifitsusecannotbejustiﬁed.
+Whenaddingfunctionalitytothesiteinthefuture,keepthescopeforallowedscripts,styles,
+andJavaScriptcallbacksassmallaspossible. RememberthatContentSecurityPolicyisnota
+replacementforXSSprotection. FormoreinformationonthevariousContentSecurityPolicy
+directives,seetheMozillaDeveloperNetwork. 14
+12https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/Header.php#L541-L558
+13https://www.nccgroup.trust/globalassets/our-research/us/whitepapers/csp_best_practices.pdf
+14https://developer.mozilla.org/en-US/docs/Security/CSP/CSP_policy_directives
+11 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability File Traversal Protection Bypass on Error Reporting
+Risk Low Impact: Low,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-004
+Category DataExposure
+Location Theerrorreportingendpoint,availableaterror_report.php 15
+Impact Itispossibletoconﬁrmthepresenceofsystemﬁlesontheremotehostaswellasobtaintheir
+linecount.
+Description ThePMA_countLines()functionavailableonline229oferror_report.lib.php 16containslogic
+topreventmalicioususerinputfromopeningﬁlesoutsidetheJavaScriptdirectory. However,
+itispossibletobypasstheprotectionsandaccessﬁlesanywhereonthesystem.
+Thefunctionattemptstotracktheﬁledepthofthepathbysplittingthepathintopartsbe-
+tween the slash ``/'' delimiters. The function decrements the depth on parent ``/../'' parts,
+correctlyskipsdot``/./''parts(nodepthchange)andincrementsthedepthoneverythingelse.
+Ifatanytimethedepthbecomesnegative(meaningthattheuserreachedadirectorybefore
+theintendedrootJavaScriptdirectory),thefunctionreturns. Thislogiccanbybypassedby
+sendingapathcontainingemptyparts``//'',whichwillincrementthetrackeddepthbutremain
+in the actual folder, allowing an attacker to then use the parent ``/../'' while still keeping a
+positivedepth.
+As thePMA_countLines() function only reports the size of the target ﬁles and not their
+contents,thesigniﬁcanceofthisvulnerabilityisgreatlyreduced. Furthermore,toexploitthis
+ﬁnding,the SendErrorReports conﬁgurationsettingmustbesetto ask oralways.
+Reproduction Steps 1. Conﬁgure phpMyAdmin to report errors by setting the following line in /etc/phpmyad-
+min/conﬁg.inc.php:
+$cfg['Servers '][$i]['SendErrorReports '] = 'always ';
+2. ProxybrowsertrafﬁcusingaproxysimilartoBurpProxy.
+3. TriggeranerrorintheJavaScriptfront-endbyinsertinganincorrectvariableorfunction
+nameintheJavaScriptﬁles.
+4. InterceptthePOSTrequestto /phpmyadmin/error_report.phpandmodifythefollowing
+section:
+exception [stack][12][ url]=http://localhost /phpmyadmin /js/get_scripts .
+js.php?scripts []=////////../../../../../../etc/passwd
+5. Observethereturnedlinecount.
+Recommendation UsePHP's realpathfunction17 toverifythatthetargetJavaScriptdirectoryisinthepath.
+Ifthisisnotpossible,processemptyparts``//''ofthepaththesamewaythedot``/./''pathare
+processed: do not increment the depth. Alternatively, consider rejectingaltogether paths
+containingtheparent``/../''directory.
+15https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/error_report.php
+16https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/error_report.lib.php#L229-L260
+17https://secure.php.net/manual/en/function.realpath.php
+12 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Self XSS in table_row_action.php
+Risk Low Impact: Low,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-008
+Category DataValidation
+Location ThePMA_getQueryFromSelected()functioninlibraries/mult_submits.lib.php 18
+Impact WithknowledgeoftheCSRF tokenitispossibletotriggeracross-sitescriptingvulnerability.
+Description ThePMA_getQueryFromSelected()functioninsidemult_submits.lib.php 19 takesuserinput
+andsanitizesitbeforedisplayingitbackinsidethepage. However,thefunctioncalls urlde-
+code()afterhtmlspecialchars(),20 allowingforspecialHTMLcharacterstobepassedas
+URLencodedvaluesanddisplayedbackasspecialcharactersinthepage.
+$full_query .= 'DELETE FROM '
+. PMA\libraries \Util::backquote (htmlspecialchars ($table))
+. ' WHERE ' . urldecode(htmlspecialchars($sval))
+. ';<br />';
+Thisvulnerablecodeisexecutedwhenbrowsingthedataofatable,thenselectingmultiple
+rowsandmarkingthemfordeletion. phpMyAdminwillpreparetheDELETESQLstatement
+itisabouttoexecuteanddisplayittotheuserforconﬁrmationbeforeexecutingit.
+AnattackerwhoisabletogainaccesstotheCSRF token value,suchasbyexploiting ﬁnd-
+ingNCC-1604_MOSS_phpMyAdmin-005onpage9 ,willthenbeabletoexploitthisvulner-
+abilityandinjectJavaScriptcodeintothevictim'ssession.
+Reproduction Steps 1. ProxybrowsertrafﬁcusingaproxysimilartoBurpProxy.
+2. Navigatetothe``Browse''sectionofatableinsideadatabase.
+3. Selectsomerowsthenclickon``delete''.
+4. ModifythePOSTrequestto /phpmyadmin/tbl_row_action.phpwiththefollowingbody:
+db=foo&table=bar&token=[token]&goto=sql.php&rows_to_delete %5B0%5D=%2560
+bar%2560.%2560 a%2560%2 B%253D%2B3%25%33%31%25%33%63%25%34%39%25%34%64%25
+%34%37%25%32%30%25%35%33%25%35%32%25%34%33%25%33%64%25%32%37%25%36%31%2
+5%32%37%25%32%30%25%36%66%25%36%65%25%36%35%25%37%32%25%37%32%25%36%66%
+25%37%32%25%33%64%25%32%37%25%36%31%25%36%63%25%36%35%25%37%32%25%37%34
+%25%32%38%25%33%31%25%32%39%25%32%37%25%33%65& sql_query=SELECT +*+FROM+%
+60bar%60&clause _is_unique =1&ajax_request =true&ajax_page_request =true&su
+bmit_mult=delete &_nocache =1462283900030800007 a
+Listing2: URLencodedpayloadof``<IMGSRC='a'onerror='alert(1)'>''
+5. NoticehowtheJavaScriptpayloadisexecutedbythebrowser.
+Recommendation Callhtmlspecialchars()aftercallinganytypeofdecodingonuserinput,inthiscase,swap
+thecallstohave:
+. ' WHERE ' . htmlspecialchars(urldecode($sval))
+18https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/mult_submits.lib.php#L477
+19https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/mult_submits.lib.php#L477
+20https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/mult_submits.lib.php#L498
+13 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Vulnerability Multiple HTTP Plaintext Links
+Risk Informational Impact: Medium,Exploitability: Low
+Identiﬁer NCC-1604_MOSS_phpMyAdmin-003
+Category DataExposure
+Location Linkedpagesinthefollowing:
+• index.php21
+• changelog.php22
+• libraries/conﬁg/messages.inc.php23
+• libraries/Util.php24
+Impact RequestsforthevariouscontentlinkedfromphpMyAdminandtheassociatedsetupsitemay
+beinterceptedbyanattackerandmodiﬁedtoincludemaliciouscontent. Alternatively, an
+attackercouldusethisvectortoperformanSSLstrippingattackagainsttheuser.
+Description MultiplepageslinkedfromthephpMyAdminarehardcodedtomakeuseofplaintextHTTP
+connections. An attacker in a privileged network position could arbitrarily modify the re-
+turnedcontentinordertoperformavarietyofattackssuchasSSLstripping,cross-sitescript-
+ing,phishing,etc.
+In addition, pages linked from the changelog (/phpmyadmin/changelog.php) and the ph-
+pMyAdminsetupsite( /phpmyadmin/setup/index.php)donotmakeuseofurl.php. 25 Asa
+result,linksfromeitherthechangelogorsetupsitewillleakthe tokentothirdpartiesviathe
+Refererheader(see ﬁndingNCC-1604_MOSS_phpMyAdmin-001onpage10 ).
+Reproduction Steps 1. AuthenticatetophpMyAdmin.
+2. Navigatetothe``OfﬁcialHomepage''linkunderthe``phpMyAdmin''sectionofhomepage.
+3. ObservetheresultingrequestviaplaintextHTTP.
+Recommendation Update all links to use HTTPS exclusively. It should be noted that each of the cited linked
+pagessupportHTTPSversions,whichshouldmakesecuringlinksrelativelypainless.
+EnforcingalllinkstoemployHTTPSwillsigniﬁcantlyreducetheunnecessaryriskplacedon
+users when switching between HTTPS and HTTP connections, and will help mitigate data
+exposureandman-in-the-middleattacks.
+EnableHTTPStrictTransportSecurity(HSTS) 26 topreventusersfromaccidentallyvisitingthe
+siteoverunsecuredHTTPandexposingthemselvestotheriskofanSSLStrippingattack. 27
+NotethattheHSTSisignoredbybrowserswhensentoverHTTP.ItmustbesentoverHTTPS
+connections.
+21https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/index.php
+22https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/changelog.php
+23https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/conﬁg/messages.inc.php
+24https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/libraries/Util.php
+25https://github.com/phpmyadmin/phpmyadmin/blob/RELEASE_4_6_0/url.php
+26https://www.owasp.org/index.php/HTTP_Strict_Transport_Security
+27https://moxie.org/software/sslstrip/
+14 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Appendix A: Vulnerability Field Deﬁnitions
+ThefollowingsectionsdescribetheriskratingandcategoryassignedtoissuesNCCGroupidentiﬁed.
+Risk Scale
+NCC Group uses a composite risk score that takes into account the severity of the risk, application's exposure and
+userpopulation,technicaldifﬁcultyofexploitation,andotherfactors. TheriskratingisNCCGroup'srecommended
+prioritizationforaddressingvulnerabilities. Everyorganizationhasadifferentrisksensitivity,sotosomeextentthese
+recommendationsaremorerelativethanabsoluteguidelines.
+Overall Risk
+OverallriskreﬂectsNCCGroup'sestimationoftheriskthatavulnerabilityposestothetargetsystemorsystems. It
+takesintoaccounttheimpactofthevulnerability,thedifﬁcultyofexploitation,andanyotherrelevantfactors.
+Critical Impliesanimmediate,easilyaccessiblethreatoftotalcompromise.
+High Implies an immediate threat of system compromise, or an easily accessible threat of large-scale
+breach.
+Medium A difﬁcult to exploit threat of large-scale breach, or easy compromise of a small portion of the
+application.
+Low Impliesarelativelyminorthreattotheapplication.
+Informational No immediate threat to the application. May provide suggestions for application improvement,
+functional issues with the application, or conditions that could later lead to an exploitable
+vulnerability.
+Impact
+Impactreﬂectstheeffectsthatsuccessfulexploitationuponthetargetsystemorsystems.Ittakesintoaccountpotential
+lossesofconﬁdentiality,integrityandavailability,aswellaspotentialreputationallosses.
+High Attackerscanreadormodifyalldatainasystem,executearbitrarycodeonthesystem,orescalate
+theirprivilegestosuperuserlevel.
+Medium Attackerscanreadormodifysomeunauthorizeddataonasystem,denyaccesstothatsystem,or
+gainsigniﬁcantinternaltechnicalinformation.
+Low Attackers can gain small amounts of unauthorized information or slightly degrade system
+performance. Mayhaveanegativepublicperceptionofsecurity.
+Exploitability
+Exploitabilityreﬂectstheeasewithwhichattackersmayexploitavulnerability. Ittakesintoaccountthelevelofaccess
+required, availabilityofexploitationinformation, requirementsrelatingtosocialengineering, raceconditions, brute
+forcing,etc,andotherimpedimentstoexploitation.
+High Attackers can unilaterally exploit the vulnerability without special permissions or signiﬁcant
+roadblocks.
+Medium Attackers would need to leverage a third party, gain non-public information, exploit a race
+condition, already have privileged access, or otherwise overcome moderate hurdles in order to
+exploitthevulnerability.
+Low Exploitationrequiresimplausiblesocialengineering,adifﬁcultracecondition,guessingdifﬁcultto
+guessdata,orisotherwiseunlikely.
+15 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential
+Category
+NCC Group groups vulnerabilities based on the security area to which those vulnerabilities belong. This can help
+organizationsidentifygapsinsecuredevelopment,deployment,patching,etc.
+Access Controls Relatedtoauthorizationofusers,andassessmentofrights.
+Auditing and Logging Relatedtoauditingofactions,orloggingofproblems.
+Authentication Relatedtotheidentiﬁcationofusers.
+Conﬁguration Relatedtosecurityconﬁgurationsofservers,devices,orsoftware.
+Cryptography Relatedtomathematicalprotectionsfordata.
+Data Exposure Relatedtounintendedexposureofsensitiveinformation.
+Data Validation Relatedtoimproperrelianceonthestructureorvaluesofdata.
+Denial of Service Relatedtocausingsystemfailure.
+Error Reporting Relatedtothereportingoferrorconditionsinasecurefashion.
+Patching Relatedtokeepingsoftwareuptodate.
+Session Management Relatedtotheidentiﬁcationofauthenticatedusers.
+Timing Relatedtoraceconditions,locking,ororderofoperations.
+16 | phpMyAdmin phpMyAdmin/NCCGroupconﬁdential

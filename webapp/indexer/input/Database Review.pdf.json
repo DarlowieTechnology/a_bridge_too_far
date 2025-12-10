@@ -1,0 +1,156 @@
+{
+"finding_dict": {
+"SR-103-001" : {
+  "identifier": "SR-103-001 Missing Oracle Security Patches",
+  "title": "Missing Oracle Security Patches",
+  "risk": "Critical",
+  "status": "Open",
+  "description": "The Oracle database management system was found to be missing multiple security patches, leaving it vulnerable to the possibility that an attacker may gain access, escalate their privileges, or cause a denial of service attack on the database software.Oracle release a quarterly critical patch update, known as a CPU. These updates contain a selection of critical patches which affect the system, as well as security updates. The server was found to be missing the following CPUs:u January 2021 CPUu October 2020 CPVu July 2020 CP Vu April 2020CPVu January 2020 CP Vu October 2019 CP Vu July 2019 CP Vu January 2019 CPU u October 2018 CP Only the most recent missing CPUs are listed above. For the complete list of missing patches refer toSupplemental Data - Missing Oracle Security Patches on page 28.",
+  "recommendation": "It is strongly recommended that the database is patched to a later CPU that will fix the majority of known issues.1 A patching policy should be put in place that assesses any new patches for risk.",
+  "affects": "IP Address DNS Name Instance \\n192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-002" : {
+  "identifier": "SR-103-002",
+  "title": "Oracle TNS Listener Poisoning Attack",
+  "risk": "High",
+  "status": "Open",
+  "description": "The Oracle TNS listener running on the server permitted service registration from remote hosts. An anonymous attacker able to connect to the listener could permit a poisoning attack, which would enable the attacker to manipulate database instances, potentially facilitating man-in-the-middle, session-hijacking, or denial of service attacks against the server. An attacker would be able to register new services and instances. By specifying the name of a legitimate instance, the TNS listener can be convinced that the attackers new instance is actually a failover or cluster participant for the legitimate instance. This can enable the redirection of legitimate client connections to an attacker-controlled machine.",
+  "recommendation": "Apply the Oracle Critical Patch Update (CPU) from April 2012.2, If this is not possible, apply the Class of Secure Transport (COST) workaround specified in the Oracle advisory references listed below.",
+  "affects": "IP Address DNS Name Instance 192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-003" : {
+  "identifier": "SR-103-003 Default Passwords",
+  "title": "Default Passwords Found",
+  "risk": "High",
+  "status": "Open",
+  "description": "Several user accounts were found to have default passwords. The affected accounts are listed below: u ABM u AD_MONITOR vi... (rest of the list)",
+  "recommendation": "It is recommended to change the passwords for these accounts. Default passwords allow attackers access to the database without triggering any alarms since brute-force attacks are not required. New strong passwords should be set in line with the company password policy.",
+  "affects": "IP Address DNS Name Instance 192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-004" : {
+  "identifier": "SR-103-004",
+  "title": "Remote Login Password File in Use",
+  "risk": "High",
+  "status": "Open",
+  "description": "The remote login password file had not been disabled.\\nRemote users can authenticate to the database using the INTERNAL account, or SYSDBA and SYSOPER modes. Using\\nthis method the users password hashes are held in the Remote Login Password file. This file is named orapw[SID]\\non Unix platforms. Controls on failed login attempts cannot prevent brute-force attacks on hashes in this file, nor\\nis auditing access possible under Oracle. It is recommended that this feature is disabled and alternative methods\\nused for remote database connection. Setting this parameter to NONE will enforce OS authenticated connections as\\nSYSDBA. The roles OSDBA and OSOPER also exist to allow OS authenticated users to connect to the database with\\nsystem level privileges.\\nThe parameter was set to EXCLUSIVE which means that only one database can use the file, however this setting did\\nnot add any security at the database configuration.",
+  "recommendation": "This feature should be disabled by setting remote_login_passwordfile to NONE in the init.ora file.5",
+  "affects": "IP Address DNS Name Instance;192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-005" : {
+  "identifier": "SR-103-005 Default Profile Settings Not Configured",
+  "title": "Default Profile Settings Not Configured",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "The default profile was found not to be configured and password related parameters were set to default values.\\u000aThe following parameters were not configured:\\u000au PASSWORD_GRACE_TIME\\u000au PASSWORD_LOCK_TIME\\u000au PASSWORD_VERIFY_FUNCTION\\u000au PASSWORD_REUSE_MAX\\u000au PASSWORD_REUSE_TIME\\u000au PASSWORD_LIFE_TIME\\u000au FAILED_LOGIN_ATTEMPTS\\u000aAll values were set to unlimited or null. Therefore all user accounts under the Default role were vulnerable to password\\u000a guessing attacks, since there was no timeout or other restrictions in place regarding password use.",
+  "recommendation": "All the parameters mentioned above should be configured according to company password policies and the criticality\\u000aof the database.6",
+  "affects": "IP Address DNS Name Instance\\u000a192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-006" : {
+  "identifier": "SR-103-006",
+  "title": "Case Insensitive Password Hashes in Use",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "A number of Oracle users had case-insensitive password hashes. These older style password hashes are easily crackable, making them insecure. The highlighted password below is an example of a user with case-insensitive password: SQL> select name, password, spare4 from sys.user$; NAME PASSWORD SPARE4 SYS CXXXXXXXXXXXXXX9 S:AXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX3 Note that theSEC_CASE_SENSITIVE_LOGON parameter had been set to true meaning that all new users will not have a case-insensitive password. Only existing users will continue to have this older style hash until the hash is removed. Recommendation: Remove the weak hash manually for each account where this is set using the following command:",
+  "recommendation": "Remove the weak hash manually for each account where this is set using the following command: UPDATE SYS.USER$ SET password = '' WHERE name = [USER] Additionally, it is recommended that the users passwords be changed. If they are not changed and the weaker hashes are cracked then this would reveal the users password regardless of whether they were using the new hash.",
+  "affects": "IP Address DNS Name Instance 192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-007" : {
+  "identifier": "SR-103-007 Users With CREATE PROCEDURE Privilege",
+  "title": "Users With CREATE PROCEDURE Privilege",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "A number of user roles had been assigned the CREATE PROCEDURE system privilege. Having the ability to create\\nprocedures or functions allows attackers to produce scripts to take advantage of any PL/SQL vulnerabilities that may\\nex ist in the database server.\\nThe ability to create procedure or functions allows an attacker to write and execute a recursive loop that will deny\\nservice. It is suggested that this privilege be dropped from the RESOURCE role and another role should be created\\nand assigned the CREATE PROCEDURE privilege.\\nAPEX_030200\\nAUDIT_PARTITION_MAINT\\NASSET_SCHEMA\\nAUDIT_MAINTENANCE\\nRESOURCE",
+  "recommendation": "Assign this role only to those users that must, as a strict business requirement, be able to create procedures or functions.",
+  "affects": "IP Address DNS Name Instance\\n192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-008" : {
+  "identifier": "SR-103-008",
+  "title": "Database Communication Over Clear Text",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "A number of listener connections were identified to allow clear text communication. If an attacker has access to the network and is able to sniff the network traffic then the confidentiality and integrity of this transmission could be affected. The following listeners were identified in the tnsnames.ora file as allowing clear text communication: SAMPLE SERVICE_NAME=SAMPLE.SAMPLE.co.uk Within each of these listeners the following had been set: PROTOCOL = TCP Having the protocol set to TCP states that encryption should not be utilised.",
+  "recommendation": "The TCPS protocol should be specified for each listener within the tnsnames.ora configuration file. An example of how the listener should be configured is shown below: PROTOCOL = TCPS",
+  "affects": "IP Address DNS Name Instance\\n192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-010" : {
+  "identifier": "SR-103-010 Excessive Users With Default Profile",
+  "title": "Excessive Users With Default Profile",
+  "risk": "Low",
+  "status": "Open",
+  "description": "During the assessment 258 users were found to be using the default profile.\\nThe Oracle default profile is very permissive in terms of password requirements and access control. The large number\\nof users with this profile are therefore exposed to heightened risk of account compromise.\\nFor the complete users list refer toSupplemental Data - Excessive Users with Default Profile on page 29.",
+  "recommendation": "It is recommended to create different profiles according to the different tasks each user is performing on the database.8\\nAffects: IP Address DNS Name Instance\\n192.168.4.3 ORADB SAMPLE\\n8Managing User Privilegeshttps://docs.oracle.com/cd/E11882_01/server.112/e10575/tdpsg_privileges.htm#TDPSG30038\\nVersion 3.0- Page 17 of 32 Client Confidential\\n4.2 Phase 2 SQL Server Database Assessment",
+  "affects": "IP Address DNS Name Instance 192.168.4.3 ORADB SAMPLE"
+},
+"SR-103-011" : {
+  "identifier": "SR-103-011 SQL Server Running As Local System",
+  "title": "SQL Server Running As Local System",
+  "risk": "High",
+  "status": "Open",
+  "description": "The SQL Server service was running in the context of the Local System account on the host. This means that should any vulnerability be discovered in the database, allowing an attacker to access xp_cmdshell, then they would be able to run commands as Local System and would have gained full access to the underlying host. The Local System account has permission to access the SAM database in the Windows registry. The SAM database contains the password hashes of all users of the system, and tools exist that can recover the plaintext passwords from these hashes.",
+  "recommendation": "The database should be installed as a lower privileged domain user, rather than as Local System.",
+  "affects": "{\"IP Address\": \"192.168.3.1\", \"DNS Name\": \"MSSQLDB\", \"Instance\": \"SAMPLE\"}"
+},
+"SR-103-012" : {
+  "identifier": "SR-103-012 C2 Audit Not Configured",
+  "title": "C2 audit was not configured (via sp_configure). C2 audit mode allows auditing of attempts, both successful and unsuccessful, to access objects. It also ensures that the server will automatically shut down if it is unable to log an event (although this may not be desirable in every organisation).",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "Consider configuring C2 audit mode, using the following commands:10\\nexec sp_configure 'show advanced options', '1'; reconfigure with override\\neexec sp_configure 'c2 audit mode', '1'; reconfigure with override\\neexec sp_configure 'show advanced options', '0'; reconfigure with override",
+  "recommendation": "Consider configuring C2 audit mode, using the following commands:10\\nexec sp_configure 'show advanced options', '1'; reconfigure with override\\neexec sp_configure 'c2 audit mode', '1'; reconfigure with override\\neexec sp_configure 'show advanced options', '0'; reconfigure with override",
+  "affects": "IP Address DNS Name Instance\\n192.168.3.1 MSSQLDB SAMPLE"
+},
+"SR-103-013" : {
+  "identifier": "SR-103-013",
+  "title": "xp_cmdshell Enabled",
+  "risk": "Medium",
+  "status": "Open",
+  "description": null,
+  "recommendation": null,
+  "affects": null
+},
+"SR-103-014" : {
+  "identifier": "SR-103-014",
+  "title": "Default sa Administrator Account Configured",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "The SQL Server administrator account had not been renamed from the default of sa. It is more difficult to script attacks against the administrator account if the username is not known. This account should be renamed to a value other than the default.",
+  "recommendation": "The code below will disable and rename the sa account:12 ALTER LOGIN sa DISABLE; ALTER LOGIN sa WITH NAME = Admin_User;",
+  "affects": "IP Address DNS Name Instance\\01292.168.3.1 MSSQLDB SAMPLE12Microsoft SQL Server - Choose an Authentication Modehttps://msdn.microsoft.com/en-us/library/ms144284.aspx\\0012Version 3.0- Page 21 of 32 Client Confidential"
+},
+"SR-103-015" : {
+  "identifier": "SR-103-015 Enforce Password Expiration Not Set",
+  "title": "Enforce Password Expiration Not Set",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "A number of accounts were found to lack the Enforce Password Expiration flag, allowing the use of the same password for extended periods, which may lead to the accounts being compromised.\\nInstance: SAMPLE\\nName Expiration Checked\\nUser1 No\\nAdmin1 No\\nSa No",
+  "recommendation": "It is recommended to enforce the use of password expiry on all accounts, to ensure that passwords are changed on a regular basis. This can be achieved in SQL Server Management Studio by selecting an accounts properties and checking the box Enforce Password Expiration.",
+  "affects": "IP Address DNS Name Instance\\n192.168.3.1 MSSQLDB SAMPLE"
+},
+"SR-103-016" : {
+  "identifier": "SR-103-016 Mixed Mode Authentication",
+  "title": "SQL Server configured to run in mixed mode, allowing clients to authenticate using either integrated Windows or native SQL Server methods.",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "SQL Server was configured to run in mixed mode, which allowed clients to authenticate using either integrated Win- dows or native SQL Server methods. Using native authentication means that passwords are passed across the network  in a form that can easily be decrypted.",
+  "recommendation": "The server should be configured to use Windows authentication only.",
+  "affects": "IP Address DNS Name Instance 192.168.3.1 MSSQLDB SAMPLE"
+},
+"SR-103-018" : {
+  "identifier": "SR-103-018 Remote Access via RPC",
+  "title": "Remote Access via RPC",
+  "risk": "Medium",
+  "status": "Open",
+  "description": "It was possible for other SQL Servers to connect to this server over RPC. By default, remote access should not be allowed. Ensure that this is a valid setting for the database and revoke if necessary using sp_configure.",
+  "recommendation": "sp_configure may be used to display or change server-level settings such as this. The following SQL can be used to address this issue:\\nexec sp_configure  'remote access', '0'; reconfigure with override",
+  "affects": "IP Address DNS Name Instance 192.168.3.1 MSSQLDB SAMPLE"
+},
+"SR-103-019" : {
+  "identifier": "SR-103-019",
+  "title": "Login Auditing Failed Logins Only",
+  "risk": "Low",
+  "status": "Open",
+  "description": "The login audit settings were only found to log failed logins. Without tracking successful logins it is difficult to track access to the system in the event of a security breach, making forensic analysis harder. The audit settings were configured as follows: Figure 1: Login Auditing Configuration",
+  "recommendation": "It is recommended to configure auditing to log 'Both failed and successful logins'.",
+  "affects": "IP Address DNS Name Instance 192.168.3.1 MSSQLDB SAMPLE"
+}}
+}

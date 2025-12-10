@@ -1,0 +1,174 @@
+{
+"finding_dict": {
+"SR-128-1-1" : {
+  "identifier": "SR-128-1-1 SSH Private Key in S3 Bucket",
+  "title": "SSH Private Key in S3 Bucket ",
+  "risk": "High",
+  "status": "",
+  "description": "One SSL private key was identified in the private GitHub repository. Whilst the key was not immediately exposed to unauthorised access, storing keys such as this in an online location (and in an unencrypted format) places them at risk of compromise if an attacker gains access to the GitHub account  or AWS S3 bucket. Information could also be disclosed if a client device where the repositories had been cloned were lost or stolen.",
+  "recommendation": "Ensure that all SSL private keys which will be used in test, staging and production environments are store d securely and not exposed on public facing systems such as a GitHub repository or in AWS S3 buckets.",
+  "affects": "S3 Bucket Name  s3://dev.client.com"
+},
+"SR-128-1-3" : {
+  "identifier": "SR-128-1-3",
+  "title": "Good Practice Observed",
+  "risk": "Good",
+  "status": "Good Practice Observed",
+  "description": "It was apparent that security had been a consideration in the development and deployment of the pipeline and its environment. The risk from various security flaws had been effectively mitigated. A number of useful controls and processes were observed to be in place. These included: Enforced code reviews, Defined checks for committing, Separate teams were responsible for different systems, Developers could not bypass pipeline steps to introduce new code or change existing code,  The use of multi-factor authentication was enforced for all AWS and GitHub access ",
+  "recommendation": "Ensure that these practices are maintained by means of training programmes and supporting procedures which define secure and acceptable practices within the organisation.",
+  "affects": null
+},
+"SR-128-2-1" : {
+  "identifier": "SR-128-2-1",
+  "title": "GitHub OAuth Misconfiguration",
+  "risk": "High",
+  "status": null,
+  "description": "",
+  "recommendation": "Remove the read permissions to all Authenticated Users in the Global Security Settings.",
+  "affects": "DNS Name project-app-jenkins.staging.clientuk"
+},
+"SR-128-2-2" : {
+  "identifier": "SR-128-2-2",
+  "title": "Jenkins Broken Access Control ",
+  "risk": "High",
+  "status": "",
+  "description": "Jenkins extends its functionality with plugins that c an be developed by third party companies or by individuals. The GitHub OAuth plugin was identified as  being responsible for authentication and authorisation. However, this plugin contained a bug that ignored the permission relationships and allowed any users to access data, even when this should have been denied as a result of that users permissions. Figure 3  Current user had no access to job details by default Figure 4  Bypassing restriction using the available third party URL ",
+  "recommendation": "Apply the workaround in the References or consider using a different  authorisation and authentication plugin as it has been tested and provided a suitable level of assurance. ",
+  "affects": "DNS Name \\n\\nproject-app-jenkins.staging.clientuk "
+},
+"SR-128-2-3" : {
+  "identifier": "SR-128-2-3",
+  "title": "Outdated Jenkins Software",
+  "risk": "Medium",
+  "status": "Outdated Jenkins Software",
+  "description": "The installed version of Jenkins Server was outdated and affected by a number of security vulnerabilities. The observed version of the Jenkins was 2. 231 while the latest version (at the time of writing) is 2. 259. Known software vulnerabilities which were unpatched in the observed  version included CSRF and XSS weaknesses. Known issues also included missing permissions checks and the potential disclosure of S MTP passwords. These vulnerabilities could allow an attacker to steal the session of an administrator, gain access to sensitive information or create files and potentially execute code on the host system. This issue has been rated as a medium risk to reflect these issues and their assigned CVSS scores.",
+  "recommendation": "Update the version of the affected Jenkins server to the latest stable and secure version available. Perform any testing necessary to ensure that this does not break or conflict with required functionality. Review the current policy for upgrading Jenkins servers and create a plan that ensures Jenkins can be maintained at the latest stable version, while still ensuring adequate testing so as to minimise disruption.",
+  "affects": "DNS Name project-app-jenkins.staging.clientuk"
+},
+"SR-128-2-4" : {
+  "identifier": "SR-128-2-4",
+  "title": "CSRF Protection Disabled",
+  "risk": "Medium",
+  "status": "CSRF Protection Disabled",
+  "description": "The built-in Jenkins CSRF token had not been enabled. This increases the risk of a successful CSRF attack which could allow an attacker to manipulate a user or an administrator into unwittingly performing actions within the application (such as changing the account password, adding accounts to the system and changing settings) on behalf of the attacker. Figure 5  CRSF protection option not enabled For a CSRF attack to succeed, the victim must click a malicious link or visit a malicious web page while logged in to the vulnerable application. This would cause the victim's browser to issue GET or POST requests to the vulnerable site by means of hidden images or embedded JavaScript code. As far as the application is concerned, these forged requests would appear to be the result of genuine actions performed by real users clicking on elements within the application. This is because the application did not sufficiently validate requests (such as by means of random tokens) to allow it to make this distinction.",
+  "recommendation": "Enable the CSRF token protection in Jenkins. One time tokens are t he primary defence against CSRF . Tokens are validated  server-side to ensure that requests can only be executed once. The token which is received must match the server-side information.",
+  "affects": "DNS Name project-app-jenkins.staging.clientuk"
+},
+"SR-128-2-5" : {
+  "identifier": "SR-128-2-5",
+  "title": "Clear Text Credentials",
+  "risk": "Low",
+  "status": "Clear Text Credentials",
+  "description": "Jenkins uses the workspace directory to build projects, to store the checkout source code and to store the files generated by the build itself. However, some files in the workspace directory were not automatically deleted. Some of these remaining files included credentials in clear text format, and had world readable permissions.",
+  "recommendation": "Use the Workspace Cleanup plugin to remove files that contained credentials such as Docker configuration files or shell scripts.",
+  "affects": "DNS Name project-app-jenkins.staging.clientuk"
+},
+"SR-128-3-1" : {
+  "identifier": "SR-128-3-1 Root Account Used Recently",
+  "title": "Root Account Used Recently ",
+  "risk": "Medium",
+  "status": "",
+  "description": "It was confirmed that the root account had been used recently as part of the security checks of the Amazon console.  The use of the root account was discussed with Client staff, who revealed that the use of the root account is part of a corporate account, and project staff had no direct control over the account.",
+  "recommendation": "The use of the root account should be minimised. Other accounts should be created following the principle of least privilege and used for management. This will reduce the risk of accidental changes and unintended disclosure of highly privileged credentials.  This would also better align the AWS account with Amazon recommended security best practice.",
+  "affects": "AWS Account"
+},
+"SR-128-3-2" : {
+  "identifier": "SR-128-3-2 IAM Password Policy",
+  "title": "IAM Password Policy ",
+  "risk": "Medium",
+  "status": null,
+  "description": "Weaknesses were noted in the password policy enabled in the IAM settings. This could result in the creation of weak user passwords, more easily susceptible to recovery by an attacker. Furthermore, these settings could allow a weak password to be used for an extended period of time.",
+  "recommendation": "Ensure a strong password policy is in place. Specifically, ensure that the following password policy is enforced:  Passwords should include at least one symbol  Passwords cannot be reused   Passwords should be reused   Passwords should use mixed case  Passwords should include at least one number  Passwords require minimum length of 14 characters",
+  "affects": "AWS Account 123456789012"
+},
+"SR-128-3-3" : {
+  "identifier": "SR-128-3-3 EBS Volumes Without Encryption",
+  "title": "EBS Volumes Without Encryption",
+  "risk": "Medium",
+  "status": null,
+  "description": "Elastic Block Store (EBS) based full disk encryption (FDE) was not enabled on the EBS volumes. Due to the nature of a cloud -hosted environment, hosted data stored on virtual drives can be re-assigned to other hosts, often beyond the account that owns it. I f an administrator removes a virtual drive from a hosted machine, this data can be re-assigned elsewhere and in some circumstances recovered.   Amazon have stated that drives are wiped after deletion; however, FDE ensures that if a virtual drive is removed and re-assigned to a different host controlled by another AWS account then this data would be very difficult, if not impossible, to recover.   The following figure highlights the volumes that did not have encryption enabled:    Figure 10  EBS volumes lacking encryption  114 volumes were flagged and are detailed in Supplemental Data, Section 3.3.   Encrypt all hosted machine virtual drives that host intellectual property or sensitive data.  Furthermore, OS based encryption (such as LUKS or BitLocker) ca n be leveraged in order to mitigate the risk from this issue. ",
+  "recommendation": "Encrypt all hosted machine virtual drives that host intellectual property or sensitive data. Furthermore, OS based encryption (such as LUKS or BitLocker) can be leveraged in order to mitigate the risk from this issue.",
+  "affects": "See Supplemental Data, Section 3.3."
+},
+"SR-128-3-5" : {
+  "identifier": "SR-128-3-5 S3 Bucket Configuration Allowing Clear Text Communications",
+  "title": "S3 Bucket Configuration Allowing Clear Text Communications ",
+  "risk": "Medium",
+  "status": "[not provided]",
+  "description": "",
+  "recommendation": "",
+  "affects": null
+},
+"SR-128-3-6" : {
+  "identifier": "SR-128-3-6",
+  "title": "S3 Bucket Without Default Encryption",
+  "risk": "Medium",
+  "status": "Not Compliant",
+  "description": "Analysis of the S3 configuration indicated that a number of buckets did not have default encryption enabled. S3  default encryption provides a way to set the default encryption behaviour for an S3 bucket. W hen enabled, all  objects will be encrypted when they are stored in the bucket. This will be done automatically, without having to  construct a bucket policy that rejects objects that are not encrypted. The following buckets were found not to have default encryption enabled: project-jenkins-stage project-xa-jenkins-stage project-xc-jenkins-stage project-y99-jenkins-stage project-za-jenkins-stage project-xab-jenkins-stage project-zd-jenkins-stage It was noted that default encryption was enabled on other S3 buckets configured on the system. ",
+  "recommendation": "Enable default encryption on all S3 buckets.",
+  "affects": "S3 Buckets project-jenkins-stage project-xa-jenkins-stage project-xc-jenkins-stage project-y99-jenkins-stage project-za-jenkins-stage project-xab-jenkins-stage project-zd-jenkins-stage"
+},
+"SR-128-3-7" : {
+  "identifier": "SR-128-3-7",
+  "title": "Policy Allows AssumeRole Action For Any Resource ",
+  "risk": "Medium",
+  "status": "Allowed in some policies, but can be improved with proper configuration.",
+  "description": "One of the IAM Inline security policies reviewed during the assessment included the AssumeRole action, without limiting it to a specific resource. The Security Token Service (STS) is a service that enables requesting temporary, limited-privilege credentials for users. The AssumeRole action implemented by the STS returns a set of temporary credentials that can be used to access AWS resources. A user, group or role with access to this action through the identified policies would be allowed to assume any role in any account that trusts the user's account.",
+  "recommendation": "The policies affected by this issue should be reviewed. One potential mitigation is to specify the complete ARN of the role that the user should be allowed to assume.",
+  "affects": "IAM Policy, jenkins-policy"
+},
+"SR-128-3-8" : {
+  "identifier": "SR-128-3-8",
+  "title": "Policy Allows PassRole Action For Any Resource",
+  "risk": "Medium",
+  "status": null,
+  "description": "A number of the IAM Managed  and Inline security policies reviewed during the assessment included the PassRole action, without limiting it to a specific resource. To pass a role (and its permissions) to an AWS service, a user must have permissions to pass the role to the service. This helps administrators ensure that only approved users can configure a service with a role that grants  permissions. Creating a policy that includes the PassRole permission without restrictions could enable the entity to which this policy is attached to access resources to which it has not been granted explicit access. This is contrary to the principle of  least privilege, as suggested by AWS security best practice. ",
+  "recommendation": "The policies affected by this issue should be reviewed. One potential mitigation is to specify the complete ARN of the role that the user should be allowed to pass.",
+  "affects": "IAM Policy jenkins-role jenkins-role1 servicerolepolicy autoscalingclusterpolicy"
+},
+"SR-128-3-9" : {
+  "identifier": "SR-128-3-9",
+  "title": "Default Security Group Hardening Not Implemented",
+  "risk": "Medium",
+  "status": "",
+  "description": "A number of security groups were identified to be using the default rules, allowing all inbound traffic from instances assigned to the same security group, as well as all outbound traffic. The default security group is assigned to new instances created within a VPC if no custom security groups are assigned to it during configuration. These rules may be overly permissive, for instance allowing an attacker who has compromised one instance with the default security group assigned to use horizontal privilege escalation to compromise all other instances configured with the default security group.",
+  "recommendation": "In order to improve system hardening, remove all rules from the default security group so that it restricts all traffic. Should an instance be created without custom security groups, it will inherit the default security group and be unable to communicate with other instances within the VPC until the required custom security groups are assigned.",
+  "affects": "IP Address VPC 1 VPC 5 VPC a VPC b"
+},
+"SR-128-3-10" : {
+  "identifier": "SR-128-3-10",
+  "title": "Single Availability Zone RDS Instance",
+  "risk": "Low",
+  "status": "Not configured correctly",
+  "description": "One Relational Database Service (RDS) instance was configured without the Multi Availability Zone option enabled.",
+  "recommendation": "Consider modifying the configuration of the database instance to enable Multi-AZ.",
+  "affects": "RDS Instance, components-db-stage"
+},
+"SR-128-4-1" : {
+  "identifier": "SR-128-4-1",
+  "title": "Kubernetes Pod Security Policy Overly Permissive",
+  "risk": "Medium",
+  "status": "",
+  "description": "The cluster did make use of the Kubernetes Pod Security Policy feature , but was configured to allow any user to create privileged containers. As a result, any user with the ability to create new pods on the cluster would be able to gain privileged access to the underlying cluster nodes and any secrets contained within them.",
+  "recommendation": "Ensure that a Pod Security Policy is defined for all namespaces in the cluster. This policy should provide minimal rights restricting the ability of pods to gain escalated privileges within the cluster.",
+  "affects": "Cluster Name project-staging"
+},
+"SR-128-4-2" : {
+  "identifier": "SR-128-4-2",
+  "title": "Kubernetes Unrestricted Cluster Network",
+  "risk": "Medium",
+  "status": "Not Resolved (or current status)",
+  "description": "There were no egress restrictions on traffic from pods in the cluster network. As a result, a compromised container would be able to attack Kubernetes management interfaces.",
+  "recommendation": "Ensure that Kubernetes Network Policies are in place for all services running on the cluster. These policies should be constructed on a least privilege basis to allow only required traffic.",
+  "affects": "Cluster Name - project-staging"
+},
+"SR-128-4-3" : {
+  "identifier": "SR-128-4-3 Outdated Kubernetes in Use",
+  "title": "Outdated Kubernetes in Use",
+  "risk": "Medium",
+  "status": "",
+  "description": "The Kubernetes service was found to be out of date, leaving the clusters and their respective containers potentially open to both security and functional issues that have been patched in later versions. Due to its very fast development rate, vulnerabilities that are found in Kubernetes often apply to numerous versions; however, patches are usually released soon after to remediate any current issues. Issues disclosed in previous versions have included privilege escalation and information disclosure issues, some of which could potentially allow a malicious user to take full control of a cluster. Although no significant vulnerabilities were found in the observed versions of Kubernetes, it is strongly recommended that all clusters are kept up to date, in line with security best practice.",
+  "recommendation": "Review the current patching policy for Kubernetes and ensure that all clusters are updated to the latest stable version regularly. It should also be noted that the current support life cycle length for versions of Kubernetes is nine months.",
+  "affects": "Cluster project-staging Version 1.0 - Page 42 of 44 Client Confidential"
+}}
+}

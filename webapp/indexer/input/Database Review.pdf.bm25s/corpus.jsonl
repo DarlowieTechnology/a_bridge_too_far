@@ -1,0 +1,17 @@
+{"id":0,"text":"sr-103-001 missing oracle security patches \n sr-103-001 missing oracle security patches critical"}
+{"id":1,"text":"sr-103-002 oracle tns listener poisoning attack \n sr-103-002 high"}
+{"id":2,"text":"sr-103-003 default passwords found \n sr-103-003 default passwords high"}
+{"id":3,"text":"sr-103-004 remote login password file in use \n sr-103-004 high"}
+{"id":4,"text":"sr-103-005 default profile settings not configured \n sr-103-005 default profile settings not configured medium"}
+{"id":5,"text":"sr-103-006 case insensitive password hashes in use \n sr-103-006 medium"}
+{"id":6,"text":"sr-103-007 users with create procedure privilege \n sr-103-007 users with create procedure privilege medium"}
+{"id":7,"text":"sr-103-008 database communication over clear text \n sr-103-008 medium"}
+{"id":8,"text":"sr-103-010 excessive users with default profile \n sr-103-010 excessive users with default profile low"}
+{"id":9,"text":"sr-103-011 sql server running as local system \n sr-103-011 sql server running as local system high"}
+{"id":10,"text":"sr-103-012 c2 audit was not configured (via sp_configure). c2 audit mode allows auditing of attempts, both successful and unsuccessful, to access objects. it also ensures that the server will automatically shut down if it is unable to log an event (although this may not be desirable in every organisation). \n sr-103-012 c2 audit not configured medium"}
+{"id":11,"text":"sr-103-013 xp_cmdshell enabled \n sr-103-013 medium"}
+{"id":12,"text":"sr-103-014 default sa administrator account configured \n sr-103-014 medium"}
+{"id":13,"text":"sr-103-015 enforce password expiration not set \n sr-103-015 enforce password expiration not set medium"}
+{"id":14,"text":"sr-103-016 sql server configured to run in mixed mode, allowing clients to authenticate using either integrated windows or native sql server methods. \n sr-103-016 mixed mode authentication medium"}
+{"id":15,"text":"sr-103-018 remote access via rpc \n sr-103-018 remote access via rpc medium"}
+{"id":16,"text":"sr-103-019 login auditing failed logins only \n sr-103-019 low"}

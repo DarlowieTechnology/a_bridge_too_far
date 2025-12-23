@@ -30,6 +30,8 @@ from langchain_community.document_loaders.pdf import PyPDFLoader
 import Stemmer
 import bm25s
 
+from anyascii import anyascii
+
 
 
 # local
@@ -47,12 +49,40 @@ class IndexerWorkflow(WorkflowBase):
         super().__init__(context, logger)
 
 
+    def loadPDF(self, inputFile : str) -> str :
+        """
+        Use PyDPF to load PDF and extract all text
+
+        Args:
+            inputFile (str) - PDF file name
+
+        Returns:
+            str - combined text with pages separated by \n
+        """
+
+        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
+        docs = loader.load()
+
+        textCombined = ""
+        for page in docs:
+            pageContent = page.page_content.strip().lower()
+            pageContent = anyascii(pageContent)
+
+
+
+            pageContent = " ".join(pageContent.split())
+            textCombined += pageContent
+        return textCombined
+
+
+
+
     def preprocessReportRawText(self, rawText : str) -> dict[str, str] :
         """
-        Split raw text into pages using separator. An example of expected format of separator is `SR-102-116`. 
-        Regexp pattern contains two OR match groups: group one is an issue identifier, group two is the issue section terminator.
-        If group one match, this is a start of the issue
-        If group two match, processing is terminated.
+        Split raw text into pages using separator.
+        Regexp pattern contains at least two named match groups: group IDENTIFIERGROUP is an issue identifier, group TERMINATORGROUP is the issue section terminator.
+        If group IDENTIFIERGROUP match, this is a start of the issue
+        If group TERMINATORGROUP match, processing is terminated.
 
         Args:
             rawText (str) - Text to parse
@@ -69,10 +99,15 @@ class IndexerWorkflow(WorkflowBase):
         prevMatch = None
 
         for match in re.finditer(compiledPattern, rawText) :
+
             end = match.start()
+
+            if prevMatch and prevMatch.group("IDENTIFIERGROUP"):
+                print(f"match: {prevMatch.start()}, IDENTIFIERGROUP: {prevMatch.group('IDENTIFIERGROUP')} start: {start}   end:{end}")
+
             if start > 0 and end > 0:
                 # insert previous page with unique key
-                key = prevMatch.group(1)
+                key = prevMatch.group("IDENTIFIERGROUP")
 
                 if key in dictIssues:
                     if key:
@@ -81,7 +116,7 @@ class IndexerWorkflow(WorkflowBase):
                 if key:
                     dictIssues[key] = rawText[start:end]
             
-            if match.group(2):
+            if match.group("TERMINATORGROUP"):
                 # current match is terminator
                 break
 
@@ -89,7 +124,7 @@ class IndexerWorkflow(WorkflowBase):
             prevMatch = match
 
         # process last match only if it is not a terminator 
-        if match.group(2):
+        if match.group("TERMINATORGROUP"):
             return dictIssues    
 
         end = len(rawText)
@@ -109,15 +144,16 @@ class IndexerWorkflow(WorkflowBase):
             BaseModel
         """
 
+        msg = f"Parse fallback to regexp"
+        self.workerSnapshot(msg)
         if self._context["extractPattern"] and self._context["assignList"]:
             compiledExtract = re.compile(self._context["extractPattern"])
             match = re.search(compiledExtract, docs)
             if match:
                 oneIssue = ClassTemplate()
                 for i in range(len(self._context["assignList"])):
-                    setattr(oneIssue, self._context["assignList"][i], match.group(i+1))
-                msg = f"{oneIssue.identifier} - regexp parser"
-                self.workerSnapshot(msg)
+                    attrName = self._context["assignList"][i]
+                    setattr(oneIssue, attrName, match.group(attrName))
                 return oneIssue
             else:
                 msg = f"regexp parser produced no match"
@@ -145,16 +181,17 @@ class IndexerWorkflow(WorkflowBase):
         The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
         {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
         """
+        
         prompt = f"{docs}"
 
-        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+        ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
+                            provider=OpenAIProvider(base_url=self._context["llmBaseUrl"]))
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
                     system_prompt = systemPrompt,
-                    retries=3,
-                    output_retries=3)
+                    retries=1,
+                    output_retries=1)
         try:
             result = agent.run_sync(prompt)
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
@@ -275,26 +312,7 @@ class IndexerWorkflow(WorkflowBase):
         return recordCollection
 
 
-    def loadPDF(self, inputFile : str) -> str :
-        """
-        Use PyDPF to load PDF and extract all text
-
-        Args:
-            inputFile (str) - PDF file name
-
-        Returns:
-            str - combined text with pages separated by \n
-        """
-
-        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
-        docs = loader.load()
-
-        textCombined = ""
-        for page in docs:
-            textCombined += "\n" + page.page_content
-        return textCombined
-
-
+    
     def jiraExport(self, ClassTemplate : BaseModel) -> RecordCollection :
         """
         Export issues from Jira project
@@ -463,17 +481,17 @@ class IndexerWorkflow(WorkflowBase):
 
                 if recordHash == existingHash:
                     rejected += 1
-#                    msg = f"Skip {reportItem.identifier}"
+#                    msg = f"Skip {uniqueId}"
 #                    self.workerSnapshot(msg)
                     continue
                 else:
                     accepted += 1
-                    msg = f"Replacing {reportItem.identifier}"
+                    msg = f"Replacing {uniqueId}"
                     self.workerSnapshot(msg)
                     chromaReportIssues.delete(ids=[uniqueId])
             else:
                 accepted += 1
-                msg = f"Adding {reportItem.identifier}"
+                msg = f"Adding {uniqueId}"
                 self.workerSnapshot(msg)
 
             vectorSource = reportItem.model_dump_json()

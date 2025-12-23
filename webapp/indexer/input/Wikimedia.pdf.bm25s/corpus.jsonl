@@ -1,14 +1,14 @@
-{"id":0,"text":"isec-wmf1214-8 reflected xss in api.php \n data validation high low isec-wmf1214-8"}
-{"id":1,"text":"isec-wmf1214-3 external reference in svg \n data validation high low isec-wmf1214-3"}
+{"id":0,"text":"isec-wmf1214-8 reflected xss in api.php  \n data validation high low isec-wmf1214-8"}
+{"id":1,"text":"isec-wmf1214-3 external reference in svg class: data validation vulnerability \n cross-site scripting (xss) high low isec-wmf1214-3"}
 {"id":2,"text":"isec-wmf1214-11 stored xss in uploaded svg files \n data validation medium low isec-wmf1214-11"}
 {"id":3,"text":"isec-wmf1214-13 entity expansion in svg and xmp metadata \n denial of service medium low isec-wmf1214-13"}
 {"id":4,"text":"isec-wmf1214-1 lack of upper limit on password length allows dos \n denial of service medium low isec-wmf1214-1"}
 {"id":5,"text":"isec-wmf1214-15 external reference in pdf \n data validation medium medium isec-wmf1214-15"}
 {"id":6,"text":"isec-wmf1214-14 stored xss in pdf files \n data validation medium medium isec-wmf1214-14"}
-{"id":7,"text":"isec-wmf1214-10 custom javascript may yield privilege escalation \n data validation medium medium isec-wmf1214-10"}
+{"id":7,"text":"isec-wmf1214-10 custom javascript may yield privilege escalation \n privilege escalation medium medium isec-wmf1214-10"}
 {"id":8,"text":"isec-wmf1214-2 weak password policy \n configuration medium high isec-wmf1214-2"}
-{"id":9,"text":"isec-wmf1214-5 10. lack of registry lock on domain names \n configuration medium high isec-wmf1214-5"}
+{"id":9,"text":"isec-wmf1214-5 lack of registry lock on domain names \n configuration medium high isec-wmf1214-5"}
 {"id":10,"text":"isec-wmf1214-7 users can inspect each other's personal javascript \n data exposure low low isec-wmf1214-7"}
 {"id":11,"text":"isec-wmf1214-6 check user page lacks cross site request forgery (csrf) protection \n data validation low medium isec-wmf1214-6"}
-{"id":12,"text":"isec-wmf1214-12 user access roles are public \n data exposure informational low isec-wmf1214-12"}
-{"id":13,"text":"isec-wmf1214-4 14. rc4 cipher enabled \n configuration informational high isec-wmf1214-4"}
+{"id":12,"text":"isec-wmf1214-12 user access roles are public  \n data exposure  informational low isec-wmf1214-12"}
+{"id":13,"text":"isec-wmf1214-4 rc4 cipher enabled \n configuration informational high isec-wmf1214-4"}

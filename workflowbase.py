@@ -2,6 +2,7 @@
 # base class for workflows
 #
 
+import logging
 from logging import Logger
 import json
 
@@ -79,7 +80,7 @@ class WorkflowBase(BaseModel):
             None
         """
         if msg:
-            self._logger.info(msg)
+            self._logger.warning(msg)    
             self._context['status'].append(msg)
         self._context['stage'] = 'error'
         with open(self._context['statusFileName'], "w") as jsonOut:

@@ -1,23 +1,21 @@
 {
 "finding_dict": {
-"PT-RCMS-001" : {
-  "identifier": "PT-RCMS-001",
-  "title": "Stored XSS in the Title Text in the image upload (Medium)",
-  "description": "It seems that the display engine i.e. WYSIWYG used in the refinery CMS is not properly sanitizing the html entities before displaying them on the page. This issue is addressed in the Github. https://github.com/refinery/refinerycms/issues/3097 The Commit link which fixed the issue. https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4 The steps to produce the vulnerability are: 1. Log in the refinery CMS. 2. Go to image tabs. 3. Click on Add new image. 4. Select an image to upload. 5. In the Title box insert the XSS payload. 6. Write anything in the ALT box. 7. Click on save button. 8. Move mouse pointer over the info icon found below the uploaded image. 9. We can see that the XSS payload gets executed. The XSS payload used <marquee onscroll=confirm(1)>XSS"
+"pt-rcms-001" : {
+  "identifier": "pt-rcms-001",
+  "title": "stored XSS in image title text (Medium)",
+  "risk": "Medium",
+  "description": "This issue occurs when the display engine in Refinery CMS does not properly sanitize HTML entities before displaying them on the page. To reproduce, log into CMS, go to Image tab, add a new image with XSS payload in title box and save it. The vulnerability can be seen when moving mouse pointer over info icon below the uploaded image."
 },
-"PT-RCMS-002" : {
-  "identifier": "PT-RCMS-002",
-  "title": "Stored XSS in the ALT Text in the image upload (Medium)",
-  "description": "This vulnerability is same as PT-RCMS-001 but in a different location. This issue is addressed in the Github https://github.com/refinery/refinerycms/issues/3097 The Commit link which fixed the issue. https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4 The steps to produce the vulnerability are 1. Log in the refinery CMS. 2. Go to image tabs. 3. Click on Add new image. 4. Select an image to upload. 5. Write anything in the title box. 6. In the ALT box insert the XSS payload. 7. Click on save button. 8. Move mouse pointer over the info icon found below the uploaded image. 9. We can see that the XSS payload gets executed. The XSS payload used <marquee onscroll=confirm(2)>XSS"
+"pt-rcms-002" : {
+  "identifier": "pt-rcms-002",
+  "title": "Stored XSS in the alt text in the image upload",
+  "risk": "Medium",
+  "description": "This vulnerability is same as pt-rcms-001 but in a different location. This issue is addressed in the GitHub https://github.com/refinery/refinerycms/issues/3097. The commit link which fixed the issue is https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4.  The steps to produce the vulnerability are:  1. Log in to Refinery CMS. 2. Go to Image tabs. 3. Click on Add new image. 4. Select an image to upload. 5. Write anything in the title box. 6. In the alt box insert the XSS payload (<marquee onscroll=confirm(2)>xss) 7. Click on Save button. 8. Move mouse pointer over the info icon found below the uploaded image. 9. We can see that the XSS payload gets executed."
 },
-"PT-RCMS-003" : {
-  "identifier": "PT-RCMS-003",
-  "title": "Stored XSS in the Title of the ADD NEW PAGE (Medium)",
-  "description": "This issue is addressed in the Github. https://github.com/refinery/refinerycms/issues/3097 The steps to produce the vulnerability are 1. Log in the refinery CMS. 2. Go to pages tabs. 3. Click on Add new page. 4. Insert the XSS payload in the title box. 5. Write anything in the body. 6. Click on save button. 7. Open the saved pages in the new browser window and we can see that the XSS payload gets executed. The XSS payload used img src=x onerror=confirm(2)/ The XSS vulnerable field is shown in below image. The Below image shows the payload. 10 | P a g e The Below image shows the payload in action. 11 | P a g e"
-},
-"PT-RCMS-004" : {
-  "identifier": "Validation feedback:",
-  "title": "Plain text responses are not permitted,  ",
-  "description": "Please use one of the provided functions to format your response."
+"pt-rcms-003" : {
+  "identifier": "pt-rcms-003",
+  "title": "Stored XSS in Refinery CMS Add New Page Title",
+  "risk": "Medium",
+  "description": "The issue is that a Stored Cross-Site Scripting (XSS) vulnerability exists in the title field of the add new page in the Refinery CMS. This can be exploited by inserting malicious code into the title box, which will then be executed when viewed in a new browser window.  Steps to reproduce: 1. Log in to the Refinery CMS. 2. Go to Pages tab. 3. Click on Add New Page. 4. Insert XSS payload in the title box: <img src=x onerror=confirm(2)/>. 5. Write anything in the body. 6. Click on Save button. 7. Open saved page in a new browser window to see the XSS payload executed."
 }}
 }

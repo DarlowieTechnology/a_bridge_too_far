@@ -1,4 +1,3 @@
-{"id":0,"text":"pt-rcms-001 stored xss in the title text in the image upload (medium) \n pt-rcms-001"}
-{"id":1,"text":"pt-rcms-002 stored xss in the alt text in the image upload (medium) \n pt-rcms-002"}
-{"id":2,"text":"pt-rcms-003 stored xss in the title of the add new page (medium) \n pt-rcms-003"}
-{"id":3,"text":"pt-rcms-004 plain text responses are not permitted,   \n validation feedback:"}
+{"id":0,"text":"pt-rcms-001 stored xss in image title text (medium) \n pt-rcms-001 medium"}
+{"id":1,"text":"pt-rcms-002 stored xss in the alt text in the image upload \n pt-rcms-002 medium"}
+{"id":2,"text":"pt-rcms-003 stored xss in refinery cms add new page title \n pt-rcms-003 medium"}

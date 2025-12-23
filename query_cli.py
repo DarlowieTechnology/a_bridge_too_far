@@ -25,26 +25,162 @@ from pydantic_ai.usage import Usage
 from openai import OpenAI
 
 # local
-from common import OpenFile
+from common import OneResultList
 from query_workflow import QueryWorkflow
 from parserClasses import ParserClassFactory
 
 
-def testRun(context : dict, queryWorkflow : QueryWorkflow) :
+def testMatchXSS(oneResultList : OneResultList) -> bool:
+
+    # Titles of nine known XSS issues 
+    knownXSSIssues = [
+        "Stored XSS in the Title of the ADD NEW PAGE (Medium)",
+        "Stored XSS in PDF files",
+        "Stored XSS in the ALT Text in the image upload (Medium)",
+        "Reflected Cross-Site Scripting",
+        "Stored XSS in the Title Text in the image upload (Medium)",
+        "Reflected XSS in api.php",
+        "Self XSS in table_row_action.php",
+        "Stored XSS in uploaded SVG files",
+        "Reflected Cross-Site Scripting (XSS)"
+    ]
+
+    found = set()
+    for item in oneResultList.results_list:
+        IssueTemplate = ParserClassFactory.factory(oneResultList.results_list[0].parser_typename)
+        oneIssue = IssueTemplate.model_validate_json(item.data)
+        for name in knownXSSIssues:
+            if oneIssue.title == name:
+                found.add(name)
+    notfound = []
+    for item in knownXSSIssues:
+        if item not in found:
+            notfound.append(item)
+    if len(notfound) :
+        print(f"==FAIL: XSS issues NOT found  Error {100*(len(notfound)/len(knownXSSIssues))} % == \n{json.dumps(notfound)}")
+    else:
+        print(f"==PASS: XSS issues found==\n")
+    return len(notfound) == 0
+
+
+def testRun(context : dict, logger: Logger) :
     """ 
     Test for query stages 
     
     Args:
         context (dict) - all information for test run
-        queryWorkflow (QueryWorkflow) - query workflow instance
+        logger (Logger) - application logger
     Returns:
         None
     """
 
+    queryWorkflow = QueryWorkflow(context, logger) 
+
     if not queryWorkflow.startup():
         return
+    msg = f"workflow startup completed."
+    queryWorkflow.workerSnapshot(msg)
+
+    save = []
+
+    msg = f"==query==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
 
     queryWorkflow.preprocessQuery()
+    msg = f"==query preprocessed==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    origQuery = queryWorkflow._context['query']
+    save.append(queryWorkflow._context['query'])
+
+    if "hyde" in context["queryvectortransforms"]:
+        queryWorkflow.hydeQuery()
+        queryWorkflow.preprocessQuery()
+        msg = f"==query HyDE===\n{json.dumps(queryWorkflow._context['query'])}"
+        queryWorkflow.workerSnapshot(msg)
+        save.append(queryWorkflow._context['query'])
+
+    if "multi" in context["queryvectortransforms"]:
+        queryWorkflow._context['query'] = origQuery
+        queryWorkflow.multiQuery()
+        queryWorkflow.preprocessQuery()
+        msg = f"==query multi===\n{json.dumps(queryWorkflow._context['query'])}"
+        queryWorkflow.workerSnapshot(msg)
+        save.append(queryWorkflow._context['query'])
+
+    if "compress" in context["queryvectortransforms"]:
+        queryWorkflow._context['query'] = origQuery
+        queryWorkflow.compressQuery()
+        queryWorkflow.preprocessQuery()
+        msg = f"==query compressed===\n{json.dumps(queryWorkflow._context['query'])}"
+        queryWorkflow.workerSnapshot(msg)
+        save.append(queryWorkflow._context['query'])
+
+    if "rewrite" in context["queryvectortransforms"]:
+        queryWorkflow._context['query'] = origQuery
+        queryWorkflow.rewriteQuery()
+        queryWorkflow.preprocessQuery()
+        msg = f"==query rewrite===\n{json.dumps(queryWorkflow._context['query'])}"
+        queryWorkflow.workerSnapshot(msg)
+        save.append(queryWorkflow._context['query'])
+
+
+    queryWorkflow._context['query'] = save
+    msg = f"==final query===\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    oneResultList = queryWorkflow.vectorQuery()
+    testMatchXSS(oneResultList)
+
+    return
+
+
+    queryWorkflow.compressQuery()
+    msg = f"==query compressed===\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow.hydeQuery()
+    msg = f"==query HyDE===\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow.preprocessQuery()
+    msg = f"==query preprocessed==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow.compressQuery()
+    msg = f"==query compressed===\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+
+
+
+
+    return
+
+    save = queryWorkflow._context['query']
+    queryWorkflow.tokenizeQuery()
+    msg = f"===query tokenized: stop words, no stemmer==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow._context['query'] = save
+    queryWorkflow.tokenizeQuery(useStopWords = False)
+    msg = f"===query tokenized: no stop words, no stemmer==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow._context['query'] = save
+    queryWorkflow.tokenizeQuery(useStopWords = False, useStemmer = True)
+    msg = f"===query tokenized: no stop words, stemmer==\n{json.dumps(queryWorkflow._context['query'])}"
+    queryWorkflow.workerSnapshot(msg)
+
+    queryWorkflow._context['query'] = save
+    queryWorkflow.tokenizeQuery(useStopWords = True, useStemmer = True)
+    msg = f"===query tokenized: stop words, stemmer==\n{json.dumps(queryWorkflow._context['query'])}"
+
+
+
+    queryWorkflow.bm25sQuery()
+
+
 
     if context["llmProvider"] == "Gemini":
         queryWorkflow.agentPromptGemini()
@@ -69,13 +205,15 @@ def main():
     context["llmProvider"] = "Ollama"
     context["llmOllamaVersion"] = "llama3.1:latest"
 
-
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
     context["llmresponsetokens"] = 0
     context['status'] = []
-    context['query'] = 'all\n  \t\t\nXSS\n'
-    context['cutIssueDistance'] = 0.50
+    context['query'] = 'get all\n  \t\t\nXSS\n issues'
+#    context["queryvectortransforms"] = ["hyde", "multi", "compress", "rewrite"]
+    context["queryvectortransforms"] = ["rewrite"]
+    context["querybm25options"] = ["stopwords", "stemmer"]
+    context['cutIssueDistance'] = 0.4
     context['bm25sCutOffScore'] = 0.0
 
 #    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
@@ -103,9 +241,7 @@ def main():
     if not QueryWorkflow.testLock("status.QUERY.json", logger) : 
         return
 
-    queryWorkflow = QueryWorkflow(context, logger) 
-
-    testRun(context=context, queryWorkflow=queryWorkflow)
+    testRun(context=context, logger=logger)
 
 #    thread = threading.Thread( target=queryWorkflow.threadWorker)
 #    thread.start()

@@ -1,3 +1,4 @@
+anyascii
 bm25s
 dataclasses
 chromadb
@@ -24,6 +25,7 @@ ollama
 pdfplumber
 pystemmer
 sentence-transformers
+spacy
 tomli
 transformers
 xformers

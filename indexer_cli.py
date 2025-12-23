@@ -117,8 +117,8 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
     
     """
 
-    if not testLock(context, logger) : 
-        return
+#    if not testLock(context, logger) : 
+#        return
 
     context["stage"] = "starting"
     msg = f"Processing data source {context['inputFileName']}"
@@ -131,7 +131,7 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
 #        loadPDF(context, indexerWorkflow)
 #        preprocess(context, indexerWorkflow)
 #        parseIssues(context, indexerWorkflow, issueTemplate)
-#        bm25prepare(context, indexerWorkflow, issueTemplate)
+        bm25prepare(context, indexerWorkflow, issueTemplate)
         vectorize(context, indexerWorkflow, issueTemplate)
 
     context["stage"] = "completed"
@@ -145,6 +145,8 @@ def main():
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
     context["llmProvider"] = "Ollama"
+    context["llmOllamaVersion"] = "llama3.1:latest"
+    context["llmBaseUrl"] = "http://localhost:11434/v1"
 #    context["llmProvider"] = "Gemini"
 #    context["llmGeminiVersion"] = "gemini-2.0-flash"
 #    context["llmGeminiVersion"] = "gemini-2.5-flash"
@@ -170,13 +172,13 @@ def main():
 #        "CD_and_DevOps Review.pdf",
 #        "Database Review.pdf",
 #        "Firewall Review.pdf",
-        "phpMyAdmin.pdf",
+#        "phpMyAdmin.pdf",
 #        "PHP_Code_Review.pdf",
 #        "Refinery-CMS.pdf",
 #        "WASPT_Report.pdf",
 #        "Web App and Ext Infrastructure Report.pdf",
 #        "Wikimedia.pdf",
-#        "Web App and Infrastructure and Mobile Report.pdf"
+        "Web App and Infrastructure and Mobile Report.pdf"
     ]
 
     # read template description

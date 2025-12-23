@@ -1,11 +1,12 @@
-{"id":0,"text":"sr-101-001 sql injection on php page \n sr-101-001 sql injection critical"}
-{"id":1,"text":"sr-101-002 uploaded file types were not restricted \n sr-101-002 high"}
+{"id":0,"text":"sr-101-001 sql injection  \n sr-101-001 critical"}
+{"id":1,"text":"sr-101-002 uploaded file types were not restricted  \n sr-101-002 high"}
 {"id":2,"text":"sr-101-003 reflected cross-site scripting \n sr-101-003 medium"}
 {"id":3,"text":"sr-101-007 login to administrative interface exposed \n sr-101-007 medium"}
-{"id":4,"text":"sr-101-004 asp.net header disclosure \n sr-101-004 asp.net header disclosure low"}
-{"id":5,"text":"sr-101-005 http header discloses internal ip address \n sr-101-005 http header discloses internal ip address low"}
-{"id":6,"text":"sr-101-010 invalid ssl certificate \n sr-101-010 low"}
-{"id":7,"text":"sr-101-012 hosts respond to icmp \n sr-101-012 low"}
-{"id":8,"text":"sr-101-013 directory listings were enabled for the site. \n sr-101-013 directory listings enabled low"}
-{"id":9,"text":"sr-101-015 no support for tls versions above 1.0 \n sr-101-015 low"}
-{"id":10,"text":"sr-101-014 beast ssl / tls weaknesses \n sr-101-014 beast ssl / tls weaknesses informational"}
+{"id":4,"text":"sr-101-004 asp.net header disclosure  \n sr-101-004 low"}
+{"id":5,"text":"sr-101-005 http header discloses internal ip address \n sr-101-005 low"}
+{"id":6,"text":"sr-101-009 wsld descriptions could be obtained by unauthenticated users \n sr-101-009 low"}
+{"id":7,"text":"sr-101-010 invalid ssl certificate \n sr-101-010 low"}
+{"id":8,"text":"sr-101-012 hosts respond to icmp \n sr-101-012 low"}
+{"id":9,"text":"sr-101-013 directory listings enabled  \n sr-101-013 low"}
+{"id":10,"text":"sr-101-015 no support for tls versions above 1.0  \n sr-101-015 low"}
+{"id":11,"text":"sr-101-014 beast ssl / tls weaknesses \n sr-101-014 informational"}

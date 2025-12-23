@@ -1,165 +1,165 @@
 {
 "finding_dict": {
-"NCCGRPPHP-001" : {
-  "identifier": "NCCGRPPHP-001",
-  "title": "Outdated or Unsupported Third Party Software",
-  "risk": "High",
-  "status": "Open",
-  "description": "A number of third party software packages in the source code repositories were outdated or unsupported and some were affected by publicly reported security vulnerabilities. This indicates there may be a gap within the security patching process. A full breakdown of the outdated third-party software at the time of the assessment has been provided in Affected Resources section.",
-  "recommendation": "Investigate the software patching and update policy and ensure that updates are applied to all software installations, including third party applications, on a regular basis. Consideration should be given to enabling the auto-update functionality within the affected third party software, to ensure that updates are applied quickly and regularly.",
-  "affects": "Third-party Software Version Supported Version URL\\nNodeJS (docker image circleci/node) 10.8 12 https://nodejs.org/en/about/releases/\\nPython (docker image circleci/python) 2.7 3.9 https://www.python.org/downloads/\\n... (rest of the list)"
+"nccgrpphp-001" : {
+  "identifier": "nccgrpphp-001",
+  "title": "outdated or unsupported third party software",
+  "risk": "high",
+  "status": "open",
+  "description": "a number of third party software packages in the source code repositories were outdated or unsupported and some were affected by publicly reported security vulnerabilities. this indicates there may be a gap within the security patching process. a full breakdown of the outdated third-party software at the time of the assessment has been provided in affected resources section.",
+  "recommendation": "investigate the software patching and update policy and ensure that updates are applied to all software installations, including third party applications, on a regular basis. consideration should be given to enabling the auto-update functionality within the affected third party software, to ensure that updates are applied quickly and regularly.1 where software is no longer supported, it may be necessary to initiate a programme of work to investigate the most effective path towards the use of later, or alternative, supported software.",
+  "affects": "third-party software version supported version url nodejs (docker image circleci/node) 10.8 12 https://nodejs.org/en/about/ releases/ python (docker image circleci/python) 2.7 3.9 https://www.python.org/ downloads/ golang (docker image circleci/golang) 1.10 1.16.6 https://github.com/golang/go/ releases php 7.3 7.4.22 https://www.php.net/ index.php#id2021-07-29-2 aws/aws-sdk-php 2.8.31 3.186.3 https://github.com/aws/ aws-sdk-php/releases/tag/3.186.3 beberlei/assert v3.2.1 v3.3.1 https://github.com/beberlei/ assert/releases/tag/v3.3.1 briannesbitt/carbon 1.21.0 2.51.1 https://github.com/briannesbitt/ carbon/releases/tag/2.51.1 composer/installers v1.10.0 v1.11.0 https://github.com/composer/ installers/releases/tag/v1.11.0 dragonmantank/cron-expression v2.2.0 v3.1.0 https://github.com/ dragonmantank/cron-expression/ releases/tag/v3.1.0 doctrine/cache 1.6.2 https://github.com/doctrine/ cache/releases/tag/2.1.1 1checking for outdated third-party packages: https://github.com/friendsofphp/security-advisories#checking-for-vulnerabilities third-party software version supported version url facebook/graph-sdk 5.6.1 https://github.com/ facebookarchive/php-graph-sdk/ releases/tag/5.7.0 firebase/php-jwt 5.0.0 5.4.0 https://github.com/firebase/ php-jwt/releases/tag/v5.4.0 fluent/fluent-logger-php v0.3.8 v1.0.1 https://github.com/fluent/fluent- logger-php/releases/tag/ v1.0.1 fzaninotto/faker 1.7.1 package fzaninotto/faker is abandoned gemorroj/archive7z 2.0.0 https://github.com/gemorroj/ archive7z/releases/tag/5.1.1 protocolbuffers/protobuf-php 3.15.8 v3.17.3 https://github.com/ protocolbuffers/protobuf-php/ releases/tag/v3.17.3 googleapis/common-protos-php 1.3 1.3.1 https://github.com/googleapis/ common-protos-php/releases/ tag/1.3.1 googleapis/ google-auth-library-php v1.7.1 v1.16.0 https://github.com/googleapis/ google-auth-library-php/releases/ tag/v1.16.0 googleapis/google-cloud-php v0.147.0 v0.163.1 https://github.com/googleapis/ google-cloud-php/releases/tag/ v0.163.1 grpc/grpc-php 1.36 1.39.0 https://github.com/grpc/ grpc-php/releases/tag/v1.39.0 guzzle/guzzle 3.7.0 guzzle/guzzle is abandoned guzzlehttp/psr7 1.4.2 2.0.0 https://github.com/guzzle/psr7/ releases/tag/2.0.0 paragonie/constant_time_encodi ng v2.2.3 v2.4.0 https://github.com/paragonie/co nstant_time_encoding/releases/ta g/v2.4.0 php-fig/cache 1.0.1 3.0.0 https://github.com/php-fig/cache/ releases/tag/3.0.0 php-fig/container 1.0.0 1.1.1 https://github.com/php-fig/ container/releases/tag/1.1.1 php-fig/log 1.1.3 1.1.4 https://github.com/php-fig/log/ releases/tag/1.1.4 phpseclib/phpseclib 2.0.31 3.0.9 https://github.com/phpseclib/ phpseclib/releases/tag/3.0.9 ramsey/uuid 3.7.1 4.1.1 https://github.com/ramsey/uuid/ releases/tag/4.1.1 seldaek/monolog 1.26.0 2.3.2 https://github.com/seldaek/ monolog/releases/tag/2.3.2 third-party software version supported version url silexphp/pimple v3.2.2 v3.4.0 https://github.com/silexphp/ pimple/releases/tag/v3.4.0 solariumphp/solarium 3.8.1 6.1.4 https://github.com/solariumphp/ solarium/releases/tag/6.1.4 swiftmailer/swiftmailer v5.4.8 https://github.com/swiftmailer/ swiftmailer/releases/tag/v6.2.7 symfony/cache 4.2.12 v5.3.4 https://github.com/symfony/ cache/releases/tag/v5.3.4 symfony/console 2.5.4 v5.3.6 https://github.com/symfony/ console/releases/tag/v5.3.6 symfony/contracts v1.0.2 v2.3.1 https://github.com/symfony/ contracts/releases/tag/v2.3.1 symfony/event-dispatcher v3.3.8 v5.3.4 https://github.com/symfony/ event-dispatcher/releases/tag/ v5.3.4 symfony/http-foundation v3.4.36 v5.3.6 https://github.com/symfony/http- foundation/releases/tag/ v5.3.6 symfony/process v3.4.1 v5.3.4 https://github.com/symfony/ process/releases/tag/v5.3.4 symfony/translation v4.4.4 v5.3.4 https://github.com/symfony/ translation/releases/tag/v5.3.4 symfony/var-exporter v3.1.13 v5.3.4 https://github.com/symfony/ var-exporter/releases/tag/v5.3.4 thephpleague/csv 9.1.4 9.7.1 https://github.com/ thephpleague/csv/releases/tag/ 9.7.1 twilio/twilio-php 5.37.0 6.27.1 https://github.com/twilio/ twilio-php/releases/tag/6.27.1"
 },
-"NCCGRPPHP-014" : {
-  "identifier": "NCCGRPPHP-014",
+"nccgrpphp-014" : {
+  "identifier": "nccgrpphp-014",
   "title": "Lack of Certificate Validation",
   "risk": "High",
   "status": "Open",
-  "description": null,
-  "recommendation": null,
+  "description": "An attacker can intercept and modify network communication. The application disabled certificate validation when using TLS for secure communication.",
+  "recommendation": "Do not disable certificate validation. Validation of X.509 certificates is essential to create secure SSL/TLS sessions not vulnerable to man-in-the-middle attacks.2 The certificate chain validation includes these steps: u The certificate is issued by its parent Certificate Authority or the root CA trusted by the system. u Each CA is allowed to issue certificates. u Each certificate in the chain is not expired. CWE-295: Improper Certificate Validation: https://cwe.mitre.org/data/definitions/295.html",
   "affects": null
 },
-"NCCGRPPHP-018" : {
-  "identifier": "NCCGRPPHP-018",
-  "title": "Poor Software Development Lifecycle",
+"nccgrpphp-018" : {
+  "identifier": "nccgrpphp-018",
+  "title": "Poor software development lifecycle",
   "risk": "High",
   "status": "Open",
-  "description": "The code base showed insufficient adherence to a software development lifecycle (SDL). Robust SDL implementation allows development of software of consistent quality, this was not evident from the code base. Following issues in the code indicated insufficient SDL practices: u High volume of Static Analysis issues. During the course of the assessment the code was processed by three PHP static analyzers (Sonar QUBE, PHPStan, Psalm). All three tools generated thousands of issues. This indicated the Static Analysis was not a part of SDL process. u High number of technical debt issues recorded asTODO in the code (finding NCCGRPPHP-004 on page 13). The usage ofTODO does not match best SDL practices. u Uneven code quality. A number of files contained trivial errors (finding NCCGRPPHP-013 on page 18), (finding NCCGRPPHP-014 on the preceding page), (finding NCCGRPPHP-009 on page 25), (finding NCCGRPPHP-003 on page 12). This indicated insufficient code review practices and absence of coding standards. u Large number of hard-coded credentials, static keys and third-party URLs (finding NCCGRPPHP-002 on the next page), (finding NCCGRPPHP-006 on page 14), (finding NCCGRPPHP-011 on page 27). Hard-coded secrets do not match best SDL practices. u Absence of parity between production and test environments. A number of third-party connections were found to be functional only in production environment. This practice reduces test coverage before release and forces testing to be performed in production. u Outdated and unsupported third-party components (finding NCCGRPPHP-001 on page 6).",
-  "recommendation": "The goal of the SDL is to minimize security-related vulnerabilities in the design, code, and documentation, and to detect and eliminate vulnerabilities as early as possible in the development lifecycle. These improvements reduce the number and severity of security vulnerabilities and improve the protection of users privacy. It is recommended to implement the following: u Integrate Static Analysis and Software Composition Analysis tools in the CI pipeline. u Migrate TODO technical issues to a issue database and perform triage of technical debt. u Enforce code review on all code by senior members of the development team. u Migrate secrets to the secure secret storage (this has been planned as indicated by the development team) u Migrate configuration system to common template to enforce parity between the environments. Use mock third-party services to emulate their behavior in the test environment. Use a copy of the database with anonymized data in the test environment. u Enforce periodic updates of third-party components including PHP and MySQL. It is important to note that the list of proposed changes is ambitious and the implementation may take a significant period of time. However, the improvement in SDL will directly affect the quality and security of the application as well as increase the productivity of developers.",
+  "description": "The code base showed insufficient adherence to a software development lifecycle (sdl). Robust sdl implementation allows development of software of consistent quality, this was not evident from the code base. Following issues in the code indicated insufficient sdl practices: u high volume of static analysis issues. During the course of the assessment the code was processed by three php static analyzers (sonar qube, phpstan, psalm). All three tools generated thousands of issues. This indicated the static analysis was not a part of sdl process. u high number of technical debt issues recorded as todo in the code (finding nccgrpphp-004 on page 13). The usage oftodo does not match best sdl practices. u uneven code quality. A number of files contained trivial errors (finding nccgrpphp-013 on page 18), (finding nccgrpphp-014 on the preceding page), (finding nccgrpphp-009 on page 25), (finding nccgrpphp-003 on page 12). This indicated insufficient code review practices and absence of coding standards. u large number of hard-coded credentials, static keys and third-party urls (finding nccgrpphp-002 on the next page), (finding nccgrpphp-006 on page 14), (finding nccgrpphp-011 on page 27). Hard-coded secrets do not match best sdl practices. u absence of parity between production and test environments. A number of third-party connections were found to be functional only in production environment. This practice reduces test coverage before release and forces testing to be performed in production. u outdated and unsupported third-party components (finding nccgrpphp-001 on page 6).",
+  "recommendation": "The goal of the sdl is to minimize security-related vulnerabilities in the design, code, and documentation, and to detect and eliminate vulnerabilities as early as possible in the development lifecycle. These improvements reduce the number and severity of security vulnerabilities and improve the protection of users' privacy. It is recommended to implement the following: u integrate static analysis and software composition analysis tools in the ci pipeline. u migrate todo technical issues to a issue database and perform triage of technical debt. u enforce code review on all code by senior members of the development team. u migrate secrets to the secure secret storage (this has been planned as indicated by the development team) u migrate configuration system to common template to enforce parity between the environments. Use mock third-party services to emulate their behavior in the test environment. Use a copy of the database with anonymized data in the test environment. u enforce periodic updates of third-party components including php and mysql. It is important to note that the list of proposed changes is ambitious and the implementation may take a significant period of time. However, the improvement in sdl will directly affect the quality and security of the application as well as increase the productivity of developers.",
   "affects": "Project in scope"
 },
-"NCCGRPPHP-002" : {
-  "identifier": "NCCGRPPHP-002",
-  "title": "Hard-Coded Trivial Credentials",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "The codebase contained hard-coded credentials. This does not conform to security best practice, and is not indicative of a secure platform. In addition, the credentials were easily guessable.  While applications may need to access credentials without user interaction, storing them in the code makes it difficult to change them - should the credentials be discovered, an attacker could gain access to the program.  Discovery of the credentials would also be easy; strings hard-coded into a binary are trivially extractable, using a variety of common tools, and so anyone with access to the binary file would be able to discover them with little effort.  Further, if multiple installations of the product share the same credentials, then an attacker with access to one installation could gain access to other instances. This can also lead in some circumstances to the possibility of the program being used as a vector to propagate worms.  A full list of the instances of credentials in code has been provided in Affected Resources section.",
-  "recommendation": "Credentials should not be hard-coded into the application. Rather, they should be stored separately, ideally in a password vault, or in an encrypted file to which only one user has access.3, 4, 5 Alternatively, credentials could be injected in the process environment. An example is shown below:  Line 184 define('MQ_PASSWORD', getenv('MYSQL_ROOT_PASSWORD'));  Line 185 define('MQ_ENQUEUE_PASSWORD', getenv('MYSQL_ROOT_PASSWORD'));",
-  "affects": "File Line /client-api-master/.circleci/config.yml 16 3Hardcoded Credentials Example:http://nakedsecurity.sophos.com/2014/04/03/is-amazon-hacking-our-apps-or-doing-us-all-a-security-favour/ 4SANS Top 25 Software Flaws: Number 11, Hardcoded Credentials:http://software-security.sans.org/blog/2010/03/10/top-25-series-rank-11-hard"
+"nccgrpphp-002" : {
+  "identifier": "nccgrpphp-002",
+  "title": "hard-coded trivial credentials ",
+  "risk": "medium",
+  "status": "open",
+  "description": "the codebase contained hard-coded credentials. this does not conform to security best practice, and is not indicative of a secure platform. in addition, the credentials were easily guessable. line 14 environment: line 15 db_host: 127.0.0.1 line 16 mysql_root_password: ****** line 17 mysql_database: test line 18 mysql_user: user line 19 mysql_password: ****** while applications may need to access credentials without user interaction, storing them in the code makes it difficult to change them - should the credentials be discovered, an attacker could gain access to the program. discovery of the credentials would also be easy; strings hard-coded into a binary are trivially extractable, using a variety of common tools, and so anyone with access to the binary file would be able to discover them with little effort. further, if multiple installations of the product share the same credentials, then an attacker with access to one installation could gain access to other instances. this can also lead in some circumstances to the possibility of the program being used as a vector to propagate worms. a full list of the instances of credentials in code has been provided in affected resources section.",
+  "recommendation": "credentials should not be hard-coded into the application. rather, they should be stored separately, ideally in a password vault, or in an encrypted file to which only one user has access.3, 4, 5 alternatively, credentials could be injected in the process environment. an example is shown below: line 184 define('mq_password', getenv('mysql_root_password')); line 185 define('mq_enqueue_password', getenv('mysql_root_password'));",
+  "affects": "file line /client-api-master/.circleci/config.yml 16 3hardcoded credentials example:http://nakedsecurity.sophos.com/2014/04/03/is-amazon-hacking-our-apps-or-doing-us-all-a-security-favour/ 4sans top 25 software flaws: number 11, hardcoded credentials:http://software-security.sans.org/blog/2010/03/10/top-25-series-rank-11-har dcoded-credentials/ 5cwe-798: use of hard-coded credentials:http://cwe.mitre.org/data/definitions/798.html"
 },
-"NCCGRPPHP-003" : {
-  "identifier": "Validation error",
-  "title": "Invalid response format",
-  "risk": "High",
-  "status": "Critical",
-  "description": "Plain text responses are not permitted, please include your response in a tool call",
-  "recommendation": "Fix the errors and try again",
-  "affects": "[Error details]"
+"nccgrpphp-003" : {
+  "identifier": "nccgrpphp-003",
+  "title": "subscope variable overshadows outer scope variable",
+  "risk": "medium",
+  "status": "open",
+  "description": "subscope variables declared with the same name as outer scope variables overshadow outer scope variables. this results in code which is difficult to read and maintain. such code can lead to bugs that are difficult to root cause. an example of an overshadowed variable in the code is shown below: line 7 protected $response = ''; ... line 9 public function render($action = null) line 10 { ... line 21 $response = self::extract($view_filename, $this->vars); php creates a new instance of the variable when it first encounters it in the scope. the code declared variable $resp one was declared in the class scope on line 7 and re-declared in the method render scope on line 21. as a result, assigning to variable$response on line 21 does not modify variable$response declared in line 7.6 a full list of overshadowed variables found in the code is placed in the affected resources section below.",
+  "recommendation": "do not reuse identifier names in subscopes. include the requirements in the process for code review. refer to cmu sei rules for more information",
+  "affects": "file line variable overshadowed on line client-api-master/app/app_api_view.php 7 $response 21 6php variable scope:https://www.php.net/manual/en/language.variables.scope.php 7cmu sei dcl01-c do not reuse variable names in subscopes.:https://wiki.sei.cmu.edu/confluence/display/c/dcl01-c.+do+not+reuse+variable+n ames+in+subscopes 8cmu sei dcl51-j do not shadow or obscure identifiers.:https://wiki.sei.cmu.edu/confluence/display/java/dcl51-j.+do+not+shadow+or+obscure+i dentifiers+in+subscopes"
 },
-"NCCGRPPHP-004" : {
-  "identifier": "NCCGRPPHP-004",
-  "title": "TODO Comments Indicate Incomplete Code",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "Source code contained a large number of comments marked TODO. This indicates incomplete code and could result in incorrect or insecure behaviour of the application.",
-  "recommendation": "Review TODO comments in the code. Create issues to track the code defects associated with TODO comments. Remove TODO comments for issues fixed or no longer applicable.",
-  "affects": "File Line /client-api-master/app/app_api_view.php 32"
+"nccgrpphp-004" : {
+  "identifier": "nccgrpphp-004",
+  "title": "todo comments indicate incomplete code",
+  "risk": "medium",
+  "status": "open",
+  "description": "source code contained a large number of comments marked todo. this indicates incomplete code and could result in incorrect or insecure behaviour of the application.9 an example of a todo comment is shown below: line 32 //todo: meta.notification line 33 if($this->controller->isneedforcelogout()===true){ a full list of todo comments found in the code is placed in the affected resources section below.",
+  "recommendation": "review todo comments in the code. create issues to track the code defects associated with todo comments. remove todo comments for issues fixed or no longer applicable.",
+  "affects": "file line /client-api-master/app/app_api_view.php 32 9cwe-546: suspicious comment: http://cwe.mitre.org/data/definitions/546.html"
 },
-"NCCGRPPHP-006" : {
-  "identifier": "NCCGRPPHP-006",
-  "title": "Hard-coded Static Secrets",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "The code base contained hard-coded static secrets. Static secrets by design do not change over time and are valid until explicitly invalidated. As such static secrets represent continuous risk to the enterprise. Incorporating static secrets in the source code elevates the risk to the enterprise.\\nStatic secrets may include: u Cloud access keys u JWTs with secrets and no set expiration date u Private part of key pairs u Service access keys and IDs that do not require second factor authentication u Strong passwords Static secrets are different from trivial hard-coded passwords described in finding NCCGRPPHP-002 on page 11. Static secrets are designed to be resistant to brute-force attacks. An attack on static secret require gaining access to secret storage. Unlike the dedicated secret storage the source code is not meant for storage of secrets. As a result, the risk to enterprise increases.\\nBelow are examples of static secrets found in the code. u Configuration file contained cloud access keys (AWS). The cloud access keys were valid at the time of writing. The cloud access keys were used withEnumerate IAM tool10 to brute-force account privileges in AWS. The tool contained functionality to generate requests for the current version of AWS SDK. This allowed discovery of the account privileges. Lines 7-9 contain hard-coded static secrets: \\nLine 8 define('AWS_ACCESS_KEY', 'AKIA************NUU7E'); Line 9 define('AWS_SECRET_KEY', '6ZD*******************j'); $ aws sts get-caller-identity {\\\"UserId\\\": \"AID***************\",\\\"Account\\\": \"30************\",\\\"Arn\\\": \\\"arn:aws:iam::30*************:user/************\\\"} The list of static secrets found in the code is placed in theAffected Resources section. ",
-  "recommendation": "Secrets should not be hard-coded into the application. Rather, they should be stored separately, ideally in a password vault, or in an encrypted file to which only one user has access.11, 12, 13 Alternatively, secrets could be injected in the process environment. An example is shown below:10Enumerate IAM: https://github.com/andresriancho/enumerate-iam\\n11Hardcoded Credentials Example:http://nakedsecurity.sophos.com/2014/04/03/is-amazon-hacking-our-apps-or-doing-us-all-a-security-favour/\\\\n12SANS Top 25 Software Flaws: Number 11, Hardcoded Credentials:http://software-security.sans.org/blog/2010/03/10/top-25-series-rank-11-hard\\ncoded-credentials/\\\\n13CWE-798: Use of Hard-Coded Credentials:http://cwe.mitre.org/data/definitions/798.html Version 1.0- Page 14 of 33 Client Confidential Line 184 define('MQ_PASSWORD', getenv('MYSQL_ROOT_PASSWORD')); Line 185 define('MQ_EN QUEUE_PASSWORD', getenv('MYSQL_ROOT_PASSWORD'));\\\\nAffects: ",
-  "affects": "File Line Notes\\\\n/client-api-master/app/config/credentials/jp_ci.php 8-9 AWS access key Version 1.0- Page 15 of 33 Client Confidential"
+"nccgrpphp-006" : {
+  "identifier": "nccgrpphp-006",
+  "title": "Hard-coded static secrets in configuration file",
+  "risk": "medium",
+  "status": "open",
+  "description": "the code base contained hard-coded static secrets. static secrets by design do not change over time and are valid until explicitly invalidated. as such static secrets represent continuous risk to the enterprise. incorporating static secrets in the source code elevates the risk to the enterprise. static secrets may include: u cloud access keys u jwts with secrets and no set expiration date u private part of key pairs u service access keys and ids that do not require second factor authentication u strong passwords static secrets are different from trivial hard-coded passwords described in finding nccgrpphp-002 on page 11. static secrets are designed to be resistant to brute-force attacks. an attack on static secret require gaining access to secret storage. unlike the dedicated secret storage the source code is not meant for storage of secrets. as a result, the risk to enterprise increases. below are examples of static secrets found in the code. u configuration file contained cloud access keys (aws). the cloud access keys were valid at the time of writing. the cloud access keys were used withenumberate iam tool10 to brute-force account privileges in aws. the tool contained functionality to generate requests for the current version of aws sdk. this allowed discovery of the account privileges. line 7 // aws line 8 define('aws_access_key', 'akia************nuu7e'); line 9 define('aws_secret_key', '6zd*******************j'); $ aws sts get-caller-identity { \"userid\": \"aid***************\", \"account\": \"30************\", \"arn\": \"arn:aws:iam::30*************:user/************\" } the list of static secrets found in the code is placed in the affected resources section.",
+  "recommendation": "secrets should not be hard-coded into the application. rather, they should be stored separately, ideally in a password vault, or in an encrypted file to which only one user has access.11, 12, 13 alternatively, secrets could be injected in the process environment. an example is shown below: 10enumerate iam: https://github.com/andresriancho/enumerate-iam 11hardcoded credentials example:http://nakedsecurity.sophos.com/2014/04/03/is-amazon-hacking-our-apps-or-doing-us-all-a-security-favour/ 12sans top 25 software flaws: number 11, hardcoded credentials:http://software-security.sans.org/blog/2010/03/10/top-25-series-rank-11-har dcoded-credentials/ 13cwe-798: use of hard-coded credentials:http://cwe.mitre.org/data/definitions/798.html line 184 define('mq_password', getenv('mysql_root_password')); line 185 define('mq_enqueue_password', getenv('mysql_root_password'));",
+  "affects": "file line notes /client-api-master/app/config/credentials/jp_ci.php 8-9 aws access key"
 },
-"NCCGRPPHP-012" : {
-  "identifier": "NCCGRPPHP-012",
-  "title": "Incorrect Creation of Static Object",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "A PHP function declared a static object with the intention to create one instance and return it to all callers. The function was implemented incorrectly and returned a new instance of the object to every call.",
-  "recommendation": "Review list of incorrectly implemented static object. Consider if static objects are required in each case. If static objects are required, correct the code.",
-  "affects": "[{\"File\": \"client-api-master/src/Command/RebuildProductItemsIndexCommand.php\", \"Function\": \"getUpdateService()\", \"Lines\": \"143-151\"}, {\"File\": \"client-api-master/src/Command/RebuildProductItemsIndexCommand.php\", \"Function\": \"getDeleteService()\", \"Lines\": \"165-174\"}]"
+"nccgrpphp-012" : {
+  "identifier": "nccgrpphp-012",
+  "title": "incorrect creation of static object",
+  "risk": "medium",
+  "status": "open",
+  "description": "a php function declared a static object with the intention to create one instance and return it to all callers. the function was implemented incorrectly and returned a new instance of the object to every call. line 143 /** line 144 * @return updateservice line 145 */ line 146 private function getupdateservice() line 147 { line 148 static $service; line 149 line 150 return $service ?: new updateservice(config::get('adapter')); line 151 } the following test case was created to show the problem: <?php class singleton { function __construct() { print \"in singleton constructor\\n\"; } } class testsingleton { public function badcall() { static $service; return $service ?: new singleton(); } public function goodcall() { static $service; if (!isset($service)) { $service = new singleton(); } return $service; } } $a = new testsingleton(); print(\"========bad calls================\\n\"); $singl1 = $a->badcall(); var_dump($singl1); $singl2 = $a->badcall(); var_dump($singl2); print(\"========good calls================\\n\"); $singl3 = $a->goodcall(); var_dump($singl3); $singl4 = $a->goodcall(); var_dump($singl4); ?> output of the test below shows thatbadcall() function creates new instance of the object every call. ========bad calls================ in singleton constructor object(singleton)#3 (0) { } in singleton constructor object(singleton)#4 (0) { } ========good calls================ in singleton constructor object(singleton)#5 (0) { } object(singleton)#5 (0) { } a list of incorrectly implemented static objects is placed in the affected resources section. ",
+  "recommendation": "review list of incorrectly implemented static object. consider if static objects are required in each case. if static objects are required, correct the code.",
+  "affects": "file function lines /client-api-master/src/command/rebuildproductitemsindexcommand.php getupdateservice() 143-151 /client-api-master/src/command/rebuildproductitemsindexcommand.php getdeleteservice() 165-174"
 },
-"NCCGRPPHP-013" : {
-  "identifier": "NCCGRPPHP-013 All Exceptions Caught Without Processing",
-  "title": "All Exceptions Caught Without Processing",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "In a number of places all exceptions were caught without re-throw. As a result, system exceptions were also caught and masked.  PHP classException is a base class of all exceptions in PHP.14 The hierarchy of exceptions derived fromException includes such exceptions as PharException and OverflowException that are thrown by the PHP run-time. These exceptions are not meant to be processed by the application as the application has no means of fixing the underlying problem.15\\n\\nThe coding pattern when all exceptions are caught without reprocessing is called swallowing exceptions or eating errors. The following code shows the pattern:\\nLine 410 try {...<do many things>...Line 428 } catch (Exception $e) { Line 429 Log::warn(array('\\message' => 'sendEvent failed (MessageEvent::EVENT_ID_MAIL_SEND)', ));Line 432 }List of eating errors pattern implementations is placed inAffected Resources section.",
-  "recommendation": "As a general rule, the application should not catch exceptions it cannot process. This rule is applicable to a large set of languages that implement exception hierarchy (C++, Java, C#, PHP, Python, etc.). It is recommended to review the instances of eating errors pattern in the code and implement specific catch clauses for application exceptions.",
-  "affects": "[\"File Lines/client-api-master/app/models/bulk_distribution_service.php 400-405\", \"File Lines/client-api-master/app/models/bulk_distribution_service.php 410-432\", \"File Lines/client-api-master/app/models/bulk_distribution_service.php 437-458\", \"File Lines/client-api-master/app/models/config.php 141-145\"]"
+"nccgrpphp-013" : {
+  "identifier": "nccgrpphp-013",
+  "title": "all exceptions caught without processing",
+  "risk": "medium",
+  "status": "open",
+  "description": "in a number of places all exceptions were caught without re-throw. as a result, system exceptions were also caught and masked. php classexception is a base class of all exceptions in php.14 the hierarchy of exceptions derived fromexception includes such exceptions aspharexception and overflowexception that are thrown by the php run-time. these exceptions are not meant to be processed by the application as the application has no means of fixing the underlying problem.15 the coding pattern when all exceptions are caught without reprocessing is called \"swallowing exceptions\" or \"eating errors\". the following code shows the pattern: line 410 try { ...<do many things>... line 428 } catch (exception $e) { line 429 log::warn(array( line 430 'message' => 'sendevent failed (messageevent::event_id_mail_send)', line 431 )); line 432 } list of \"eating errors\" pattern implementations is placed inaffected resources section. ",
+  "recommendation": "as a general rule, the application should not catch exceptions it cannot process. this rule is applicable to a large set of languages that implement exception hierarchy (c++, java, c#, php, python, etc.). it is recommended to all review the instances of \"eating errors\" pattern in the code and implement specific catch clauses for application exceptions.",
+  "affects": "[400-405]/client-api-master/app/models/bulk_distribution_service.php [410-432]/client-api-master/app/models/bulk_distribution_service.php [437-458]/client-api-master/app/models/bulk_distribution_service.php [141-145]/client-api-master/app/models/config.php"
 },
-"NCCGRPPHP-016" : {
-  "identifier": "NCCGRPPHP-016",
-  "title": "Use of MD5 and SHA1",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "The application made use of the MD5 ans SHA1 algorithms. These algorithms are now considered to be cryptographically weak, in that it is vulnerable to collision attacks. This means that it is possible for an attacker to create two messages that have the same computed hash value. Additionally MD5 is known to have a number of weaknesses, and is not allowed by the Microsoft SDL cryptographic standards.16 A full list of MD5 and SHA1 usage found in the code is included in theAffected Resources section.",
-  "recommendation": "MD5 and SHA1 should be replaced with stronger algorithms, such as one of the SHA-2 family. Affects: File Lines Notes /client-api-master/app/models/raw_iv_cert.php 32 SHA1 16Analysis of MD5 Weaknesses: http://msdn.microsoft.com/en-us/magazine/ee321570.aspx",
-  "affects": "File Lines Notes\\n/client-api-master/app/models/raw_iv_cert.php 32 SHA1\\n16Analysis of MD5 Weaknesses: https://www.msdn.com/library/en-us/dnb Integrator/html/b84c94ec-98ce-4218-a7f1-d4b89e0a8f2a.asp"
+"nccgrpphp-016" : {
+  "identifier": "nccgrpphp-016",
+  "title": "use of md5 and sha1",
+  "risk": "medium",
+  "status": "open",
+  "description": "the application made use of the md5 ans sha1 algorithms. these algorithms are now considered to be cryptograph- ically weak, in that it is vulnerable to collision attacks. this means that it is possible for an attacker to create two messages that have the same computed hash value. additionally md5 is known to have a number of weaknesses, and is not allowed by the microsoft sdl cryptographic standards.16 a full list of md5 and sha1 usage found in the code is included in theaffected resources section.",
+  "recommendation": "md5 and sha1 should be replaced with stronger algorithms, such as one of the sha-2 family.",
+  "affects": "file lines notes /client-api-master/app/models/raw_iv_cert.php 32 sha1 16analysis of md5 weaknesses: http://msdn.microsoft.com/en-us/magazine/ee321570.aspx"
 },
-"NCCGRPPHP-017" : {
-  "identifier": "NCCGRPPHP-017",
-  "title": "Inconsistent SQL Injection Prevention",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "Best practice recommendations for prevention of SQL injection were not followed in the PHP code base. As a result, the application has potential SQL injection vulnerabilities. The application used PHP Data Objects (PDO) and MySQL PDO driver to access the database. Following vulnerabilities related to SQL injection were found: u An attribute PDO::ATTR_EMULATE_PREPARES was not set in the PDO. As a result, there was a possibility of prepared statements being emulated. Emulation of prepared statements does not offer protection against SQL injection.17 u The application used PDO::quote() for processing of untrusted data. PDO::quote is not recommended for defense against SQL injection.18 List of places where PDO::quote() was found is placed inAffected Resources section.",
-  "recommendation": "Prepared statements or equivalent APIs that always correctly escape input to protect against SQL injection should be used.19",
-  "affects": "File Lines Notes /client-api-master/app/models/admin_bulk_contact_sent_push_likes_service.php 20-26 PDO::quote() used"
+"nccgrpphp-017" : {
+  "identifier": "nccgrpphp-017",
+  "title": "inconsistent sql injection prevention",
+  "risk": "medium",
+  "status": "open",
+  "description": "best practice recommendations for prevention of sql injection were not followed in the php code base. as a result, the application has potential sql injection vulnerabilities. the application used php data objects (pdo) and mysql pdo driver to access the database. following vulnerabilities related to sql injection were found: u an attributepdo::attr_emulate_prepares was not set in the pdo. as a result, there was a possibility of prepared statements being emulated. emulation of prepared statements does not offer protection against sql injection.17 u the application used pdo::quote() for processing of untrusted data. pdo::quote is not recommended for defense against sql injection.18 list of places where pdo::quote() was found is placed inaffected resources section. recommendation: prepared statements or equivalent apis that always correctly escape input to protect against sql injection should be used.19 affects: file lines notes /client-api-master/app/models/admin_bulk_contact_sent_push_likes_service.php 20-26 pdo::quote() used 17pdo attribute attr_emulate_prepares: https://www.php.net/manual/en/pdo.setattribute.php 18pdo::quote() : https://www.php.net/manual/en/pdo.quote.php 19php security cheat sheet:https://www.owasp.org/index.php/php_security_cheat_sheet",
+  "recommendation": "prepared statements or equivalent apis that always correctly escape input to protect against sql injection should be used.",
+  "affects": "file lines notes /client-api-master/app/models/admin_bulk_contact_sent_push_likes_service.php 20-26 pdo::quote() used 17pdo attribute attr_emulate_prepares: https://www.php.net/manual/en/pdo.setattribute.php 18pdo::quote() : https://www.php.net/manual/en/pdo.quote.php 19php security cheat sheet:https://www.owasp.org/index.php/php_security_cheat_sheet"
 },
-"NCCGRPPHP-005" : {
-  "identifier": "NCCGRPPHP-005",
-  "title": "Nested Statements without Curly Braces",
-  "risk": "Low",
-  "status": "Open",
-  "description": "A number of nested statements did not have curly braces. The omission of curly braces can be misleading, and may lead to the introduction of errors during maintenance.\\nAn example of affected code is shown below:\\nLine 32 foreach(Param::params() as $key => $value){\\nLine 33 if(!is_array($value))\\nLine 34 $_REQUEST[$key] = convert_en_to_em($value);\\nLine 35 }\\nA full list of locations where nested statements were found without curly braces is placed in theAffected Resources section.\\n",
-  "recommendation": "Add curly braces around nested statements. More information on code correctness rules related to this issue can be found in the references.20\\n20EXP52-J. Use braces for the body of an if, for, or while statement: https://wiki.sei.cmu.edu/confluence/display/java/EXP52-J.+Use+braces+for+the+bod yof+an+if%2C+for%2C+or+while+statement",
-  "affects": "File Lines\\n/client-api-master/app/app_controller.php 33-34"
+"nccgrpphp-005" : {
+  "identifier": "nccgrpphp-005",
+  "title": "nested statements without curly braces",
+  "risk": "low",
+  "status": "open",
+  "description": "a number of nested statements did not have curly braces. the omission of curly braces can be misleading, and may lead to the introduction of errors during maintenance. an example of affected code is shown below: line 32 foreach(param::params() as $key =\\> $value){ line 33 if(!is_array($value)) line 34 $_request[$key] = convert_en_to_em($value); line 35 } a full list of locations where nested statements were found without curly braces is placed in the affected resources section.",
+  "recommendation": "add curly braces around nested statements. more information on code correctness rules related to this issue can be found in the references.",
+  "affects": "file lines /client-api-master/app/app_controller.php 33-34 20exp52-j"
 },
-"NCCGRPPHP-007" : {
-  "identifier": "NCCGRPPHP-007",
-  "title": "PHP API Calls without Side Effects",
-  "risk": "Low",
-  "status": "Open",
-  "description": "A number of PHP functions contained PHP API calls without side effects. Such statements do not produce results and are effectively meaningless.",
-  "recommendation": "A variable should be assigned the result of PHP API call. PHP API calls that do not have assignment (no side effects) should be reviewed and removed.",
-  "affects": "File Line client-api-master/app/commands/standalone_command.php 68"
+"nccgrpphp-007" : {
+  "identifier": "nccgrpphp-007",
+  "title": "php api calls without side effects ",
+  "risk": "low",
+  "status": "open",
+  "description": "a number of php functions contained php api calls without side effects. such statements do not produce results and are effectively meaningless. this may indicate misunderstanding by software developer of how php apis work. as a result, the program can behave incorrectly as it relies on the result of the api call that was not assigned. an example of a php statements without side effects is placed below: line 68 trim($key); line 69 trim($value); the call to apitrim() was never assigned. the original string value was not changed and a new value created by trim() was lost. as a result, the expectation of the software developer that the string was trimmed was invalid.21 the list of php api calls without side effects is placed in affected resources section.",
+  "recommendation": "a variable should be assigned the result of php api call. php api calls that do not have assignment (no side effects) should be reviewed and removed.",
+  "affects": "file line client-api-master/app/commands/standalone_command.php 68 21php trim() manual: https://www.php.net/manual/en/function.trim.php"
 },
-"NCCGRPPHP-008" : {
-  "identifier": "NCCGRPPHP-008",
-  "title": "Unreachable Code",
-  "risk": "Low",
-  "status": "Open",
-  "description": "A number of PHP functions contained unreachable code. Such code would never execute in the program. However,\\nthe presence of the code itself may introduce logical errors as developers incorrectly rely of the functionality provided\\nbysuch code.",
-  "recommendation": "Review all instances of unreachable code. Correct the flow to reach the code if the functionality is require. Remove the\\nunreachable code if functionality is not required.",
-  "affects": "File Lines\\n/client-api-master/app/config/database_sql_hook.php 257-268\\n\\nVersion 1.0- \\u00b7 Page 24 of 33 Client Confidential"
+"nccgrpphp-008" : {
+  "identifier": "nccgrpphp-008",
+  "title": "unreachable code",
+  "risk": "low",
+  "status": "open",
+  "description": "a number of php functions contained unreachable code. such code would never execute in the program. however, the presence of the code itself may introduce logical errors as developers incorrectly rely of the functionality provided by unreachable code. following is the example of unreachable code in the program: line 252 // databasedepreatedqueryconfig::$deprecated_config line 254 return $next_proxy($dbh, $sql, $params); line 255 line 257 try { line 258 list($ret, $message) = self::searchdeprecatedquery($dbh, $sql); line 259 if ($ret) { line 261 log::error([ line 262 'tag' => 'detect_deprecated_query', line 263 'message' => $message, line 264 ]); line 265 } line 266 } catch (exception $e) { line 267 log::warning($e); line 268 } the return statement on line 254 exits the scope of the function. as a result, code on lines 257-268 would never execute. however, a software developer that miss thereturn statement on line 254 would incorrectly assume code on lines 257-268 executes and would rely on the results. the presence of unreachable or dead code in the program indicates insecure software development lifecycle practices.[^footnotename1] the list of instances of unreachable code is placed inaffected resources section. [^footnotename1] :mitre cwe-561 dead code:http://cwe.mitre.org/data/definitions/561.html",
+  "recommendation": "review all instances of unreachable code. correct the flow to reach the code if the functionality is require. remove the unreachable code if functionality is not required.",
+  "affects": "file lines /client-api-master/app/config/database_sql_hook.php 257-268"
 },
-"NCCGRPPHP-009" : {
-  "identifier": "NCCGRPPHP-009 Variable Assigned to Itself",
-  "title": "Variable Assigned to Itself",
-  "risk": "Low",
-  "status": "Open",
-  "description": "A number of PHP functions contained variables assigned to themselves. There is not reason to re-assign a variable to itself.",
-  "recommendation": "Review the instances of variables assigned to themselves and correct the code. u If the assignment was intended for some other variable fix the code. u If the assignment is a placeholder, no operation, refactor the code to avoid assignment altogether.",
-  "affects": "[\"File Line: client-api-master/app/config/router.php 37\", \"Version: 1.0\", \"Page: 25 of 33 Client Confidential\"]"
+"nccgrpphp-009" : {
+  "identifier": "nccgrpphp-009",
+  "title": "variables assigned to itself",
+  "risk": "low",
+  "status": "open",
+  "description": "a number of php functions contained variables assigned to itself. there is not reason to re-assign a variable to itself. either the statement is redundant and should be removed, or the re-assignment is a mistake and some other variable was intended for the assignment instead.",
+  "recommendation": "review the instances of variables assigned to themselves and correct the code. u if the assignment was intended for some other variable fix the code. u if the assignment is a placeholder no operation, refactor the code to avoid assignment altogether.",
+  "affects": "file line client-api-master/app/config/router.php 37"
 },
-"NCCGRPPHP-010" : {
-  "identifier": "NCCGRPPHP-010 Parameter Assigned Before Use",
-  "title": "Parameter Assigned Before Use",
-  "risk": "Low",
-  "status": "Open",
-  "description": "A function parameter was assigned in the body of the function before use. This indicates potentially incorrect function logic.",
-  "recommendation": "Do not reuse parameter names in the body of the function. Treat all parameters as read-only values.",
+"nccgrpphp-010" : {
+  "identifier": "nccgrpphp-010",
+  "title": "parameter assigned before use",
+  "risk": "low",
+  "status": "open",
+  "description": "a function parameter was assigned in the body of the function before use. this indicates potentially incorrect function logic. the following code illustrates the problem: line 410 public static function getitembrandgroup($options = null) line 411 { line 412 $db = db::conn(); line 414 $rows = $db->rows('select id, name from item_brand_groups order by id asc'); line 415 if (!$rows) { line 416 throw new notfoundexception(); line 417 } line 419 $data = []; line 420 foreach ($rows as $row) { line 421 $item_brand_group = new itembrandgroup($row); line 423 $rows_brands = $db->rows('select item_brand_id from item_brands_item_brand_groups where item_brand_group_id = ? order by id asc', [$row['id']]); line 424 if ($rows_brands) { line 425 $ids = []; line 426 foreach ($rows_brands as $rows_brand) { line 427 $ids[] = $rows_brand['item_brand_id']; line 428 } line 429 if (count($ids) > 0) { line 431 $options = ['ids' => join(',', $ids),]; function getitembrandgroup accepted parameter$options and did not use the value. the parameter was assigned on line 431. as a result the value of the parameter was lost. potential explanations include: u the function is correct. it did not require parameter$options in the first place. the reuse of the name happened accidentally. u the function has a logical error. it should use parameter$options before assignment but never did. it is impossible to evaluate the risk of this issue due to ambiguity of the code.",
+  "recommendation": "do not reuse parameter names in the body of the function. treat all parameters as read-only values.",
   "affects": null
 },
-"NCCGRPPHP-011" : {
-  "identifier": "NCCGRPPHP-011",
-  "title": "Hard-coded URLs and Cloud Bucket Names",
-  "risk": "Low",
-  "status": "Open",
-  "description": "",
-  "recommendation": "Please include the response in a tool call to fix the plain text error.",
-  "affects": ""
+"nccgrpphp-011" : {
+  "identifier": "nccgrpphp-011",
+  "title": "hard-coded urls and cloud bucket names ",
+  "risk": "low",
+  "status": "open",
+  "description": "a number of php files contained hard-coded web service and aws s3 bucket urls. the implementation requires high manual effort to maintain and is prone to human errors. this is indicative of a poor software development lifecycle process. the application was deployed in a number of environments (development, ci, production). corresponding php con- figuration files are listed below. u development deployment - /client-api-aster/app/config/credentials/development.php u ci deployment - /client-api-master/app/config/credentials/ci.php u production deployment - /client-api-master/app/config/credentials/production.php u locale specific - /client-api-master/app/config/deferred_payment_delegator.php the number and format of configuration options for environments were different from each other. this indicated the deployments were also different from each other. as a result, functional tests executed in one environment (ci deployment) could not guarantee successful deployment in the other environment (production). the list of hard-coded urls, s3 bucket names and aws arns is placed in the affected resources section.",
+  "recommendation": "in a mature sdl environment it is beneficial to have very similar deployments in integration test and production. this allows to quickly root cause issues without interrupting production application. new development can also be tested efficiently in the integration test environment before deployment in production. to achieve very similar deployments, the configuration options for both environments should be generated from the same template. this ensures number of options and their format matches between environments. the configuration options should be stored in non-executable format to avoid side effects of php execution. it is recommended to re-engineer the configuration system as follows: u store all secrets, credentials and urls in a secure database u create single configuration file per environment. use high-privilege script with access to secrets database to generate configuration file u inject configuration to the process environment this process will allow to separate life cycle of configuration from source code. the changes in urls and s3 buckets can be tracked in the configuration database.",
+  "affects": "file line notes /client-api-master/app/config/deferred_payment_delegator.php 6, 12, 21, 27 aws s3 buckets /client-api-master/app/config/locale_specific_config/discount_sales_items_banner.p hp 10-12, 18-20 urls"
 },
-"NCCGRPPHP-015" : {
-  "identifier": "NCCGRPPHP-015",
-  "title": "HTTP Basic Authentication in Use",
-  "risk": "Low",
-  "status": "Open",
-  "description": "The application was accessible from the Internet and made use of HTTP basic authentication. In HTTP basic authentication, HTTP requests are sent by the client with the Authorization header, containing the username and password\\nin a base64-encoded string. This is not a significant security concern by itself and this issue has been included in the\\nreport for informational and completeness purposes. The following code used HTTP basic authentication for a cURL connection:\\r\\nLine 103 curl_setopt($curl, CURLOPT_USERPWD, sprintf(\"%s:%s\", $api[\"BASICAUTH_USER\"],\\n$api[\"BASICAUTH_PASSWORD\"]);\\nThe username and password in HTTP basic authentication can be trivially decoded by an attacker who is able to\\nintercept network traffic. For this reason, a secure encrypted transport mechanism should be used in conjunction\\nwith HTTP basic authentication. As the application did not enforce validation of TLS certificate (details in the issuefinding NCCGRPPHP-014 on page 9), a suitably positioned attacker able to intercept network traffic, would be able to derive\\nthe username and password.",
-  "recommendation": "Ensure that all traffic between the users browser and the web server should be enforced over an encrypted channel.\\nThis can be achieved by using HTTPS, which uses SSL/TLS to protect the data. Do not disable TLS certificate validation\\nas it effectively removes the protection of an encrypted channel.",
+"nccgrpphp-015" : {
+  "identifier": "nccgrpphp-015",
+  "title": "http basic authentication in use",
+  "risk": "low",
+  "status": "open",
+  "description": "the application was accessible from the internet and made use of http basic authentication. in http basic authen-tication, http requests are sent by the client with the authorization header, containing the username and password in a base64-encoded string. this is not a significant security concern by itself and this issue has been included in the report for informational and completeness purposes.",
+  "recommendation": "ensure that all traffic between the user's browser and the web server should be enforced over an encrypted channel. this can be achieved by using https, which uses ssl/tls to protect the data. do not disable tls certificate validation as it effectively removes the protection of an encrypted channel.",
   "affects": null
 }}
 }

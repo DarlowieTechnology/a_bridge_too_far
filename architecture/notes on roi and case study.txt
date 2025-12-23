@@ -1,0 +1,61 @@
+ChatGPT
+
+Data privacy
+
+ChatGPT Enterprise, ChatGPT Business, ChatGPT Edu, ChatGPT API platform - 
+    don’t train models on your organization’s data by default.
+
+Pricing:
+
+ChatGPT API:
+    https://openai.com/api/pricing/
+
+
+
+Open Source Stack
+
+    Location: enterprise network (on-premise or private cloud)
+    Model: gpt-oss-120b
+    Host: Ollama
+    API: OpenAI API, local end point
+    Embedding: Pydantic library for Ollama and ChromaDB 
+    RAG Storage: ChromaDB
+    License: Apache 2.0, commercial use allowed 
+
+Enterprise License Stack
+
+    Location: shared cloud
+    Model: GPT-5
+    Host: OpenAI cloud account
+    API: OpenAI API, shared cloud end point
+    Embedding for RAG: ChromaDB
+    Embedding for RAG: PostgreSQL vector 
+    License: OpenAI Platform Enterprise
+
+Cookbook for RAG with ChatGPT
+    https://cookbook.openai.com/examples/responses_api/responses_api_tool_orchestration
+
+
+
+Text for Case study:
+
+A bank with the focus on retail business in Australia. 
+
+The bank has DevSecOps team that uses Agile methodology to deliver applications on mobile platforms and web. The team also develops  and maintains cloud properties. 
+The bank has regular external compliance audits and received all required certifications.
+The SDL process is highly automated and received high scores from periodic external audits.
+The bank is a subject to periodic penetration test, secure code reviews, secure architecture reviews and promptly resolves security issues.
+
+Confidential documents related to application security:
+
+* Architecture documents, threat models - 1000 pages
+* Risk assessments, cyber security assessments - 1000 pages
+* Threat intelligence feeds - 500 pages
+* Vulnerability management reports - 500 pages
+* Penetration test reports - 500 pages
+* Jira tickets - 500 pages
+* Source code - 1000 pages
+
+* Application logs, SOC alerts - 1000 pages
+* 
+

@@ -30,6 +30,10 @@ import Stemmer
 
 import bm25s
 
+import numpy as np
+from scipy import stats
+
+import spacy
 
 # local
 from common import OneResultWithType, ResultWithTypeList, OneResultList
@@ -97,10 +101,28 @@ class QueryWorkflow(WorkflowBase):
             msg = f"Error: exception opening Jira collection: {e}"
             self.workerError(msg)
             return False
+        
+        self._llmModel = None
+
+        if self._context["llmProvider"] == "Ollama":
+            self._llmModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
+                            provider=OpenAIProvider(base_url=self._context["llmBaseUrl"]))
+        if self._context["llmProvider"] == "Gemini":
+            self._llmModel = GeminiModel(
+                model_name=self._context["llmGeminiVersion"], 
+                provider=GoogleGLAProvider(
+                    api_key = self._config["gemini_key"]
+                ),
+                settings=ModelSettings(temperature = 0.0)
+            )
+
         return True
 
 
-    def preprocessQuery(self) -> str:
+
+
+
+    def preprocessQuery(self) :
         """
         Preprocess query string with lowercase, remove whitespace, normalise spaces
         
@@ -116,6 +138,187 @@ class QueryWorkflow(WorkflowBase):
         self._context["query"] = " ".join(query.split())
         return self._context["query"]
 
+
+    def compressQuery(self) :
+        """
+        Perform Telegraphic Semantic Compression (TSC) on the query
+        remove predictable grammar, keep facts.
+        ref: https://developer-service.blog/telegraphic-semantic-compression-tsc-a-semantic-compression-method-for-llm-contexts/
+        get english dictionary: python -m spacy download en_core_web_sm
+        """
+
+        query = self._context["query"]
+
+        # Load spaCy English model
+        nlp = spacy.load("en_core_web_sm")
+
+        # Parts of speech to remove (predictable grammar)
+        REMOVE_POS = {"DET", "ADP", "AUX", "PRON", "CCONJ", "SCONJ", "PART"}
+
+        # Optional low-information words to remove
+        REMOVE_LIKE = {"like", "just", "really", "basically", "literally"}
+
+        doc = nlp(query)
+        chunks = []
+
+        for sent in doc.sents:
+            words = [
+                token.lemma_
+                for token in sent
+                if (
+                    token.pos_ not in REMOVE_POS
+                    and token.text.lower() not in REMOVE_LIKE
+                    and not token.is_punct
+                )
+            ]
+            if words:
+                chunks.append(" ".join(words))
+        self._context["query"] =  " ".join(chunks)
+
+    
+    def tokenizeQuery(self, useStopWords : bool = True, useStemmer : bool = False) :
+
+        query = self._context["query"]
+        if (useStopWords and useStemmer):
+            query_tokens = bm25s.tokenize(query, return_ids=False, stopwords="en", stemmer=Stemmer.Stemmer("english"))
+        if (useStopWords and not useStemmer):
+            query_tokens = bm25s.tokenize(query, return_ids=False, stopwords="en")
+        if (not useStopWords and useStemmer):
+            query_tokens = bm25s.tokenize(query, return_ids=False, stemmer=Stemmer.Stemmer("english"))
+        if (not useStopWords and not useStemmer):
+            query_tokens = bm25s.tokenize(query, return_ids=False)
+        self._context["query"] = query_tokens
+
+
+    def hydeQuery(self) :
+        """ use HyDE (Hypothetical Document Embedding) """
+
+        systemPrompt = f"Write a two sentence answer to the user prompt query"
+#        systemPrompt = f"Generate a hypothetical best-guess answer to user prompt query"
+
+        agentHyDE = Agent(self._llmModel, system_prompt = systemPrompt)
+        userPrompt = f"{self._context["query"]}"
+        try:
+            result = agentHyDE.run_sync(userPrompt)
+            self._context["query"] = result.output
+            if result.usage():
+                self._context["llmrequests"] += 1
+                self._context["llmrequesttokens"] += result.usage().request_tokens
+                self._context["llmresponsetokens"] += result.usage().response_tokens
+        except Exception as e:
+            msg = f"LLM exception on HyDE request: {e}"
+            self.workerError(msg)
+
+
+    def multiQuery(self) :
+        """use LLM to generate multiple queries form the original query"""
+
+        # Prompt for generating multiple queries
+        systemPrompt = """You are an AI language model assistant. Your task is to generate five 
+        different versions of the given user question to retrieve relevant documents from a vector 
+        database. By generating multiple perspectives on the user question, your goal is to help
+        the user overcome some of the limitations of the distance-based similarity search. 
+        Respond only with a list of questions. Format output as Python list.
+        Original query is supplied in user prompt"""
+
+        agentMultipleQ = Agent(self._llmModel, 
+                               system_prompt = systemPrompt)
+        userPrompt = f"{self._context["query"]}"
+        try:
+            result = agentMultipleQ.run_sync(userPrompt)
+            self._context["query"] = result.output
+            if result.usage():
+                self._context["llmrequests"] += 1
+                self._context["llmrequesttokens"] += result.usage().request_tokens
+                self._context["llmresponsetokens"] += result.usage().response_tokens
+        except Exception as e:
+            msg = f"LLM exception on multi query request: {e}"
+            self.workerError(msg)
+
+
+
+    def rewriteQuery(self) :
+        """Rewrite the query for better retrieval."""
+
+        # Query rewriting prompt
+        systemPrompt = """You are a query rewriting expert. The user's original query didn't retrieve relevant documents.
+
+            Analyze the query and rewrite it to improve retrieval chances:
+            - Make it more specific or more general as appropriate
+            - Add synonyms or related terms
+            - Rephrase to target likely document content
+            - Consider the retrieval failure and adjust accordingly
+
+            Original query is supplied in user prompt.
+            """
+        
+        agentRewriteQ = Agent(self._llmModel, 
+                               system_prompt = systemPrompt)
+        userPrompt = f"{self._context["query"]}"
+        try:
+            result = agentRewriteQ.run_sync(userPrompt)
+            self._context["query"] = result.output
+            if result.usage():
+                self._context["llmrequests"] += 1
+                self._context["llmrequesttokens"] += result.usage().request_tokens
+                self._context["llmresponsetokens"] += result.usage().response_tokens
+        except Exception as e:
+            msg = f"LLM exception on rewrite query request: {e}"
+            self.workerError(msg)
+
+
+    def bm25sQuery(self) : 
+
+        query_tokens = self._context["query"]
+
+        # for all data sources for bm25s
+        scoresForStats = []
+        for folderName in self._context["bm25sJSON"]:
+            # first read bm25s configuration for the document
+            with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
+                bm25sParams = json.load(jsonIn)
+            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
+            numDocs = bm25sParams["num_docs"]
+            results, scores = retriever.retrieve(query_tokens, k=numDocs)
+            for i in range(results.shape[1]):
+                docN, score = results[0, i], scores[0, i]
+                if (score > 0):
+                    scoresForStats.append(score)
+
+        a1F = np.array(scoresForStats, dtype=np.float32)
+        statLength = len(a1F)
+        statMin = np.min(a1F)
+        statMax = np.max(a1F)
+        statAvg = np.average(a1F)
+        statMean = np.mean(a1F)
+        statMedian = np.median(a1F)
+        statRange = np.max(a1F)-np.min(a1F)
+        d2 = abs(a1F - statMean)**2
+        statVar = d2.sum() / (statLength)
+        statStdDev = statVar**0.5
+        statHist5 = np.histogram(a1F, 5)
+        statHist10 = np.histogram(a1F, 10)
+
+        msg = f"Length {statLength} Min {statMin}  Max {statMax}  Average {statAvg}  Mean {statMean}  Median {statMedian}"
+        self.workerSnapshot(msg)
+        msg = f"Range {statRange}  Variance {statVar}  Std Deviation {statStdDev}"
+        self.workerSnapshot(msg)
+        msg = f"Histogram(5) {statHist5}"
+        self.workerSnapshot(msg)
+        msg = f"Histogram(10) {statHist10}"
+        self.workerSnapshot(msg)
+
+
+    def vectorQuery(self) -> OneResultList :
+
+        query_tokens = self._context["query"]
+
+        oneResultList = self.getDBIssueMatch(query_tokens)
+        return oneResultList
+
+
+
+
     def agentPromptOllama(self):
         """
         Use Ollama host, embedded vector database, bm25s tokens to retrieve query results
@@ -128,69 +331,18 @@ class QueryWorkflow(WorkflowBase):
             Tuple of BaseModel and Usage
         
         """
+       
+        query_tokens = self._context["query"]
+
 
         ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+                            provider=OpenAIProvider(base_url=self._context["llmBaseUrl"]))
 
-        runUsage = Usage()
-
-        # use HyDE (Hypothetical Document Embedding)
-        systemPrompt = f"""
-        Write a two sentence answer to the user prompt query
-        """
-
-        agentHyDE = Agent(ollModel, system_prompt = systemPrompt)
-        userPrompt = f"{self._context["query"]}"
-        try:
-            result = agentHyDE.run_sync(userPrompt)
-            runUsage = runUsage + result.usage()
-        except Exception as e:
-            msg = f"LLM exception on HyDE request: {e}"
-            self.workerError(msg)
-            return
-       
-        msg = f"HyDE:{result.output}"
-        self.workerSnapshot(msg)
-
-        # get HyDE query match in RAG database
-        queryList = []
-        queryList.append(result.output)
-        oneResultList = self.getDBIssueMatch(queryList)
-
-        return
-
-        msg = f"bm25s query: {json.dumps(queryList)}"
-        self.workerSnapshot(msg)
-
-        query_tokens = bm25s.tokenize(queryList, return_ids=False)
-
-        msg = f"Tokenised bm25s query: {json.dumps(query_tokens)}"
-        self.workerSnapshot(msg)
-
-        # for all data sources for bm25s
-        for folderName in self._context["bm25sJSON"]:
-            # first read bm25s configuration for the document
-            with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
-                bm25sParams = json.load(jsonIn)
-            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
-            numDocs = bm25sParams["num_docs"]
-            results, scores = retriever.retrieve(query_tokens, k=numDocs)
-            for i in range(results.shape[1]):
-                docN, score = results[0, i], scores[0, i]
-                if score > self._context["bm25sCutOffScore"]:
-                    outTitle = docN["text"].splitlines()[0]
-                    folderBaseName = str(Path(folderName).name)
-                    msg = f"{folderBaseName}   {outTitle}  Rank: {i+1} Score: {score:.2f})"
-                    self.workerSnapshot(msg)
-
-
-        if runUsage:
-            msg = f"{runUsage.requests} request(s). {runUsage.request_tokens} request tokens. {runUsage.response_tokens} response tokens."
-            self._context["llmrequests"] += 1
-            self._context["llmrequesttokens"] += runUsage.request_tokens
-            self._context["llmresponsetokens"] += runUsage.response_tokens
-            self.workerSnapshot(msg)
-
+        oneResultList = self.getDBIssueMatch(query_tokens)
+        for item in oneResultList.results_list:
+            IssueTemplate = ParserClassFactory.factory(oneResultList.results_list[0].parser_typename)
+            oneIssue = IssueTemplate.model_validate_json(item.data)
+            print(f"{oneIssue.title}")
         return
 
 
@@ -217,7 +369,7 @@ class QueryWorkflow(WorkflowBase):
         print(f"======User prompt=======\n\n{userPrompt}")
 
         ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+                            provider=OpenAIProvider(base_url=self._context["llmBaseUrl"]))
         agent = Agent(ollModel,
                     system_prompt = systemPrompt)
         try:

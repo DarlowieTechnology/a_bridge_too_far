@@ -16,7 +16,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import Usage
 
 import chromadb
-from chromadb import Collection
+from chromadb import Collection, ClientAPI
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
@@ -35,7 +35,7 @@ from anyascii import anyascii
 
 
 # local
-from common import RecordCollection
+from common import COLLECTION, RecordCollection
 from workflowbase import WorkflowBase 
 
 class IndexerWorkflow(WorkflowBase):
@@ -46,13 +46,15 @@ class IndexerWorkflow(WorkflowBase):
             context (dict)
             logger (Logger) - can originate in CLI or Django app
         """
-        super().__init__(context, logger)
+        super().__init__(context=context, logger=logger, createCollection=True)
 
 
     def loadPDF(self, inputFile : str) -> str :
         """
         Use PyDPF to load PDF and extract all text
-
+        convert all characters to ASCII
+        merge all pages and remove extra whitespace 
+        
         Args:
             inputFile (str) - PDF file name
 
@@ -67,9 +69,6 @@ class IndexerWorkflow(WorkflowBase):
         for page in docs:
             pageContent = page.page_content.strip().lower()
             pageContent = anyascii(pageContent)
-
-
-
             pageContent = " ".join(pageContent.split())
             textCombined += pageContent
         return textCombined
@@ -91,7 +90,7 @@ class IndexerWorkflow(WorkflowBase):
             dict of pages with unique key derived from separator
         """
 
-        compiledPattern = re.compile(self._context["issuePattern"])
+        compiledPattern = re.compile(self.context["issuePattern"])
         start = -1
         end = -1
         dictIssues = {}
@@ -146,13 +145,13 @@ class IndexerWorkflow(WorkflowBase):
 
         msg = f"Parse fallback to regexp"
         self.workerSnapshot(msg)
-        if self._context["extractPattern"] and self._context["assignList"]:
-            compiledExtract = re.compile(self._context["extractPattern"])
+        if self.context["extractPattern"] and self.context["assignList"]:
+            compiledExtract = re.compile(self.context["extractPattern"])
             match = re.search(compiledExtract, docs)
             if match:
                 oneIssue = ClassTemplate()
-                for i in range(len(self._context["assignList"])):
-                    attrName = self._context["assignList"][i]
+                for i in range(len(self.context["assignList"])):
+                    attrName = self.context["assignList"][i]
                     setattr(oneIssue, attrName, match.group(attrName))
                 return oneIssue
             else:
@@ -167,7 +166,8 @@ class IndexerWorkflow(WorkflowBase):
 
     def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
         """
-        Use Ollama host and Pydantic AI Agent to extracts one ClassTemplate structured record. ClassTemplate is based on Pydantic BaseModel.
+        Use Ollama host and Pydantic AI Agent to extracts one ClassTemplate structured record. 
+        ClassTemplate is a subclass of Pydantic BaseModel.
         
         Args:
             docs (str) - text with unstructured data
@@ -184,14 +184,12 @@ class IndexerWorkflow(WorkflowBase):
         
         prompt = f"{docs}"
 
-        ollModel = OpenAIModel(model_name=self._context["llmOllamaVersion"], 
-                            provider=OpenAIProvider(base_url=self._context["llmBaseUrl"]))
+        ollModel = OpenAIModel(model_name=self.context["llmOllamaVersion"], 
+                            provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
-                    system_prompt = systemPrompt,
-                    retries=1,
-                    output_retries=1)
+                    system_prompt = systemPrompt)
         try:
             result = agent.run_sync(prompt)
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
@@ -225,16 +223,16 @@ class IndexerWorkflow(WorkflowBase):
             Tuple of BaseModel and Usage
         """
 
-        api_key = self._config["gemini_key"]
+        api_key = self.config["gemini_key"]
 
         openAIClient = OpenAI(
             api_key=api_key,
-            base_url=self._config["gemini_base_url"]
+            base_url=self.config["gemini_base_url"]
         )
 
         try:
             completion = openAIClient.beta.chat.completions.parse(
-                model = self._context["llmGeminiVersion"],
+                model = self.context["llmGeminiVersion"],
                 temperature=0.0,
                 messages=[
                     {"role": "system", "content": f"JSON schema for the ClassTemplate model you must use as context for what information is expected:  {json.dumps(ClassTemplate.model_json_schema(), indent=2)}"},
@@ -284,15 +282,18 @@ class IndexerWorkflow(WorkflowBase):
             RecordCollection with keys from input dict
         """
 
-        recordCollection = RecordCollection(finding_dict = {})
+        recordCollection = RecordCollection(
+            report = str(Path(self.context['inputFileName']).name),
+            finding_dict = {}
+        )
 
         for key in dictText:
             startOneIssue = time.time()
 
-            if self._context["llmProvider"] == "Ollama":
+            if self.context["llmProvider"] == "Ollama":
                 oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
-            if self._context["llmProvider"] == "Gemini":
-                time.sleep(self._config["gemini_time_delay"])
+            if self.context["llmProvider"] == "Gemini":
+                time.sleep(self.config["gemini_time_delay"])
                 oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
             if not oneIssue:
                 continue
@@ -302,9 +303,9 @@ class IndexerWorkflow(WorkflowBase):
             endOneIssue = time.time()
             if usageStats:
                 msg = f"{key}. {usageStats.requests} request(s). {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
-                self._context["llmrequests"] += 1
-                self._context["llmrequesttokens"] += usageStats.request_tokens
-                self._context["llmresponsetokens"] += usageStats.response_tokens
+                self.context["llmrequests"] += 1
+                self.context["llmrequesttokens"] += usageStats.request_tokens
+                self.context["llmresponsetokens"] += usageStats.response_tokens
             else:
                 msg = f"{key}. {(endOneIssue - startOneIssue):9.4f} seconds."
             self.workerSnapshot(msg)
@@ -325,9 +326,9 @@ class IndexerWorkflow(WorkflowBase):
         Returns:
             RecordCollection - all items
         """
-        jira_server = self._config["jira_url"]
-        jira_user = self._config["Jira_user"]
-        jira_api_token = self._config["Jira_api_token"]
+        jira_server = self.config["jira_url"]
+        jira_user = self.config["Jira_user"]
+        jira_api_token = self.config["Jira_api_token"]
 
         # Connect to Jira
         try:
@@ -341,12 +342,12 @@ class IndexerWorkflow(WorkflowBase):
             self.workerError(msg)
             return 0
 
-        jql_query = f'project = {self._context["inputFileName"]}'
+        jql_query = f'project = {self.context["inputFileName"]}'
         recordCollection = RecordCollection(finding_dict = {})
 
         # Fetch issues from Jira
         # default maxResults is 50, we need more than that
-        issues = jira.search_issues(jql_query, maxResults=self._config["jira_max_results"], json_result = True)
+        issues = jira.search_issues(jql_query, maxResults=self.config["jira_max_results"], json_result = True)
         for val in issues["issues"]:
             issueTemplate = ClassTemplate(
                 identifier = val["key"],
@@ -363,39 +364,51 @@ class IndexerWorkflow(WorkflowBase):
             recordCollection.finding_dict[val["key"]] = issueTemplate
 
         self.writeFinalJSON(recordCollection)
-
         return recordCollection
 
-    def bm25sProcessIssueText(self, issues: RecordCollection, ClassTemplate : BaseModel) -> List[List[str]] :
+
+    def bm25sAddReportToCorpus(self, corpus : list[str], issues: RecordCollection, ClassTemplate : BaseModel) -> List[str] :
         """
-        Prepare issue text for BM25 keyword search
-        Lower case
-        Remove English stop words
-        Apply English stemming
-        Store results in a folder
+        For each issue add lower case identifier and title to corpus
 
         Args:
+            corpus - list of strings to add to
             issues (RecordCollection) - issues extracted from data source 
             ClassTemplate (BaseModel) - description of structured data
         
         Returns:
-            bm25s compatible index
+            updated corpus
         """
-
-        corpus = []
-        stemmer = Stemmer.Stemmer("english")
 
         for key in issues.finding_dict:
             reportItem = ClassTemplate.model_validate(issues.finding_dict[key])
-            issueText = key + " " + reportItem.bm25s()
+            issueText = reportItem.bm25s()
             corpus.append(issueText.lower())
+        return corpus
 
-        corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+
+    def bm25sProcessCorpus(self, corpus : list[str], folderName: str) -> List[List[str]] :
+        """
+        Tokenize corpus
+        Store bm25s index in a folder
+
+        Args:
+            corpus (list[str]) - list of strings representing identifier and title of all issues across documents
+            folderName (str) - name of folder to save bm25s index
+        Returns:
+            bm25s compatible index
+        """
+
+#        stemmer = Stemmer.Stemmer("english")
+ #       corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+
+        corpus_tokens = bm25s.tokenize(corpus, stopwords="en")
+
         retriever = bm25s.BM25(corpus=corpus)
         retriever.index(corpus_tokens)
-        retriever.save(self._context["bm25sJSON"])
-
+        retriever.save(folderName)
         return corpus_tokens
+
 
     def vectorize(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
         """
@@ -406,58 +419,26 @@ class IndexerWorkflow(WorkflowBase):
 
         
         Args:
-            recordCollection (RecordCollection) - all items
+            recordCollection (RecordCollection) - all items to add 
             ClassTemplate (BaseModel) - issue template
 
         Returns:
-            accepted (int) - number of records accepted to database
-            rejected (int) - number of records rejected from database
+            accepted (int) - number of records accepted to database (new or updated)
+            rejected (int) - number of records rejected from database (existing)
         """
-        try:
-            chromaClient = chromadb.PersistentClient(
-                path=self._config.getAbsPath("rag_datapath"),
-                settings=Settings(anonymized_telemetry=False),
-                tenant=DEFAULT_TENANT,
-                database=DEFAULT_DATABASE,
-            )
-        except Exception as e:
-            msg = f"Error: OpenAI API exception: {e}"
+
+        if not self.chromaClient:
+            msg = f"Cannot find Chroma DB Persistent Client"
             self.workerError(msg)
             return 0, 0
-        
-        ef = OllamaEmbeddingFunction(
-            model_name=self._config["rag_embed_llm"],
-            url=self._config["rag_embed_url"]
-        )
 
-        if self._context["JiraExport"]:
-            collectionName = self._config["rag_indexer_jira"]
+        if self.context["JiraExport"]:
+            collectionName = COLLECTION.JIRA.value
         else:
-            collectionName = self._config["rag_indexer_reports"]
-        try:
-            chromaReportIssues = chromaClient.get_collection(
-                name=collectionName,
-                embedding_function=ef
-            )
-            msg = f"Opened vector collections with {chromaReportIssues.count()} documents."
-            self.workerSnapshot(msg)
-        except chromadb.errors.NotFoundError as e:
-            try:
-                chromaReportIssues = chromaClient.create_collection(
-                    name=collectionName,
-                    embedding_function=ef,
-                    metadata={ "hnsw:space": self._config["rag_hnsw_space"]  }
-                )
-                msg = f"Created vector collection"
-                self.workerSnapshot(msg)
-            except Exception as e:
-                msg = f"Error: exception creating vector collection: {e}"
-                self.workerError(msg)
-                return 0, 0
+            collectionName = COLLECTION.ISSUES.value
 
-        except Exception as e:
-            msg = f"Error: exception opening vector collection: {e}"
-            self.workerError(msg)
+        chromaCollection = self.openOrCreateCollection(collectionName = collectionName, createFlag = True)
+        if not chromaCollection:
             return 0, 0
 
         ids : list[str] = []
@@ -472,7 +453,7 @@ class IndexerWorkflow(WorkflowBase):
 
             recordHash = hash(reportItem)
             uniqueId = key
-            queryResult = chromaReportIssues.get(ids=[uniqueId])
+            queryResult = chromaCollection.get(ids=[uniqueId])
             if (len(queryResult["ids"])) :
 
                 existingRecordJSON = json.loads(queryResult["documents"][0])
@@ -488,20 +469,28 @@ class IndexerWorkflow(WorkflowBase):
                     accepted += 1
                     msg = f"Replacing {uniqueId}"
                     self.workerSnapshot(msg)
-                    chromaReportIssues.delete(ids=[uniqueId])
+                    chromaCollection.delete(ids=[uniqueId])
             else:
                 accepted += 1
                 msg = f"Adding {uniqueId}"
                 self.workerSnapshot(msg)
 
+#            if self.context["JiraExport"]:
+#                vectorSource = reportItem.model_dump_json()
+#            else:
+#                vectorSource = reportItem.title
             vectorSource = reportItem.model_dump_json()
+
             ids.append(uniqueId)
             docs.append(vectorSource)
-            docMetadata.append({ "recordType" : type(reportItem).__name__ } )
-            embeddings.append(ef([vectorSource])[0])
+            metadataDict = {}
+            metadataDict["recordType"] = type(reportItem).__name__
+            metadataDict["document"] = recordCollection.report
+            docMetadata.append( metadataDict )
+            embeddings.append(self.embeddingFunction([vectorSource])[0])
 
         if len(ids):
-            chromaReportIssues.add(
+            chromaCollection.add(
                 embeddings=embeddings,
                 documents=docs,
                 ids=ids,
@@ -518,12 +507,12 @@ class IndexerWorkflow(WorkflowBase):
         
         Args:
             recordCollection (RecordCollection) - all items
-            ClassTemplate (BaseModel) - issue template
 
         Returns:
             None
         """
-        with open(self._context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
+        with open(self.context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
+            jsonOut.writelines('\n"report": {recordCollection.report}\n')
             jsonOut.writelines('{\n"finding_dict": {\n')
             idx = 0
             for key in recordCollection.finding_dict:
@@ -547,15 +536,15 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         # ---------------stage Jira export
-        if self._context["JiraExport"]:
+        if self.context["JiraExport"]:
 
             totalStart = time.time()
             startTime = totalStart
-            self._context["stage"] = "vectorizing"
+            self.context["stage"] = "vectorizing"
 
             recordCollection = self.jiraExport(issueTemplate)
             accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-            if self._context["stage"] == "error":
+            if self.context["stage"] == "error":
                 return
 
             endTime = time.time()
@@ -564,7 +553,7 @@ class IndexerWorkflow(WorkflowBase):
 
             # ---------------stage completed ---------------
 
-            self._context["stage"] = "completed"
+            self.context["stage"] = "completed"
             totalEnd = time.time()
             msg = f"Processing completed. Total time {(totalEnd - totalStart):9.4f} seconds."
             self.workerSnapshot(msg)
@@ -574,75 +563,75 @@ class IndexerWorkflow(WorkflowBase):
         totalStart = time.time()
         startTime = totalStart
 
-        self._context["stage"] = "reading document"
+        self.context["stage"] = "reading document"
         self.workerSnapshot(None)
 
-        textCombined = self.loadPDF(self._context["inputFileName"])
-        with open(self._context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
+        textCombined = self.loadPDF(self.context["inputFileName"])
+        with open(self.context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
         endTime = time.time()
 
-        inputFileBaseName = str(Path(self._context['inputFileName']).name)
+        inputFileBaseName = str(Path(self.context['inputFileName']).name)
         msg = f"Read input document {inputFileBaseName}. Time: {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
 
         startTime = time.time()
-        self._context["stage"] = "pre-processing document"
+        self.context["stage"] = "pre-processing document"
         self.workerSnapshot(None)
 
         dictRawIssues = self.preprocessReportRawText(textCombined)
-        rawJSONFileName = self._context["rawJSON"]
+        rawJSONFileName = self.context["rawJSON"]
         with open(rawJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(json.dumps(dictRawIssues, indent=2))
         endTime = time.time()
 
-        rawTextFromPDFBaseName = str(Path(self._context['rawtextfromPDF']).name)
+        rawTextFromPDFBaseName = str(Path(self.context['rawtextfromPDF']).name)
         msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage fetch issues ---------------
 
         startTime = time.time()
-        self._context["stage"] = "fetching issues"
+        self.context["stage"] = "fetching issues"
         self.workerSnapshot(None)
 
-        recordCollection = self.parseAllIssues(self._context["inputFileName"], dictRawIssues, issueTemplate)
+        recordCollection = self.parseAllIssues(self.context["inputFileName"], dictRawIssues, issueTemplate)
 
         # ignore error state coming from item parser
-        #if self._context["stage"] == "error":
+        #if self.context["stage"] == "error":
         #    return
         self.writeFinalJSON(recordCollection)
 
         endTime = time.time()
 
-        finalJSONBaseName = str(Path(self._context['finalJSON']).name)
+        finalJSONBaseName = str(Path(self.context['finalJSON']).name)
         msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
         # ---------------stage bm25s index ---------------
 
         startTime = time.time()
-        self._context["stage"] = "bm25s index"
+        self.context["stage"] = "bm25s index"
         self.workerSnapshot(None)
 
         self.bm25sProcessIssueText(recordCollection, issueTemplate)
 
         endTime = time.time()
 
-        msg = f"Created BM25s index in {self._context["bm25sJSON"]}. {(endTime - startTime):9.4f} seconds"
+        msg = f"Created BM25s index in {self.context["bm25sJSON"]}. {(endTime - startTime):9.4f} seconds"
         self.workerSnapshot(msg)
 
 
         # ---------------stage vectorize --------------
 
         startTime = time.time()
-        self._context["stage"] = "vectorizing"
+        self.context["stage"] = "vectorizing"
         self.workerSnapshot(None)
 
         accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-        if self._context["stage"] == "error":
+        if self.context["stage"] == "error":
             return
 
         endTime = time.time()
@@ -651,8 +640,8 @@ class IndexerWorkflow(WorkflowBase):
 
         # ---------------stage completed ---------------
 
-        self._context["stage"] = "completed"
+        self.context["stage"] = "completed"
 
         totalEnd = time.time()
-        msg = f"Processing completed. {self._context["llmrequests"]} requests. {self._context["llmrequesttokens"]} request tokens. {self._context["llmresponsetokens"]} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
+        msg = f"Processing completed. {self.context["llmrequests"]} requests. {self.context["llmrequesttokens"]} request tokens. {self.context["llmresponsetokens"]} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
         self.workerSnapshot(msg)

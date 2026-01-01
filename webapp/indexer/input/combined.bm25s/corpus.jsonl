@@ -1,0 +1,161 @@
+{"id":0,"text":"tstorg-examplecorp001-003\nlack of authorization controls for storage api"}
+{"id":1,"text":"tstorg-examplecorp001-011\nfinding weak administrative credentials"}
+{"id":2,"text":"tstorg-examplecorp001-012\nplaintext passwords written to logs "}
+{"id":3,"text":"tstorg-examplecorp001-001\nfinding sensitive production data used in staging"}
+{"id":4,"text":"tstorg-examplecorp001-002\nuse of shared administrator credentials"}
+{"id":5,"text":"tstorg-examplecorp001-004\nfirmware or bootloader downgrades not prevented"}
+{"id":6,"text":"tstorg-examplecorp001-005\nineffective firmware integrity validation "}
+{"id":7,"text":"tstorg-examplecorp001-007\nunencrypted communication channel in camera web services"}
+{"id":8,"text":"tstorg-examplecorp001-008\nhorizontal authorization bypass in storage api"}
+{"id":9,"text":"tstorg-examplecorp001-010\napplication uses weak hash to store passwords"}
+{"id":10,"text":"tstorg-examplecorp001-013\ninsecure random number generation"}
+{"id":11,"text":"tstorg-examplecorp001-006\nrevenue generating advertisement delivery can be bypassed"}
+{"id":12,"text":"tstorg-examplecorp001-009\nweak password complexity requirements"}
+{"id":13,"text":"sr-109-001\niam roles assigned with excessive permissions"}
+{"id":14,"text":"sr-109-002\noverly permissive network configuration"}
+{"id":15,"text":"sr-109-003\nunauthorised access to s3 buckets "}
+{"id":16,"text":"sr-109-004\nuser without mfa enabled"}
+{"id":17,"text":"sr-109-005\niam password policy"}
+{"id":18,"text":"sr-109-006\nautomated backups not enabled for rds instances"}
+{"id":19,"text":"sr-109-007 single availability zone rds instance\nrds instances without multi-availability zone enabled"}
+{"id":20,"text":"sr-109-008\nunused security groups"}
+{"id":21,"text":"sr-109-009\nsubnets using default network acls"}
+{"id":22,"text":"sr-109-010\ncloudformation stack without termination protection"}
+{"id":23,"text":"sr-128-1-1\nssh private key in s3 bucket"}
+{"id":24,"text":"sr-128-1-2\ncredentials in github repository"}
+{"id":25,"text":"sr-128-1-3\ngood practice observed"}
+{"id":26,"text":"sr-128-2-1\ngithub oauth misconfiguration"}
+{"id":27,"text":"sr-128-2-2\njenkins broken access control"}
+{"id":28,"text":"sr-128-2-3\noutdated jenkins software"}
+{"id":29,"text":"sr-128-2-4\ncsrf protection disabled"}
+{"id":30,"text":"sr-128-2-5\nclear text credentials"}
+{"id":31,"text":"sr-128-3-1\nroot account used recently"}
+{"id":32,"text":"sr-128-3-2\niam password policy"}
+{"id":33,"text":"sr-128-3-3\nebs volumes without encryption"}
+{"id":34,"text":"sr-128-3-4\nautomated backups not enabled for rds instances"}
+{"id":35,"text":"sr-128-3-5\ns3 bucket configuration allowing clear text communications"}
+{"id":36,"text":"sr-128-3-6 s3 bucket without default encryption\ns3 bucket without default encryption"}
+{"id":37,"text":"sr-128-3-7\npolicy allows assumerole action for any resource with medium risk rating policy"}
+{"id":38,"text":"sr-128-3-8\nallowing passing of any role"}
+{"id":39,"text":"sr-128-3-9\ndefault security group hardening not implemented"}
+{"id":40,"text":"sr-128-3-10\nsingle availability zone rds instance"}
+{"id":41,"text":"sr-128-4-1\nkubernetes pod security policy overly permissive"}
+{"id":42,"text":"sr-128-4-2\nkubernetes unrestricted cluster network"}
+{"id":43,"text":"sr-128-4-3\noutdated kubernetes in use"}
+{"id":44,"text":"sr-103-001\nmissing oracle security patches"}
+{"id":45,"text":"sr-103-002\noracle tns listener poisoning attack"}
+{"id":46,"text":"sr-103-003\ndefault passwords "}
+{"id":47,"text":"sr-103-004\nremote login password file in use"}
+{"id":48,"text":"sr-103-005\ndefault profile settings not configured "}
+{"id":49,"text":"sr-103-006\ncase insensitive password hashes in use"}
+{"id":50,"text":"sr-103-007\nusers with create procedure privilege"}
+{"id":51,"text":"sr-103-008\ndatabase communication over clear text"}
+{"id":52,"text":"sr-103-010\nexcessive users with default profile"}
+{"id":53,"text":"sr-103-011\nsql server running as local system"}
+{"id":54,"text":"sr-103-012\nc2 audit not configured"}
+{"id":55,"text":"sr-103-013\nxp_cmdshell enabled"}
+{"id":56,"text":"sr-103-014\ndefault \"sa\" administrator account configured"}
+{"id":57,"text":"sr-103-015\nenforce password expiration not set"}
+{"id":58,"text":"sr-103-016\nmixed mode authentication"}
+{"id":59,"text":"sr-103-017\npublic role permissions on xp_instance_regread and xp_regread stored procedures"}
+{"id":60,"text":"sr-103-018\nremote access via rpc"}
+{"id":61,"text":"sr-103-019\nlogin auditing failed logins only"}
+{"id":62,"text":"sr-103-020\nnumber of error logs is too low"}
+{"id":63,"text":"sr-104-001\ndevice software vulnerabilities"}
+{"id":64,"text":"sr-104-002\nwidely scoped access controls"}
+{"id":65,"text":"sr-104-003\nlegacy clear text protocol rule permits access via telnet"}
+{"id":66,"text":"sr-104-004\n test / temporary rules present"}
+{"id":67,"text":"sr-104-005\nrules allow any icmp message type risk rating low status open"}
+{"id":68,"text":"sr-104-006\nproxy address resolution protocol (arp) was enabled "}
+{"id":69,"text":"sr-104-007\nicmp redirect messages were enabled"}
+{"id":70,"text":"sr-104-008\nnetwork time source not authenticated"}
+{"id":71,"text":"sr-104-009\nunrestricted administrative interfaces"}
+{"id":72,"text":"sr-104-010\nno pre-logon banner message"}
+{"id":73,"text":"sr-104-011\nlocal based authentication"}
+{"id":74,"text":"sr-104-012\nduplicate / overlapping rules risk rating low status open"}
+{"id":75,"text":"sr-104-013\ndisabled rules present"}
+{"id":76,"text":"sr-104-014\nrules without comment text or annotation"}
+{"id":77,"text":"testorg-1604_moss_phpmyadmin-006\ncsv export allows arbitrary command execution in csv file"}
+{"id":78,"text":"testorg-1604_moss_phpmyadmin-007\nlogin/logout actions vulnerable to csrf"}
+{"id":79,"text":"testorg-1604_moss_phpmyadmin-009\nability to unset arbitrary server global variables"}
+{"id":80,"text":"testorg-1604_moss_phpmyadmin-005\nsession fixation vulnerability"}
+{"id":81,"text":"testorg-1604_moss_phpmyadmin-001\nvulnerability in url get query parameters"}
+{"id":82,"text":"testorg-1604_moss_phpmyadmin-002\nphpmyadmin content security policy"}
+{"id":83,"text":"testorg-1604_moss_phpmyadmin-004\nfile traversal protection bypass on error reporting"}
+{"id":84,"text":"testorg-1604_moss_phpmyadmin-008\nself xss in table_row_action.php"}
+{"id":85,"text":"testorg-1604_moss_phpmyadmin-003\nmultiple http plaintext links"}
+{"id":86,"text":"testorgphp-001\noutdated or unsupported third party software"}
+{"id":87,"text":"testorgphp-014\nlack of certificate validation"}
+{"id":88,"text":"testorgphp-018\npoor software development lifecycle"}
+{"id":89,"text":"testorgphp-002\nhard-coded trivial credentials "}
+{"id":90,"text":"testorgphp-003\nsubscope variable overshadows outer scope variable"}
+{"id":91,"text":"testorgphp-004\ntodo comments indicate incomplete code"}
+{"id":92,"text":"testorgphp-006\nhard-coded static secrets in configuration file"}
+{"id":93,"text":"testorgphp-012\nincorrect creation of static object"}
+{"id":94,"text":"testorgphp-013\nall exceptions caught without processing"}
+{"id":95,"text":"testorgphp-016\nuse of md5 and sha1"}
+{"id":96,"text":"testorgphp-017\ninconsistent sql injection prevention"}
+{"id":97,"text":"testorgphp-005\nnested statements without curly braces"}
+{"id":98,"text":"testorgphp-007\nphp api calls without side effects "}
+{"id":99,"text":"testorgphp-008\nunreachable code"}
+{"id":100,"text":"testorgphp-009\nvariables assigned to itself"}
+{"id":101,"text":"testorgphp-010\nparameter assigned before use"}
+{"id":102,"text":"testorgphp-011\nhard-coded urls and cloud bucket names "}
+{"id":103,"text":"testorgphp-015\nhttp basic authentication in use"}
+{"id":104,"text":"pt-rcms-001\nstored xss in the title text in the image upload"}
+{"id":105,"text":"pt-rcms-002\nstored xss in the alt text in the image upload"}
+{"id":106,"text":"pt-rcms-003\nstored xss in refinery cms add new page title"}
+{"id":107,"text":"testorg-samplewapt-001\npre-authentication sql injection in dologin"}
+{"id":108,"text":"testorg-samplewapt-002\nusers can become other users via manipulated jwt"}
+{"id":109,"text":"testorg-samplewapt-014\naccount takeover via sms password reset "}
+{"id":110,"text":"testorg-samplewapt-003\nusers can change arbitrary user's password via updatepassword "}
+{"id":111,"text":"testorg-samplewapt-004\narbitrary file read in example files object"}
+{"id":112,"text":"testorg-samplewapt-007\ndesign pattern creates risk of server-side request forgery (ssrf)"}
+{"id":113,"text":"testorg-samplewapt-011\napplication returns incorrect content-type for json responses"}
+{"id":114,"text":"testorg-samplewapt-013\ns3 buckets misconfigured"}
+{"id":115,"text":"testorg-samplewapt-006\napplication uses weak hash to store passwords"}
+{"id":116,"text":"testorg-samplewapt-012\niam passrole permission allows potential authorization bypass"}
+{"id":117,"text":"testorg-samplewapt-008\nverbose error messages disclose sensitive information"}
+{"id":118,"text":"testorg-samplewapt-010\npotential backdoor user"}
+{"id":119,"text":"testorg-samplewapt-009\nmultiple complex authentication methods"}
+{"id":120,"text":"sr-101-001\nsql injection "}
+{"id":121,"text":"sr-101-002\nuploaded file types were not restricted "}
+{"id":122,"text":"sr-101-003\nreflected cross-site scripting"}
+{"id":123,"text":"sr-101-007\nlogin to administrative interface exposed"}
+{"id":124,"text":"sr-101-004\nasp.net header disclosure "}
+{"id":125,"text":"sr-101-005\nhttp header discloses internal ip address"}
+{"id":126,"text":"sr-101-009\nwsld descriptions could be obtained by unauthenticated users"}
+{"id":127,"text":"sr-101-010\ninvalid ssl certificate"}
+{"id":128,"text":"sr-101-012\nhosts respond to icmp"}
+{"id":129,"text":"sr-101-013\ndirectory listings enabled "}
+{"id":130,"text":"sr-101-015\nno support for tls versions above 1.0 "}
+{"id":131,"text":"sr-101-014\nbeast ssl / tls weaknesses"}
+{"id":132,"text":"tstorg-wmf1214-8\nreflected xss in api.php"}
+{"id":133,"text":"tstorg-wmf1214-3\nexternal reference in svg class: data validation vulnerability"}
+{"id":134,"text":"tstorg-wmf1214-11\nstored xss in uploaded svg files"}
+{"id":135,"text":"tstorg-wmf1214-13\nentity expansion in svg and xmp metadata"}
+{"id":136,"text":"tstorg-wmf1214-1\nlack of upper limit on password length allows dos"}
+{"id":137,"text":"tstorg-wmf1214-15\nexternal reference in pdf"}
+{"id":138,"text":"tstorg-wmf1214-14\nstored xss in pdf files"}
+{"id":139,"text":"tstorg-wmf1214-10\ncustom javascript may yield privilege escalation"}
+{"id":140,"text":"tstorg-wmf1214-2\nweak password policy"}
+{"id":141,"text":"tstorg-wmf1214-5\nlack of registry lock on domain names"}
+{"id":142,"text":"tstorg-wmf1214-7\nusers can inspect each other's personal javascript"}
+{"id":143,"text":"tstorg-wmf1214-6\ncheck user page lacks cross site request forgery (csrf) protection"}
+{"id":144,"text":"tstorg-wmf1214-12\nuser access roles are public "}
+{"id":145,"text":"tstorg-wmf1214-4\nrc4 cipher enabled"}
+{"id":146,"text":"sr-102-001\nreflected cross-site scripting (xss)"}
+{"id":147,"text":"sr-102-002\nuploaded file types were not restricted"}
+{"id":148,"text":"sr-102-003\nhttp header discloses internal ip address"}
+{"id":149,"text":"sr-102-004\nusername enumeration via login function"}
+{"id":150,"text":"sr-102-005\nverbose error messages"}
+{"id":151,"text":"sr-102-006\nunsupported operating system"}
+{"id":152,"text":"sr-102-007\ncertificate signed with md5"}
+{"id":153,"text":"sr-102-008\nclosed udp ports discovered"}
+{"id":154,"text":"sr-102-009\nhard-coded credentials"}
+{"id":155,"text":"sr-102-010\nssl certificate checking disabled"}
+{"id":156,"text":"sr-102-011\nno jailbreak detection "}
+{"id":157,"text":"sr-102-012\nssl/tls renegotiation dos"}
+{"id":158,"text":"sr-102-014\nbackgrounding screenshot disabled"}
+{"id":159,"text":"sr-102-015\nmanual screenshots not disabled"}
+{"id":160,"text":"sr-102-016\nno support for tls versions above 1.0"}

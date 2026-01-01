@@ -1,7 +1,7 @@
 {
     "Architecture Review - Threat Model Report.pdf" : {
-        "pattern" : "finding (?P<title>(\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>ncc-examplecorp\\d{1,3}-\\d{1,3})|(?P<TERMINATORGROUP>appendix a: finding field definitions)",
-        "extract" : "finding (?P<title>(\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>ncc-examplecorp\\d{1,3}-\\d{1,3})",
+        "pattern" : "finding (?P<title>(\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>testorg-examplecorp\\d{1,3}-\\d{1,3})|(?P<TERMINATORGROUP>appendix a: finding field definitions)",
+        "extract" : "finding (?P<title>(\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>testorg-examplecorp\\d{1,3}-\\d{1,3})",
         "assign" : ["title", "risk", "impact", "exploitability", "identifier"],
         "templateName" : "ReportFinding"
     },
@@ -30,14 +30,14 @@
         "templateName" : "ReportIssue"
     },
     "PHP_Code_Review.pdf" : {
-        "pattern" : "(?P<IDENTIFIERGROUP>nccgrpphp-\\d{1,3}) (?P<title>(?P<none>\\S+ ){1,20})risk rating (?P<risk>\\S+) status (?P<status>\\S+) description: |(?P<TERMINATORGROUP>3 technical summary ncc group was contracted)",
-        "extract" : "(?P<identifier>nccgrpphp-\\d{1,3}) (?P<title>(?P<none>\\S+ ){1,20})risk rating (?P<risk>\\S+) status (?P<status>\\S+) description: ",
+        "pattern" : "(?P<IDENTIFIERGROUP>testorgphp-\\d{1,3}) (?P<title>(?P<none>\\S+ ){1,20})risk rating (?P<risk>\\S+) status (?P<status>\\S+) description: |(?P<TERMINATORGROUP>3 technical summary test organization was contracted)",
+        "extract" : "(?P<identifier>testorgphp-\\d{1,3}) (?P<title>(?P<none>\\S+ ){1,20})risk rating (?P<risk>\\S+) status (?P<status>\\S+) description: ",
         "assign" : ["identifier", "title", "risk", "status"],
         "templateName" : "ReportIssue"
     },
     "phpMyAdmin.pdf" : {
-        "pattern" : "vulnerability (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>[a-z]+),exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>ncc-\\d{1,4}_\\S+) category|(?P<TERMINATORGROUP>appendix a: vulnerability field definitions)",
-        "extract" : "vulnerability (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>[a-z]+),exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>ncc-\\d{1,4}_\\S+) category",
+        "pattern" : "vulnerability (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>[a-z]+),exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>testorg-\\d{1,4}_\\S+) category|(?P<TERMINATORGROUP>appendix a: vulnerability field definitions)",
+        "extract" : "vulnerability (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>[a-z]+),exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>testorg-\\d{1,4}_\\S+) category",
         "assign" : ["title", "risk", "impact", "exploitability", "identifier"],
         "templateName" : "ReportFinding"
     },
@@ -48,8 +48,8 @@
         "templateName" : "IssueDescription"
     },
     "WASPT_Report.pdf" : {
-        "pattern" : "finding (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>ncc-samplewapt-\\d{1,3}) status |(?P<TERMINATORGROUP>appendix a: finding field definitions)",
-        "extract" : "finding (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>ncc-samplewapt-\\d{1,3}) status (?P<status>\\S+) category (?P<category>(?P<none2>\\S+ ){1,3})component ",
+        "pattern" : "finding (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<IDENTIFIERGROUP>testorg-samplewapt-\\d{1,3}) status |(?P<TERMINATORGROUP>appendix a: finding field definitions)",
+        "extract" : "finding (?P<title>(?P<none>\\S+ ){1,20})risk (?P<risk>\\S+) impact: (?P<impact>\\S+), exploitability: (?P<exploitability>\\S+) identifier (?P<identifier>testorg-samplewapt-\\d{1,3}) status (?P<status>\\S+) category (?P<category>(?P<none2>\\S+ ){1,3})component ",
         "assign" : ["title", "risk", "impact", "exploitability", "identifier", "status", "category"],
         "templateName" : "ReportFindingWithStatus"
     },
@@ -70,10 +70,5 @@
         "extract" : "(\\d{1,2})\\. (?P<title>(?P<none>\\S+ ){1,20})class: (?P<vulnClass>(?P<none2>\\S+ ){1,3})severity: (?P<severity>\\S+) difficulty: (?P<difficulty>\\S+) finding id: (?P<identifier>isec-\\S+-\\d{1,2}) ",
         "assign" : ["title", "vulnClass", "severity", "difficulty", "identifier"],
         "templateName" : "ISECIssue"
-    },
-    "jira:SCRUM" : {
-        "pattern" : "",
-        "templateName" : "JiraIssueRAG"
     }
-
 }

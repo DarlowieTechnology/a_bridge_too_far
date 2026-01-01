@@ -18,7 +18,7 @@ from jira import JIRA
 from pydantic import BaseModel, Field
 
 # local
-from common import ConfigSingleton, DebugUtils, OpenFile, RecordCollection
+from common import COLLECTION, ConfigSingleton, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
@@ -45,12 +45,41 @@ def preprocess(context, indexerWorkflow):
     indexerWorkflow.workerSnapshot(msg)
 
 
-def bm25prepare(context, indexerWorkflow, issueTemplate):
+def bm25prepare(context : dict, indexerWorkflow : IndexerWorkflow, issueTemplate : BaseModel, corpus : list[str]):
+    """
+    Test for bm25s accumulation of corpus - called for each document
+    
+    :param context: context for execution
+    :type context: dict
+    :param indexerWorkflow: indexer workflow object
+    :type indexerWorkflow: IndexerWorkflow
+    :param issueTemplate: issue template for the document
+    :type issueTemplate: BaseModel
+    :param corpus: global corpus for bm25s
+    :type corpus: list[str]
+    """
     with open(context['finalJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
         jsonStr = json.load(jsonIn)
         recordCollection = RecordCollection.model_validate(jsonStr)
-    indexerWorkflow.bm25sProcessIssueText(recordCollection, issueTemplate)
-    msg = f"Stored bm25s index in {context["bm25sJSON"]}."
+    indexerWorkflow.bm25sAddReportToCorpus(corpus, recordCollection, issueTemplate)
+    msg = f"Added {len(recordCollection.finding_dict)} records to global bm25s corpus."
+    indexerWorkflow.workerSnapshot(msg)
+
+
+def bm25complete(context : dict, indexerWorkflow : IndexerWorkflow, corpus : list[str]):
+    """
+    Docstring for bm25complete
+    
+    :param context: context for execution
+    :type context: dict
+    :param indexerWorkflow: indexer workflow object
+    :type indexerWorkflow: IndexerWorkflow
+    :param corpus: global corpus for bm25s
+    :type corpus: list[str]
+    """
+    folderName = context["bm25sIndexFolder"]
+    indexerWorkflow.bm25sProcessCorpus(corpus=corpus, folderName = folderName)
+    msg = f"Indexed {len(corpus)} records for bm25s in folder {folderName}."
     indexerWorkflow.workerSnapshot(msg)
 
 
@@ -59,19 +88,9 @@ def parseIssues(context, indexerWorkflow, issueTemplate):
         dictIssues = json.load(jsonIn)
     recordCollection = indexerWorkflow.parseAllIssues(context['inputFileName'], dictIssues, issueTemplate)
 
-    with open(context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
-        jsonOut.writelines('{\n"finding_dict": {\n')
-        idx = 0
-        for key in recordCollection.finding_dict:
-            jsonOut.writelines(f'"{key}" : ')
-            jsonOut.writelines(recordCollection.finding_dict[key].model_dump_json(indent=2))
-            idx += 1
-            if (idx < len(recordCollection.finding_dict)):
-                jsonOut.writelines(',\n')
-        jsonOut.writelines('}\n}\n')
+    indexerWorkflow.writeFinalJSON(recordCollection)
 
-    finalJSONBaseName = str(Path(indexerWorkflow._context['finalJSON']).name)
-    msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}."
+    msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {str(Path(context['finalJSON']).name)}."
     indexerWorkflow.workerSnapshot(msg)
 
 
@@ -105,13 +124,16 @@ def testLock(context, logger) -> bool :
     return True
 
 
-def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel) :
+def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel, corpus : list[str]) :
     """ 
-    Test for indexer stages 
+    Test for indexer stages, called for each report document
     
     Args:
         context (dict) - all information for test run
-        issueTemplate (BaseModel) - template for issue
+        indexerWorkflow (IndexerWorkflow) - workflow object
+        logger (Logger) - app logger
+        issueTemplate (BaseModel) - template for issue for the document
+        corpus (list[str]) - global corpus for bm25s
     Returns:
         None
     
@@ -121,7 +143,10 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
 #        return
 
     context["stage"] = "starting"
-    msg = f"Processing data source {context['inputFileName']}"
+    if context['JiraExport']:
+        msg = f"Processing Jira database"
+    else:
+        msg = f"Processing data source {context['inputFileName']}"
     indexerWorkflow.workerSnapshot(msg)
 
     if context["JiraExport"]:
@@ -131,12 +156,9 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
 #        loadPDF(context, indexerWorkflow)
 #        preprocess(context, indexerWorkflow)
 #        parseIssues(context, indexerWorkflow, issueTemplate)
-        bm25prepare(context, indexerWorkflow, issueTemplate)
+        bm25prepare(context, indexerWorkflow, issueTemplate, corpus)
         vectorize(context, indexerWorkflow, issueTemplate)
 
-    context["stage"] = "completed"
-    msg = f"Processing completed."
-    indexerWorkflow.workerSnapshot(msg)
 
 
 def main():
@@ -159,25 +181,24 @@ def main():
     context["issuePattern"] = None
     context["issueTemplate"] = None
     context["JiraExport"] = False
-
+    
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(context["session_key"])
 
 
     # test list - only process data sources from this list
     fileList = [
-#        "jira:SCRUM",
-#        "Architecture Review - Threat Model Report.pdf",
-#        "AWS_Review.pdf",
-#        "CD_and_DevOps Review.pdf",
-#        "Database Review.pdf",
-#        "Firewall Review.pdf",
-#        "phpMyAdmin.pdf",
-#        "PHP_Code_Review.pdf",
-#        "Refinery-CMS.pdf",
-#        "WASPT_Report.pdf",
-#        "Web App and Ext Infrastructure Report.pdf",
-#        "Wikimedia.pdf",
+        "Architecture Review - Threat Model Report.pdf",
+        "AWS_Review.pdf",
+        "CD_and_DevOps Review.pdf",
+        "Database Review.pdf",
+        "Firewall Review.pdf",
+        "phpMyAdmin.pdf",
+        "PHP_Code_Review.pdf",
+        "Refinery-CMS.pdf",
+        "WASPT_Report.pdf",
+        "Web App and Ext Infrastructure Report.pdf",
+        "Wikimedia.pdf",
         "Web App and Infrastructure and Mobile Report.pdf"
     ]
 
@@ -185,43 +206,50 @@ def main():
     with open("webapp/indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    # drive test with list of known data sources
-    for fileName in dictDocuments:
+    if context["JiraExport"]:
+        context["inputFileName"] = "SCRUM"
+        context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
+        inputFileBaseName = "jira:SCRUM"
+        context["issueTemplate"] = "JiraIssueRAG"
+        issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
+        indexerWorkflow = IndexerWorkflow(context, logger)
+        testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
 
-        # filter by test list of names
-        if fileName in fileList:
-            if re.match('jira:', fileName):
-                # Jira export processing
-                context["JiraExport"] = True
-                context["inputFileName"] = fileName[5:]
-                context["finalJSON"] = "webapp/indexer/input/" + fileName[5:] + ".json"
-                inputFileBaseName = fileName
-            else:
-                context["inputFileName"] = "webapp/indexer/input/" + fileName
-                context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-                context["rawJSON"] = context["inputFileName"] + ".raw.json"
-                
-                # folder for bm25-sparse files
-                context["bm25sJSON"] = context["inputFileName"] + ".bm25s"
-                context["finalJSON"] = context["inputFileName"] + ".json"
-                inputFileBaseName = str(Path(context["inputFileName"]).name)
+    else:
+        # global corpus for bm25s
+        corpus = []
+
+        for fileName in fileList:
+            context["inputFileName"] = "webapp/indexer/input/" + fileName
+            context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
+            context["rawJSON"] = context["inputFileName"] + ".raw.json"
+            
+            # folder for combined bm25s index - the same for all documents
+            context["bm25sIndexFolder"] = "webapp/indexer/input/combined.bm25s"
+
+            context["finalJSON"] = context["inputFileName"] + ".json"
+            inputFileBaseName = str(Path(context["inputFileName"]).name)
 
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-            if dictDocuments[inputFileBaseName]["extract"]:
+            if "extract" in dictDocuments[inputFileBaseName]:
                 context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
-            if dictDocuments[inputFileBaseName]["assign"]:
+            if "assign" in dictDocuments[inputFileBaseName]:
                 context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
             context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-        
+
             issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-
             indexerWorkflow = IndexerWorkflow(context, logger)
-
-            testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
+            testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate, corpus=corpus)
 
 #            thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
 #            thread.start()
 #            thread.join()
+
+        # complete b25s index using corpus for all documents
+        bm25complete(context=context, indexerWorkflow = indexerWorkflow, corpus = corpus)
+        context["stage"] = "completed"
+        msg = f"Processing completed."
+        indexerWorkflow.workerSnapshot(msg)
 
 
 if __name__ == "__main__":

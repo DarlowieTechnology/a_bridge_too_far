@@ -1,12 +1,13 @@
 {
-"finding_dict": {
+  "report" : "CD_and_DevOps Review.pdf",
+  "finding_dict": {
 "sr-128-1-1" : {
   "identifier": "sr-128-1-1",
   "title": "ssh private key in s3 bucket",
   "risk": "high",
   "description": "one ssl private key was identified in the private github repository. whilst the key was not immediately exposed to unauthorised access, storing keys such as this in an online location (and in an unencrypted format) places them at risk of compromise if an attacker gains access to the github account or aws s3 bucket. information could also be disclosed if a client device where the repositories had been cloned were lost or stolen.",
   "recommendation": "ensure that all ssl private keys which will be used in test, staging and production environments are store d securely and not exposed on public facing systems such as a github repository or in aws s3 buckets.",
-  "affects": "s3 bucket name s3://dev.client.comversion 1.0 - page 14 of 44 client confidential",
+  "affects": "s3 bucket name s3://dev.client.com",
   "references": ""
 },
 "sr-128-1-2" : {
@@ -15,7 +16,7 @@
   "risk": "Medium",
   "description": "some instances of what appeared to be aws and jfrog passwords or credentials were noted in the private github project repository. whilst it was not possible to establish from the repositories alone whether all of these were in use in production, in general it is not recommended that credentials should be stored in source code repositories in clear text.",
   "recommendation": "ensure that credentials are not stored in clear text in github repositories or in aws s3 buckets.",
-  "affects": "github repository projectversion 1.0 - page 15 of 44 client confidential",
+  "affects": "github repository project",
   "references": "https://github/clientuk/project/develop/config, https://github/clientuk/project/develop/deployment/fullstart.json, https://github/clientuk/project/develop/scripts/s3_pull.py, https://github/clientuk/project/develop/deployment/s3_pull_t.py"
 },
 "sr-128-1-3" : {
@@ -23,7 +24,7 @@
   "title": "good practice observed",
   "risk": "risk rating good",
   "description": "it was apparent that security had been a consideration in the development and deployment of the pipeline and its environment. the risk from various security flaws had been effectively mitigated. a number of useful controls and processes were observed to be in place. these included: * enforced code reviews * defined checks for committing * separate teams were responsible for different systems * developers could not bypass pipeline steps to introduce new code or change existing code * the use of multi-factor authentication was enforced for all aws and github access",
-  "recommendation": "ensure that these practices are maintained by means of training programmes and supporting procedures which define secure and acceptable practices within the organisation.version 1.0 - page 16 of 44 client confidential 2.1.2 phase 2 - jenkins review",
+  "recommendation": "ensure that these practices are maintained by means of training programmes and supporting procedures which define secure and acceptable practices within the organisation.",
   "affects": null,
   "references": null
 },
@@ -43,16 +44,16 @@
   "description": "jenkins extends its functionality with plugins that c an be developed by third party companies or by individuals. the github oauth plugin was identified as being responsible for authentication and authorisation. however, this plugin contained a bug that ignored the permission relationships and allowed any users to access data , even when this should have been denied as a result of that user's permissions.",
   "recommendation": "apply the workaround in the references or consider using a different authorisation and authentication plugin (after testing has provided a suitable level of assurance).",
   "affects": "dns name project-app-jenkins.staging.clientuk",
-  "references": "github oauth plugin bug https://issues.jenkins-ci.org/browse/jenkins-54031version 1.0 - page 19 of 44 client confidential"
+  "references": "github oauth plugin bug https://issues.jenkins-ci.org/browse/jenkins-54031"
 },
 "sr-128-2-3" : {
   "identifier": "sr-128-2-3",
   "title": "outdated jenkins software",
   "risk": "medium",
-  "description": "the installed version of jenkins server was outdated and affected by a number of security vulnerabilities. the observed version of the jenkins was 2. 231 while the latest version (at the time of writing) is 2. 259. known software vulnerabilities which were unpatched in the observed version included csrf and xss weaknesses. known issues also included missing permissions checks and the potential disclosure of s mtp passwords. these vulnerabilities could allow an attacker to steal the session of an administrator, gain access to sensitive information or create files and potentially execute code on the host system. this issue has been rated as a medium risk to reflect these issues and their assigned cvss scores.",
+  "description": "the installed version of jenkins server was outdated and affected by a number of security vulnerabilities. the observed version of the jenkins was 2.231 while the latest version (at the time of writing) is 2.259. known software vulnerabilities which were unpatched in the observed version included csrf and xss weaknesses. known issues also included missing permissions checks and the potential disclosure of smtp passwords. these vulnerabilities could allow an attacker to steal the session of an administrator, gain access to sensitive information or create files and potentially execute code on the host system. this issue has been rated as a medium risk to reflect these issues and their assigned cvss scores.",
   "recommendation": "update the version of the affected jenkins server to the latest stable and secure version available. perform any testing necessary to ensure that this does not break or conflict with required functionality. review the current policy for upgrading jenkins servers and create a plan that ensures jenkins can be maintained at the latest stable version, while still ensuring adequate testing so as to minimise disruption.",
   "affects": "dns name project-app-jenkins.staging.clientuk",
-  "references": "jenkins security advisory 2020-08-12 https://www.jenkins.io/security/advisory/2020-08-12/ jenkins website: changelog https://jenkins.io/changelog/ https://jenkins.io/changelog-stable/version 1.0 - page 20 of 44 client confidential"
+  "references": "jenkins security advisory 2020-08-12 https://www.jenkins.io/security/advisory/2020-08-12/ jenkins website: changelog https://jenkins.io/changelog/ https://jenkins.io/changelog-stable/"
 },
 "sr-128-2-4" : {
   "identifier": "sr-128-2-4",
@@ -68,18 +69,18 @@
   "title": "clear text credentials",
   "risk": "low",
   "description": "jenkins uses the workspace directory to build projects, to store the checkout source code and to store the files generated by the build itself. however, some files in the workspace directory w ere not automatically deleted . some of these remaining files included credentials in clear text format, and had world readable permissions.",
-  "recommendation": "use the workspace cleanup plugin to remove files that conta in credentials such as docker configuration file s or shell scripts.",
-  "affects": "dns name project-app-jenkins.staging.clientukversion 1.0 - page 22 of 44 client confidential",
-  "references": "workspace cleanup plugin https://wiki.jenkins.io/display/jenkins/workspace+cleanup+plugin how to use workspace cleanup plugin https://blog.clairvoyantsoft.com/jenkins-cleanup-workspace-reduce-disk-usage-18310097d3efversion 1.0 - page 23 of 44 client confidential"
+  "recommendation": "use the workspace cleanup plugin to remove files that contain credentials such as docker configuration file s or shell scripts.",
+  "affects": "dns name project-app-jenkins.staging.clientuk",
+  "references": "workspace cleanup plugin https://wiki.jenkins.io/display/jenkins/workspace+cleanup+plugin how to use workspace cleanup plugin https://blog.clairvoyantsoft.com/jenkins-cleanup-workspace-reduce-disk-usage-18310097d3ef"
 },
 "sr-128-3-1" : {
   "identifier": "sr-128-3-1",
   "title": "root account used recently",
   "risk": "medium",
-  "description": "it was confirmed that the \"root\" account had been used recently as part of the security checks of the amazon console. amazon security best practice recom mends that this account should only be used when strictly necessary. other accounts with more suitably restricted permissions should be used for daily administrative duties. the following screenshot demonstrates that the root account was used recently on t he 2020-08-12: figure 8 - root account usage the use of the root account was discussed with client staff, who revealed that the use of the root account is part of a corporate account, and project staff had no direct control over the account.",
+  "description": "it was confirmed that the \"root\" account had been used recently as part of the security checks of the amazon console. amazon security best practice recommends that this account should only be used when strictly necessary. other accounts with more suitably restricted permissions should be used for daily administrative duties. the following screenshot demonstrates that the root account was used recently on the 2020-08-12: figure 8 - root account usage the use of the root account was discussed with client staff, who revealed that the use of the root account is part of a corporate account, and project staff had no direct control over the account.",
   "recommendation": "the use of the root account should be minimised. other accounts should be created following the principle of least privilege and used for management. this will reduce the risk of accidental changes and unintended disclosure of highly privileged credentials. this would also better align the aws account with amazon recommended security best practice.",
   "affects": "aws account 123456789012:root",
-  "references": "aws identity and access management (iam) https://aws.amazon.com/iam//aws identity and access management documentation https://aws.amazon.com/documentation/iam/aws documentation - iam best practices http://docs.aws.amazon.com/iam/latest/userguide/iambestpractices.html/cis amazon web services foundations https://d0.awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdfversion 1.0 - page 24 of 44 client confidential"
+  "references": "aws identity and access management (iam) https://aws.amazon.com/iam//aws identity and access management documentation https://aws.amazon.com/documentation/iam/aws documentation - iam best practices http://docs.aws.amazon.com/iam/latest/userguide/iambestpractices.html/cis amazon web services foundations https://d0.awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdf"
 },
 "sr-128-3-2" : {
   "identifier": "sr-128-3-2",
@@ -106,7 +107,7 @@
   "description": "automated backups had not been enabled for a number of relational database service (rds) instances. this feature facilitates the creation of periodic rds instance snapshots, which in turn ensure that data restoration is possible in the event of an incident affecting the source database. the following screenshot from the aws trusted advisor shows that the main-components-db-stage and region-components-db-stage rds instances had automated backups disabled: figure 11 - rds instances with automated backups disabled",
   "recommendation": "ensure that all rds database instances that host sensitive data have automated backups enabled for point-in-time recovery.",
   "affects": "rds instance main-components-db-stage region-components-db-stage",
-  "references": "amazon relational database service (rds) https://aws.amazon.com/rds/ amazon relational database service documentation https://aws.amazon.com/documentation/rds/ aws documentation - backing up and restoring amazon rds db instances https://docs.aws.amazon.com/amazonrds/latest/userguide/chap_commontasks.backuprestore.htmlversion 1.0 - page 28 of 44 client confidential"
+  "references": "amazon relational database service (rds) https://aws.amazon.com/rds/ amazon relational database service documentation https://aws.amazon.com/documentation/rds/ aws documentation - backing up and restoring amazon rds db instances https://docs.aws.amazon.com/amazonrds/latest/userguide/chap_commontasks.backuprestore.html"
 },
 "sr-128-3-5" : {
   "identifier": "sr-128-3-5",
@@ -124,7 +125,7 @@
   "description": "analysis of the s3 configuration indicated that a number of buckets did not have default encryption enabled. s3 default encryption provides a way to set the default encryption behaviour for an s3 bucket. w hen enabled, all objects will be encrypted when they are stored in the bucket. this will be done automatically, without having to construct a bucket policy that rejects objects that are not encrypted.  the following buckets were found not to have default encryption enabled: * project-jenkins-stage  * project-xa-jenkins-stage  * project-xc-jenkins-stage  * project-y99-jenkins-stage  * project-za-jenkins-stage  * project-xab-jenkins-stage  * project-zd-jenkins-stage  the following screenshot shows an s3 bucket with default encryption not enabled: figure 13 - bucket without default encryption enabled  default encryption was enabled on other s3 buckets configured on the system.",
   "recommendation": "enable default encryption on all s3 buckets.",
   "affects": "* project-jenkins-stage  * project-xa-jenkins-stage  * project-xc-jenkins-stage  * project-y99-jenkins-stage  * project-za-jenkins-stage  * project-xab-jenkins-stage  * project-zd-jenkins-stage",
-  "references": "* amazon s3 https://aws.amazon.com/s3/  * amazon simple storage service documentation https://aws.amazon.com/documentation/s3/  * aws documentation - using encryption https://docs.aws.amazon.com/amazons3/latest/dev/usingencryption.html  * aws documentation - how do i create an s3 bucket? https://docs.aws.amazon.com/amazons3/latest/user-guide/create-bucket.html version 1.0 - page 31 of 44 client confidential  * aws documentation - amazon s3 default encryption for s3 buckets https://docs.aws.amazon.com/amazons3/latest/dev/bucket-encryption.html  * aws news blog - new amazon s3 encryption & security features https://aws.amazon.com/blogs/aws/new-amazon-s3-encryption-security-features/version 1.0 - page 32 of 44 client confidential"
+  "references": "* amazon s3 https://aws.amazon.com/s3/  * amazon simple storage service documentation https://aws.amazon.com/documentation/s3/  * aws documentation - using encryption https://docs.aws.amazon.com/amazons3/latest/dev/usingencryption.html  * aws documentation - how do i create an s3 bucket? https://docs.aws.amazon.com/amazons3/latest/user-guide/create-bucket.html  * aws documentation - amazon s3 default encryption for s3 buckets https://docs.aws.amazon.com/amazons3/latest/dev/bucket-encryption.html  * aws news blog - new amazon s3 encryption & security features https://aws.amazon.com/blogs/aws/new-amazon-s3-encryption-security-features/"
 },
 "sr-128-3-7" : {
   "identifier": "sr-128-3-7",
@@ -133,25 +134,25 @@
   "description": "One of the IAM inline security policies reviewed during the assessment included the AssumeRole action, without limiting it to a specific resource.",
   "recommendation": "The policies affected by this issue should be reviewed. One potential mitigation is to specify the complete ARN of the role that the user should be allowed to assume.",
   "affects": "IAM policy jenkins-policy",
-  "references": "https://aws.amazon.com/iam/version 1.0 - page 33 of 44 client confidential AWS Identity and Access Management (IAM) https://aws.amazon.com/iam/"
+  "references": "https://aws.amazon.com/iam/ AWS Identity and Access Management (IAM) https://aws.amazon.com/iam/"
 },
 "sr-128-3-8" : {
   "identifier": "sr-128-3-8",
   "title": "Allowing passing of any role",
   "risk": "Medium",
-  "description": "A number of the IAM managed and inline security policies reviewed during the assessment included the  passrole\" action, without limiting it to a specific resource. To pass a role (and its permissions) to an AWS service, a user must have permissions to pass the role to the service. This helps administrators ensure that only approved users can configure a service with a role that grants permissions.",
+  "description": "A number of the IAM managed and inline security policies reviewed during the assessment included the 'passrole' action, without limiting it to a specific resource. To pass a role (and its permissions) to an AWS service, a user must have permissions to pass the role to the service. This helps administrators ensure that only approved users can configure a service with a role that grants permissions.",
   "recommendation": "The policies affected by this issue should be reviewed. One potential mitigation is to specify the complete ARN of the role that the user should be allowed to pass.",
-  "affects": "The IAM policies jenkins-role, jenkins-role1, servicerolepolicy, and autoscalingclusterpolicy allow the 'passrole' action for any resource.",
+  "affects": "The IAM policies 'jenkins-role', 'jenkins-role1', 'servicerolepolicy', and 'autoscalingclusterpolicy' allow the 'passrole' action for any resource.",
   "references": "AWS Identity and Access Management (IAM) https://aws.amazon.com/iam/, AWS Identity and Access Management documentation https://aws.amazon.com/documentation/iam/"
 },
 "sr-128-3-9" : {
   "identifier": "sr-128-3-9",
   "title": "default security group hardening not implemented",
   "risk": "medium",
-  "description": "a number of security groups were identified to be using the default rules, allowing all inbound traffic from instances assigned to the same security group, as well as all outbound traffic. the default security group is assigned to new instances created withi n a vpc if no custom security groups are assigned to it during configuration. these rules may be overly permissive, for instance allowing an attacker who has compromised one instance with the default security group assigned to use horizontal privilege esca lation to compromise all other instances configured with the default security group. as can be seen in the following screenshot from an ncc group internal tool used during the assessment, the default security group had permissive rules defined: figure 14 - rules present in default security group the following vpcs were found to have default security groups configured with the default rules: * region 1: vpc 1 vpc 5 * region 2: vpc a vpc b it is good security practice to harden the default security group by removing all rules. any new instance created within a vpc will then be unable to communicate with other instances until custom security groups (conforming to security best practice) have been assigned. recommendation: in order to improve system hardening, remove all rules from the default security group so that it restricts all traffic. should an instance be created without custom security groups, it will inherit the default security grou p and be unable to communicate with other instances within the vpc until the required custom security groups are assigned. each vpc should be configured with custom security groups that conform to the practice of 'least privilege'. these custom security groups should be assigned on a case-by-case basis to the instances that require them, allowing communication within instances and to the wider internet under tightly controlled conditions.version 1.0 - page 37 of 44 client confidential",
-  "recommendation": "in order to improve system hardening, remove all rules from the default security group so that it restricts all traffic. should an instance be created without custom security groups, it will inherit the default security grou p and be unable to communicate with other instances within the vpc until the required custom security groups are assigned. each vpc should be configured with custom security groups that conform to the practice of 'least privilege'. these custom security groups should be assigned on a case-by-case basis to the instances that require them, allowing communication within instances and to the wider internet under tightly controlled conditions.version 1.0 - page 37 of 44 client confidential",
+  "description": "a number of security groups were identified to be using the default rules, allowing all inbound traffic from instances assigned to the same security group, as well as all outbound traffic. the default security group is assigned to new instances created within a vpc if no custom security groups are assigned to it during configuration. these rules may be overly permissive, for instance allowing an attacker who has compromised one instance with the default security group assigned to use horizontal privilege escalation to compromise all other instances configured with the default security group. as can be seen in the following screenshot from an test organization internal tool used during the assessment, the default security group had permissive rules defined: figure 14 - rules present in default security group the following vpcs were found to have default security groups configured with the default rules: * region 1: vpc 1 vpc 5 * region 2: vpc a vpc b it is good security practice to harden the default security group by removing all rules. any new instance created within a vpc will then be unable to communicate with other instances until custom security groups (conforming to security best practice) have been assigned. recommendation: in order to improve system hardening, remove all rules from the default security group so that it restricts all traffic. should an instance be created without custom security groups, it will inherit the default security group and be unable to communicate with other instances within the vpc until the required custom security groups are assigned. each vpc should be configured with custom security groups that conform to the practice of 'least privilege'. these custom security groups should be assigned on a case-by-case basis to the instances that require them, allowing communication within instances and to the wider internet under tightly controlled conditions.",
+  "recommendation": "in order to improve system hardening, remove all rules from the default security group so that it restricts all traffic. should an instance be created without custom security groups, it will inherit the default security group and be unable to communicate with other instances within the vpc until the required custom security groups are assigned. each vpc should be configured with custom security groups that conform to the practice of 'least privilege'. these custom security groups should be assigned on a case-by-case basis to the instances that require them, allowing communication within instances and to the wider internet under tightly controlled conditions.",
   "affects": "ip address vpc 1 vpc 5 vpc a vpc b",
-  "references": "amazon virtual private cloud https://aws.amazon.com/vpc/ amazon virtual private cloud documentation https://aws.amazon.com/documentation/vpc/ aws documentation - security groups for your vpc https://docs.aws.amazon.com/amazonvpc/latest/userguide/vpc_securitygroups.html cis amazon web services foundations https://d0/awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdfversion 1.0 - page 38 of 44 client confidential"
+  "references": "amazon virtual private cloud https://aws.amazon.com/vpc/ amazon virtual private cloud documentation https://aws.amazon.com/documentation/vpc/ aws documentation - security groups for your vpc https://docs.aws.amazon.com/amazonvpc/latest/userguide/vpc_securitygroups.html cis amazon web services foundations https://d0/awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdf"
 },
 "sr-128-3-10" : {
   "identifier": "sr-128-3-10",
@@ -160,7 +161,7 @@
   "description": "one relational database service (rds) instance was configured without the multi availability zone option enabled. without this, should an availability zone specific database failure occur, then amazon rds cannot automatically fail over to the standby availability zone so that database operations can resume quickly without administrative intervention. the following database instance was configured with multi-az disabled: * components-db-stage the following screenshot shows that multi-az was disabled for the instance listed above: figure 15 - rds availability zones",
   "recommendation": "consideration should be given to modifying the configuration of the database instance to enable multi-az. this is especially important if the applications using the database require high availability.",
   "affects": "rds instance components-db-stage",
-  "references": "amazon relational database service (rds) https://aws.amazon.com/rds/ amazon relational database service documentation https://aws.amazon.com/documentation/rds/ aws documentation - high availability (multi-az) https://docs.aws.amazon.com/amazonrds/latest/userguide/concepts.multiaz.htmlversion 1.0 - page 39 of 44 client confidential 2.1.4 phase 4 - kubernetes configuration"
+  "references": "amazon relational database service (rds) https://aws.amazon.com/rds/ amazon relational database service documentation https://aws.amazon.com/documentation/rds/ aws documentation - high availability (multi-az) https://docs.aws.amazon.com/amazonrds/latest/userguide/concepts.multiaz.html"
 },
 "sr-128-4-1" : {
   "identifier": "sr-128-4-1",
@@ -169,7 +170,7 @@
   "description": "the cluster did make use of the kubernetes pod security policy feature , but was configured to allow any user to create privileged containers. as a result, any user with the ability to create new pods on the cluster would be able to gain privileged access to the underlying cluster nodes and any secrets contained within them. kubernetes provides this feature to restrict the privileges which can be granted by users to newly created pods. this can be used to prevent mounting of host file systems and other rights, which could allow unauthorised access to the underlying operating system running on the cluster nodes. the policies configured within the project-staging cluster did not force pods to run as non-root users, and allowed privileged containers to be created and run. the output below provides evidence of the affected configuration option: <redacted>",
   "recommendation": "ensure that a pod security policy is defined for all namespaces in the cluster. this policy should provide minimal rights restricting the ability of pods to gain escalated privileges within the cluster.",
   "affects": "cluster name project-staging",
-  "references": "cis kubernetes benchmark - check 1.1.24 https://www.cisecurity.org/benchmark/kubernetes/   tool-k8s-node-cidr-ag2098 kubernetes pod security policies https://kubernetes.io/docs/concepts/policy/pod-security-policy/ effective implantation of pod security policies https://octetz.com/posts/setting-up-pspsversion 1.0 - page 40 of 44 client confidential"
+  "references": "cis kubernetes benchmark - check 1.1.24 https://www.cisecurity.org/benchmark/kubernetes/   tool-k8s-node-cidr-ag2098 kubernetes pod security policies https://kubernetes.io/docs/concepts/policy/pod-security-policy/ effective implantation of pod security policies https://octetz.com/posts/setting-up-psps"
 },
 "sr-128-4-2" : {
   "identifier": "sr-128-4-2",
@@ -178,15 +179,15 @@
   "description": "there were no egress restrictions on traffic from pods in the cluster network. as a result, a compromised container would be able to attack kubernetes' management interfaces. by default, kubernetes clusters provide an unrestricted flat network for all pods running on them. this can be restricted in recent versions by using kubernetes net work policies. these policies can be defined to restrict inbound and outbound access from the pods running on the cluster. as this feature was not in place it was possible to contact services running in the cluster and the management services running on the nodes.",
   "recommendation": "ensure that kubernetes network policies are in place for all services running on the cluster. these policies should be constructed on a 'least privilege' basis to allow only required traffic.",
   "affects": "cluster name project-staging",
-  "references": "cis kubernetes benchmark check 1.6.2 https://www.cisecurity.org/benchmark/kubernetes/ kubernetes network policy https://kubernetes.io/docs/concepts/services-networking/network-policies/version 1.0 - page 41 of 44 client confidential"
+  "references": "cis kubernetes benchmark check 1.6.2 https://www.cisecurity.org/benchmark/kubernetes/ kubernetes network policy https://kubernetes.io/docs/concepts/services-networking/network-policies/"
 },
 "sr-128-4-3" : {
   "identifier": "sr-128-4-3",
-  "title": "",
+  "title": "outdated kubernetes in use",
   "risk": "medium",
   "description": "the Kubernetes service was found to be out of date, leaving the clusters and their respective containers potentially open to both security and functional issues that have been patched in later versions. Due to its very fast development rate, vulnerabilities that are found in Kubernetes often apply to numerous versions; however, patches are usually released soon after to remediate any current issues. Issues disclosed in previous versions have included privilege escalation and information disclosure issues, some of which could potentially allow a malicious user to take full control of a cluster. Although no significant vulnerabilities were found in the observed versions of Kubernetes, it is strongly recommended that all clusters are kept up to date, in line with security best practice.",
   "recommendation": "review the current patching policy for Kubernetes and ensure that all clusters are updated to the latest stable version regularly. It should also be noted that the current support life cycle length for versions of Kubernetes is nine months.",
-  "affects": "cluster project-stagingversion 1.0 - page 42 of 44 client confidential",
+  "affects": "cluster project-staging",
   "references": ""
 }}
 }

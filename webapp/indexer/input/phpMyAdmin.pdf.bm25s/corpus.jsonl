@@ -1,9 +1,0 @@
-{"id":0,"text":"ncc-1604_moss_phpmyadmin-006 csv export allows arbitrary command execution in csv file  \n medium medium high ncc-1604_moss_phpmyadmin-006"}
-{"id":1,"text":"ncc-1604_moss_phpmyadmin-007 vulnerability login/logout actions vulnerable to csrf \n medium medium high ncc-1604_moss_phpmyadmin-007"}
-{"id":2,"text":"ncc-1604_moss_phpmyadmin-009 vulnerability ability to unset arbitrary server global variables \n medium undetermined medium ncc-1604_moss_phpmyadmin-009"}
-{"id":3,"text":"ncc-1604_moss_phpmyadmin-005 session fixation vulnerability \n low medium low ncc-1604_moss_phpmyadmin-005"}
-{"id":4,"text":"ncc-1604_moss_phpmyadmin-001 vulnerability in url get query parameters \n low medium low ncc-1604_moss_phpmyadmin-001"}
-{"id":5,"text":"ncc-1604_moss_phpmyadmin-002 vulnerability in phpmyadmin content security policy \n low low low ncc-1604_moss_phpmyadmin-002"}
-{"id":6,"text":"ncc-1604_moss_phpmyadmin-004 vulnerability file traversal protection bypass on error reporting \n low low low ncc-1604_moss_phpmyadmin-004"}
-{"id":7,"text":"ncc-1604_moss_phpmyadmin-008 self xss in table_row_action.php \n low low low ncc-1604_moss_phpmyadmin-008"}
-{"id":8,"text":"ncc-1604_moss_phpmyadmin-003 vulnerability multiple http plaintext links \n informational medium low ncc-1604_moss_phpmyadmin-003"}

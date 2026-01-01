@@ -68,9 +68,9 @@ class ReportFinding(BaseModel):
     def __hash__(self):
         return hash((self.title, self.risk, self.impact, self.exploitability, self.identifier))
 
-    # join attribute values for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.risk, self.impact, self.exploitability, self.identifier])
+        return "\n".join([self.identifier, self.title])
 
 
 class ReportFindingWithStatus(BaseModel):
@@ -121,9 +121,9 @@ class ReportFindingWithStatus(BaseModel):
     def __hash__(self):
         return hash((self.title, self.risk, self.impact, self.exploitability, self.identifier, self.status))
 
-    # join attribute values for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.risk, self.impact, self.exploitability, self.identifier, self.status])
+        return "\n".join([self.identifier, self.title])
 
     
 class ReportIssue(BaseModel):
@@ -165,9 +165,9 @@ class ReportIssue(BaseModel):
     def __hash__(self):
         return hash((self.identifier, self.title, self.risk))
 
-    # join all fields for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.identifier, self.risk])
+        return "\n".join([self.identifier, self.title])
 
 
 class ReportIssueCD(BaseModel):
@@ -210,9 +210,9 @@ class ReportIssueCD(BaseModel):
     def __hash__(self):
         return hash((self.identifier, self.title, self.risk, self.description))
 
-    # join all non-optional fields for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.identifier, self.risk, self.description])
+        return "\n".join([self.identifier, self.title])
 
 
 
@@ -249,9 +249,9 @@ class IssueDescription(BaseModel):
     def __hash__(self):
         return hash((self.identifier, self.title, self.risk))
 
-    # join all fields for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.identifier, self.risk])
+        return "\n".join([self.identifier, self.title])
 
 
 class ISECIssue(BaseModel):
@@ -299,9 +299,9 @@ class ISECIssue(BaseModel):
     def __hash__(self):
         return hash((self.title, self.vulnClass, self.severity, self.difficulty, self.identifier))
 
-    # join all fields for bm25s tokenization
+    # bm25s tokenization - identifier and title
     def bm25s(self):
-        return " ".join([self.title, "\n", self.vulnClass, self.severity, self.difficulty, self.identifier])
+        return "\n".join([self.identifier, self.title])
 
 
 
@@ -331,6 +331,6 @@ class JiraIssueRAG(BaseModel):
 
     # join all fields for bm25s tokenization
     def bm25s(self):
-        return " ".join([self.identifier, "\n", self.project_key, self.project_name, self.status_category_key, 
+        return "\n".join([self.identifier, self.summary, self.project_key, self.project_name, self.status_category_key, 
                     self.priority_name, self.issue_updated, self.status_name,
-                    self.summary, self.progress, "|".join(self.worklog)])
+                    self.progress, "|".join(self.worklog)])

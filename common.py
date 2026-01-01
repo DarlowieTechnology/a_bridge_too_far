@@ -1,3 +1,5 @@
+from enum import Enum, unique
+
 from typing import Union
 from typing import List
 from typing import Dict
@@ -21,16 +23,23 @@ from pydantic import BaseModel, Field, ConfigDict
 sys.path.append("..")
 sys.path.append("../..")
 
+@unique
+class COLLECTION(Enum) :
+    ISSUES = "reportissues"
+    JIRA = "jiraissues"
+    CACHE = "querycache"
+
 
 class RecordCollection(BaseModel):
     """
     represents all findings in a report document
     """
+    report: str = Field(..., description="report document name")
     finding_dict: Dict[str, Any] = Field(default=None, description="dict of issues, key by issue identifier")
     
-    def __init__(self, finding_dict):
-        super().__init__()
-        self.finding_dict = finding_dict
+#    def __init__(self, report, finding_dict):
+#        super().__init__()
+#        self.finding_dict = finding_dict
 
     def __getitem__(self, key):
         """Called when obj[index] is used."""
@@ -56,15 +65,15 @@ class AllRecords(BaseModel):
 
 
 class OneQueryResult(BaseModel):
-    """represents one query record"""
+    """represents one query record in generator app"""
     id: str = Field(..., description="id of record")
     name: str = Field(..., description="name of record")
-    desc: str = Field(..., description="name of record")
+    desc: str = Field(..., description="description of record")
     query: str = Field(..., description="query used")
     distance : float = Field(..., description="distance of record")
 
 class AllQueryResults(BaseModel):
-    """represents collection of all queries"""
+    """represents collection of all queries in generator app"""
     list_of_queryresults: List[OneQueryResult] = Field(..., description="list of query results")
 
 class OneDesc(BaseModel):
@@ -91,9 +100,11 @@ class OneEmployer(BaseModel):
     end: datetime = Field(..., description="employer end date")
     numJobs: int = Field(..., description="number of jobs")
 
+
 class AllEmployers(BaseModel):
     """represents all employers"""
     employer_list: list[OneEmployer] = Field(..., description="list of employers")
+
 
 class OneResultWithType(BaseModel):
     """one result from RAG with expected data type name and data"""
@@ -108,6 +119,52 @@ class OneResultWithType(BaseModel):
 class ResultWithTypeList(BaseModel):
     """represents result list from LLM call"""
     results_list: list[OneResultWithType] = Field(..., description="list of results")
+
+
+class OneQueryBM25SAppResult(BaseModel):
+    """represents one query result for BM25S in query app"""
+    identifier: str = Field(..., description="identifier of record")
+    title: str = Field(..., description="title of record")
+    report: str = Field(..., description="report document name")
+    score : float = Field(..., description="score of record in BM25S")
+
+
+class OneQuerySemanticAppResult(BaseModel):
+    """represents one query result for semantic in query app"""
+    identifier: str = Field(..., description="identifier of record")
+    title: str = Field(..., description="title of record")
+    report: str = Field(..., description="report document name")
+    distanceSemantic : float = Field(..., description="distance of record in semantic search")
+
+
+class AllQueryAppResults(BaseModel):
+    """represents collection of all query results"""
+    bm25s_dict: Dict[str, OneQueryBM25SAppResult] = Field(default=None, description="dict of bm25s query results, key by issue identifier")
+    semantic_dict: Dict[str, OneQuerySemanticAppResult] = Field(default=None, description="dict of semantic query results, key by issue identifier")
+    queryBM25S: List[List[str]] = Field(..., description="query used for BM25S")
+    querySemantic: str = Field(..., description="query used in semantic search")
+
+    def appendResult(self, oneQueryAppResult : BaseModel) :
+        if type (oneQueryAppResult) is OneQueryBM25SAppResult:
+            identifier = oneQueryAppResult.identifier
+            self.bm25s_dict[identifier] = oneQueryAppResult
+        if type(oneQueryAppResult) is OneQuerySemanticAppResult:
+            identifier = oneQueryAppResult.identifier
+            self.semantic_dict[identifier] = oneQueryAppResult
+
+
+class StatsOnResults(BaseModel):
+    """represents statistics of data set"""
+    length : float = Field(default=0, description="length of dataset")
+    min : float = Field(default=0, description="minimum value in the dataset") 
+    max : float = Field(default=0, description="maximum value in the dataset") 
+    avg : float = Field(default=0, description="average value in the dataset") 
+    mean : float = Field(default=0, description="mean value in the dataset") 
+    median : float = Field(default=0, description="median value in the dataset") 
+    range : float = Field(default=0, description="range of values in the dataset") 
+    q1 : float = Field(default=0, description="1st quartile of the dataset") 
+    q2 : float = Field(default=0, description="2nd quartile of the dataset") 
+    q3 : float = Field(default=0, description="3nd quartile of the dataset") 
 
 
 class ConfigSingleton(object):

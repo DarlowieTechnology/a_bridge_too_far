@@ -1,24 +1,25 @@
 {
-"finding_dict": {
-"ncc-examplecorp001-003" : {
+  "report" : "Architecture Review - Threat Model Report.pdf",
+  "finding_dict": {
+"tstorg-examplecorp001-003" : {
   "title": "Lack of Authorization Controls for Storage API",
   "risk": "High",
   "impact": "High",
   "exploitability": "High",
-  "identifier": "NCC-EXAMPLECORP001-003",
+  "identifier": "tstorg-EXAMPLECORP001-003",
   "category": "Access Controls",
   "component": "Camera Repository - Device Association Mapper",
   "location": "Device Association Mapper",
   "impactdescription": "a successful exploit would result in the compromise of a1 (user camera images), and lead to a loss of user trust in the secure camera brand.",
   "description": "A successful exploit would result in the compromise of a1 (user camera images), and lead to a loss of user trust in the secure camera brand.",
-  "recommendation": "NCC Group recommends this attack vector be thoroughly assessed during the upcoming manual penetration testing effort."
+  "recommendation": "Test organization recommends this attack vector be thoroughly assessed during the upcoming manual penetration testing effort."
 },
-"ncc-examplecorp001-011" : {
+"tstorg-examplecorp001-011" : {
   "title": "finding weak administrative credentials",
   "risk": "high",
   "impact": "high",
   "exploitability": "medium",
-  "identifier": "ncc-examplecorp001-011",
+  "identifier": "tstorg-examplecorp001-011",
   "category": "configuration",
   "component": "administration api",
   "location": null,
@@ -26,38 +27,38 @@
   "description": "administrative accounts and internal infrastructure must take extra care to ensure attackers cannot gain access. if the interface allows access using credentials (for example, using a username and password), those credentials should be randomly generated and unguessable. credentials that are simple, widely known, or not changed from the default values represent a single point of compromise for the application.",
   "recommendation": "change the password to a strong, random value. do not store the password in source code; ensure that only a small number of trusted users have access to the primary admin password. do not use this account for day-to-day access. instead, set up individual accounts for each user with tightly-scoped permissions, and only use the high-privileged account in exceptional scenarios. when employees leave the company, all accounts they have access to should rotate credentials."
 },
-"ncc-examplecorp001-012" : {
+"tstorg-examplecorp001-012" : {
   "title": "plaintext passwords written to logs ",
   "risk": "logs ",
   "impact": "high",
   "exploitability": "high",
-  "identifier": "ncc-examplecorp001-012",
+  "identifier": "tstorg-examplecorp001-012",
   "category": "auditing and logging",
   "component": "user management",
   "location": null,
   "impactdescription": "an attacker who obtains access to the application's log files would be able to view sensitive information such as user credentials.",
-  "description": "applications make use of logging functions to ease development, monitor application activity, or audit actions after the fact. access controls on the log files are often more lax than those on the application itself. for example, if information that is normally stored in an encrypted form is written to a log, an attacker could access it without obtaining the decryption key. additionally, an organization may permit internal access to log files with less strict controls than to the application's database. when creating log entries, therefore, care should be taken to ensure that no sensitive information is written, since this could provide attackers an easier path to obtaining that data. while reviewing the application's design documentation, ncc group identified a code snippet that appears to log sensitive information. the code snippet is listed below: logger.log(\"user entered username \" + username + \" and password \" + password); listing 1:authentication_proof_of_concept.java line 55",
+  "description": "applications make use of logging functions to ease development, monitor application activity, or audit actions after the fact. access controls on the log files are often more lax than those on the application itself. for example, if information that is normally stored in an encrypted form is written to a log, an attacker could access it without obtaining the decryption key. additionally, an organization may permit internal access to log files with less strict controls than to the application's database. when creating log entries, therefore, care should be taken to ensure that no sensitive information is written, since this could provide attackers an easier path to obtaining that data. while reviewing the application's design documentation, test organization identified a code snippet that appears to log sensitive information. the code snippet is listed below: logger.log('user entered username ' + username + ' and password ' + password); listing 1:authentication_proof_of_concept.java line 55",
   "recommendation": "either remove the noted log entries entirely, or carefully sanitize them to remove any sensitive information. once that is done, clear or sanitize the existing logs to remove sensitive data stored within."
 },
-"ncc-examplecorp001-001" : {
+"tstorg-examplecorp001-001" : {
   "title": "finding sensitive production data used in staging",
   "risk": "medium",
   "impact": "high",
   "exploitability": "medium",
-  "identifier": "ncc-examplecorp001-001",
+  "identifier": "tstorg-examplecorp001-001",
   "category": "data exposure",
   "component": "processes/procedures",
   "location": null,
   "impactdescription": "cloning sensitive data into the staging environment reveals several critical assets of the secure camera system to unauthorized secure camera employees (ta8), and could lead to a loss of user trust in the secure camera brand.",
-  "description": "during interviews, ncc group was informed that developers routinely clone data from the production databases for testing purposes into the staging environment.",
+  "description": "during interviews, test organization was informed that developers routinely clone data from the production databases for testing purposes into the staging environment.",
   "recommendation": "non-production environments should not be considered secure and there should be minimal cross-over between a non-production environment and production data and systems. developers should not have access to sensitive customer information stored in the production environment."
 },
-"ncc-examplecorp001-002" : {
+"tstorg-examplecorp001-002" : {
   "title": "Use of shared administrator credentials",
   "risk": "Medium",
   "impact": "High",
   "exploitability": "Medium",
-  "identifier": "NCC-EXAMPLECORP001-002",
+  "identifier": "tstorg-EXAMPLECORP001-002",
   "category": "Authentication",
   "component": "Administration API",
   "location": "",
@@ -65,12 +66,12 @@
   "description": "The use of shared credentials removes the ability for ExampleCorp to track user activity once they are logged into the system. If a malicious insider misuses their access on the system, it will be difficult (or impossible) to determine who was responsible for the malicious act.",
   "recommendation": "Set a strong, complex and unique password for each user who has access to the administrative component. If possible, use public key authentication, with keys protected by a passphrase for authentication into the components. Ensure that the host is configured to log both successful and failed login attempts, as well as record activity performed on the hosts after a successful login."
 },
-"ncc-examplecorp001-004" : {
+"tstorg-examplecorp001-004" : {
   "title": "Firmware or Bootloader Downgrades Not Prevented",
   "risk": "Medium",
   "impact": "Medium",
   "exploitability": "High",
-  "identifier": "ncc-examplecorp001-004",
+  "identifier": "tstorg-examplecorp001-004",
   "category": "Patching",
   "component": "Camera",
   "location": "[camera location]",
@@ -78,25 +79,25 @@
   "description": "The bootloader does not implement a means to prevent software downgrades. It is common for attackers to downgrade the firmware or software to a version that is known to contain exploitable vulnerabilities.",
   "recommendation": "Implement an effective downgrade prevention mechanism at each stage of the boot process."
 },
-"ncc-examplecorp001-005" : {
+"tstorg-examplecorp001-005" : {
   "title": "ineffective firmware integrity validation ",
   "risk": "validation ",
   "impact": "medium",
   "exploitability": "medium",
-  "identifier": "ncc-examplecorp001-005",
+  "identifier": "tstorg-examplecorp001-005",
   "category": "data validation",
   "component": "camera",
   "location": null,
   "impactdescription": "a malicious user can install modified device firmware images on the camera, which could be used to bypass business logic or gain unauthorized access to sensitive information.",
-  "description": "during interviews, ncc group was informed that the firmware download package includes a sha256 hash of the firmware image, which is used by the camera to ensure the firmware image has not been tampered with by a malicious user. this is not a sufficient security control, as a malicious user who has the ability to modify the firmware image can simply recompute the sha256 hash of the modified image, and replace the hash included in the firmware package.",
+  "description": "during interviews, test organization was informed that the firmware download package includes a sha256 hash of the firmware image, which is used by the camera to ensure the firmware image has not been tampered with by a malicious user. this is not a sufficient security control, as a malicious user who has the ability to modify the firmware image can simply recompute the sha256 hash of the modified image, and replace the hash included in the firmware package.",
   "recommendation": "the firmware package should be protected using a digital signature as apposed to a simple hash. the firmware package should be signed using a private key maintained by examplecorp, and the signature validated on the camera prior to firmware installation."
 },
-"ncc-examplecorp001-007" : {
+"tstorg-examplecorp001-007" : {
   "title": "Unencrypted Communication Channel in Camera Web Services",
   "risk": "Medium",
   "impact": "Attackers on the user's local network can intercept and modify traffic, capturing user credentials, tokens, and data or modifying traffic flowing between the mobile and web applications and the camera.",
   "exploitability": "The exploitability of this vulnerability is medium, as an attacker with access to the user's local network could easily intercept and monitor or modify the application's communication.",
-  "identifier": "NCC-ExampleCorp001-007",
+  "identifier": "tstorg-ExampleCorp001-007",
   "category": "Data exposure",
   "component": "Camera",
   "location": "Local network",
@@ -104,12 +105,12 @@
   "description": "the mobile and web applications communicate with the camera using unencrypted http. an attacker with access to the user's local network could easily intercept and monitor or modify the application's communication. the unencrypted data includes the following types of data, which could be captured or modified by an attacker: * credentials, including plaintext wifi passwords and authentication tokens * personally identifiable information (pii) * video footage and audio recordings",
   "recommendation": "Replace unencrypted protocols with encrypted alternatives. Use HTTPS with TLS 1.2 where possible. Generate a device-specific TLS certificate to each camera during manufacturing or registration process."
 },
-"ncc-examplecorp001-008" : {
+"tstorg-examplecorp001-008" : {
   "title": "Horizontal Authorization Bypass in Storage API",
   "risk": "Medium",
   "impact": "High",
   "exploitability": "Medium",
-  "identifier": "ncc-examplecorp001-008",
+  "identifier": "tstorg-examplecorp001-008",
   "category": "Access Controls",
   "component": "Camera Repository",
   "location": "Auth Controller",
@@ -117,56 +118,56 @@
   "description": "Employees or contractors of advertising partners are able to modify session identifiers to gain access to end user image files in cloud storage.",
   "recommendation": "All application functionality should have authorization controls in place and validate those controls prior to performing an action, including both data retrieval and data modification."
 },
-"ncc-examplecorp001-010" : {
+"tstorg-examplecorp001-010" : {
   "title": "application uses weak hash to store passwords",
   "risk": "medium",
   "impact": "an attacker who is able to compromise the application's storage, such as through a database flaw or information disclosure, can more easily recover user passwords.",
   "exploitability": "medium",
-  "identifier": "ncc-examplecorp001-010",
+  "identifier": "tstorg-examplecorp001-010",
   "category": "cryptography",
   "component": "user management",
   "location": null,
   "impactdescription": "an attacker who is able to compromise the application's storage, such as through a database flaw or information disclosure, can more easily recover user passwords.",
-  "description": "the application stores user passwords using unsalted sha256. this hash can be performed very quickly, thus hashed passwords are vulnerable to brute- force cracking.",
-  "recommendation": "ncc group recommends using bcrypt, a widely-supported hash that handles salting automatically. this hashing algorithm is designed to resist brute-forcing attempts."
+  "description": "the application stores user passwords using unsalted sha256. this hash can be performed very quickly, thus hashed passwords are vulnerable to brute-force cracking.",
+  "recommendation": "test organization recommends using bcrypt, a widely-supported hash that handles salting automatically. this hashing algorithm is designed to resist brute-forcing attempts."
 },
-"ncc-examplecorp001-013" : {
+"tstorg-examplecorp001-013" : {
   "title": "insecure random number generation",
   "risk": "medium",
   "impact": "medium",
   "exploitability": "medium",
-  "identifier": "ncc-examplecorp001-013",
+  "identifier": "tstorg-examplecorp001-013",
   "category": "cryptography",
   "component": "device ownership manager",
   "location": "device",
-  "impactdescription": "a malicious user who is able to predict device ids of other cameras can take advantage of finding ncc-examplecorp001-003 on page 12to view the images taken by the camera identified by the device id",
+  "impactdescription": "a malicious user who is able to predict device ids of other cameras can take advantage of finding tstorg-examplecorp001-003 on page 12to view the images taken by the camera identified by the device id",
   "description": "the secure camera system makes use of an insecure random number generator (rng) for the camera device id generation. when used in a context that requires the numbers to be truly unpredictable, usage of an insecure random number generator can completely defeat the security of the system. using an insecure generator, or seeding a secure generator with a predictable value, can allow an attacker to predict the generator's output. the following random number generators are known to be insecure, and should not be used: * java random * php rand, mt_rand * javascript math.random * libc random() * any other random number generator that does not advertise cryptographic randomness",
   "recommendation": "any functionality that relies on a random number generator to generate unpredictable values should use a cryptographically-secure random number generator (csprng). it is strongly encouraged to use a secure rng unless the application's functionality depends on the output being predictable. any usage of an insecure rng should be replaced by a csprng."
 },
-"ncc-examplecorp001-006" : {
+"tstorg-examplecorp001-006" : {
   "title": "revenue generating advertisement delivery can be bypassed",
   "risk": "low",
   "impact": "medium",
   "exploitability": "low",
-  "identifier": "ncc-examplecorp001-006",
+  "identifier": "tstorg-examplecorp001-006",
   "category": "other",
   "component": "mobile application",
   "location": null,
   "impactdescription": "users who are able to disable the targeted advertisements will impact the secure camera business model, which relies on advertisement delivery for revenue generation.",
-  "description": "during design documentation review, ncc group determined the mobile application periodically fetches advertisements from the advertising partner, which is the primary source of revenue for the secure camera platform. it appears possible for a malicious user to disable advertisements by blocking client communication to the advertisement partner, or using a modified version of the client application. this would undermine examplecorp's business model and could ultimately mean the service does not achieve profitability. however, the overall risk of the issue is low because it is very unlikely that the issue would be exploited at scale due to the technical expertise required for users to set up network blocking of the advertising hosts.",
+  "description": "during design documentation review, test organization determined the mobile application periodically fetches advertisements from the advertising partner, which is the primary source of revenue for the secure camera platform. it appears possible for a malicious user to disable advertisements by blocking client communication to the advertisement partner, or using a modified version of the client application. this would undermine examplecorp's business model and could ultimately mean the service does not achieve profitability. however, the overall risk of the issue is low because it is very unlikely that the issue would be exploited at scale due to the technical expertise required for users to set up network blocking of the advertising hosts.",
   "recommendation": "client-side controls are difficult to enforce as they are running in an untrusted environment, such as a user's mobile device. consider modifying the current architecture to deliver the targeted advertisements through the secure camera api responses, which then must be called to meet the functional requirement of the mobile application."
 },
-"ncc-examplecorp001-009" : {
+"tstorg-examplecorp001-009" : {
   "title": "Weak Password Complexity Requirements",
   "risk": "Low",
   "impact": "Medium",
   "exploitability": "Low",
-  "identifier": "ncc-examplecorp001-009",
+  "identifier": "tstorg-examplecorp001-009",
   "category": "Authentication",
   "component": "User Management",
   "location": null,
   "impactdescription": "An attacker may guess insecure user passwords or brute-force weak user passwords in the event of a password database breach.",
-  "description": "the secure camera platform does not enforce any restrictions on user or administrator pass- words. the only current password requirement is a length requirement of 4 characters. as a result, it is possible for users to set their passwords to simple values such as \"1234\" or \"abcd\". if a user does use a weak password, an attacker could guess their password and gain access to their account. alternatively, in the event of a password database breach, an attacker is more likely to recover a weak password from a brute-force attack.",
+  "description": "the secure camera platform does not enforce any restrictions on user or administrator passwords. the only current password requirement is a length requirement of 4 characters. as a result, it is possible for users to set their passwords to simple values such as '1234' or 'abcd'. if a user does use a weak password, an attacker could guess their password and gain access to their account. alternatively, in the event of a password database breach, an attacker is more likely to recover a weak password from a brute-force attack.",
   "recommendation": "When creating or changing user passwords, the application should perform checks for password complexity and reuse of previous credentials."
 }}
 }

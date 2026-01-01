@@ -1,11 +1,12 @@
 {
-"finding_dict": {
-"ncc-1604_moss_phpmyadmin-006" : {
-  "title": "csv export allows arbitrary command execution in csv file ",
+  "report" : "phpMyAdmin.pdf",
+  "finding_dict": {
+"testorg-1604_moss_phpmyadmin-006" : {
+  "title": "csv export allows arbitrary command execution in csv file",
   "risk": "medium",
   "impact": "medium",
   "exploitability": "high",
-  "identifier": "ncc-1604_moss_phpmyadmin-006",
+  "identifier": "testorg-1604_moss_phpmyadmin-006",
   "category": "data validation",
   "component": null,
   "location": "the csv export functionality",
@@ -13,12 +14,12 @@
   "description": "the csv export functionality does not properly escape exported csv field values. this can lead to code execution on a user's computer. this is done by including a formula in the csv file that a spreadsheet editor similar to excel will evaluate - the formula can include commands to be run on the user's computer. for example, if a user changes a database name or column value to be=cmd|' /c calc'!a0 and the database is then exported in csv format by another user, calc.exe will run when the file is evaluated by a spreadsheet editor. the victim user will be prompted with a warning, but since the user has downloaded the csv from a trusted source, they are likely to allow the functionality. it should be noted that encapsulating the values with quotation marks (\") does not mitigate the issue. reproduction steps 1. log into phpmyadmin and insert =cmd|' /c calc'!a0 into a database column value. 2. export the database in csv format. 3. open the exported csv file that was exported in windows excel and click through the warnings. 4. observe the calculator application now running on the computer. ",
   "recommendation": "when performing a csv export, for any cell that starts with an =,-,\",@,or +,add a space to the beginning and remove any tab characters (0x09) in the cell. alternatively, prepend each cell field with a single quote, so that their content will be read as text by the spreadsheet editor."
 },
-"ncc-1604_moss_phpmyadmin-007" : {
-  "title": "vulnerability login/logout actions vulnerable to csrf",
+"testorg-1604_moss_phpmyadmin-007" : {
+  "title": "login/logout actions vulnerable to csrf",
   "risk": "Medium",
   "impact": "Medium",
   "exploitability": "High",
-  "identifier": "ncc-1604_moss_phpmyadmin-007",
+  "identifier": "testorg-1604_moss_phpmyadmin-007",
   "category": "Data validation",
   "component": null,
   "location": "The PHPMyAdmin login and logout functionality",
@@ -26,38 +27,38 @@
   "description": "Cross-site request forgery (CSRF) countermeasures used in the application are not validated for the login or logout PhpMyAdmin functionalities. In a CSRF attack, a user is forced to perform state-changing actions without knowledge, while authenticated to an application.",
   "recommendation": "Ensure that state-changing requests are from an authorized user, validate the included token value. Perform all state changing requests as POST requests and submitting data via request body."
 },
-"ncc-1604_moss_phpmyadmin-009" : {
-  "title": "vulnerability ability to unset arbitrary server global variables",
+"testorg-1604_moss_phpmyadmin-009" : {
+  "title": "ability to unset arbitrary server global variables",
   "risk": "medium",
   "impact": "undetermined",
   "exploitability": "medium",
-  "identifier": "ncc-1604_moss_phpmyadmin-009",
+  "identifier": "testorg-1604_moss_phpmyadmin-009",
   "category": "data validation",
   "component": null,
   "location": "the pma_removerequestvars() function in cleanup.lib.php",
-  "impactdescription": "an attacker can forge requests that will remove (unset) specific global variables on the service side. this can be used for a targeted denial of service (dos) and potentially other attacks. note: because of the large amount of global variables, and the relatively short nature of this assessment, nccgroup was unable to fully determine the impact of this vulnerability.",
+  "impactdescription": "an attacker can forge requests that will remove (unset) specific global variables on the service side. this can be used for a targeted denial of service (dos) and potentially other attacks. note: because of the large amount of global variables, and the relatively short nature of this assessment, test organization was unable to fully determine the impact of this vulnerability.",
   "description": "all php files include libraries/common.inc.php, which in turn includes libraries/cleanup.lib.php for sanitizing user input if the cross-site request forgery token is missing.",
   "recommendation": "fix the pma_removerequestvars() function to correctly sanitize the $_cookie array instead of the $global array."
 },
-"ncc-1604_moss_phpmyadmin-005" : {
+"testorg-1604_moss_phpmyadmin-005" : {
   "title": "session fixation vulnerability",
   "risk": "low",
   "impact": "medium",
   "exploitability": "low",
-  "identifier": "ncc-1604_moss_phpmyadmin-005",
+  "identifier": "testorg-1604_moss_phpmyadmin-005",
   "category": "session management",
   "component": null,
   "location": "the cross-site request forgery (csrf)protection token and the phpmyadmin cookie",
   "impactdescription": "an attacker can perform various targeted attacks, such as csrf, against a victim user or administrator.",
-  "description": "session fixation is a type of session hijacking attack that can occur when a user is not assigned a new session identifier post-authentication. when a user first visits the phpmyadmin login page,the server sets the token csrf protection value and phpmyadmin cookie. when the user authenticates, these values are not reset. if an attacker knows the value of the user's token before the user has logged in, the attacker will be able to perform other targeted attacks, such as cross-site scripting(see finding ncc-1604_moss_phpmyadmin-008 on page 13 )or csrf,against the user.",
+  "description": "session fixation is a type of session hijacking attack that can occur when a user is not assigned a new session identifier post-authentication. when a user first visits the phpmyadmin login page,the server sets the token csrf protection value and phpmyadmin cookie. when the user authenticates, these values are not reset. if an attacker knows the value of the user's token before the user has logged in, the attacker will be able to perform other targeted attacks, such as cross-site scripting(see finding testorg-1604_moss_phpmyadmin-008 on page 13 )or csrf,against the user.",
   "recommendation": "when users authenticate, change rights levels, or identity, they should immediately be assigned a new session cookie. this can be done by invalidating the old session id and issuing a new one. in addition, csrf tokens should be reset with each new user session post- authentication."
 },
-"ncc-1604_moss_phpmyadmin-001" : {
+"testorg-1604_moss_phpmyadmin-001" : {
   "title": "Vulnerability in URL GET Query Parameters",
   "risk": "Low",
   "impact": "Medium",
   "exploitability": "Low",
-  "identifier": "ncc-1604_moss_phpmyadmin-001",
+  "identifier": "testorg-1604_moss_phpmyadmin-001",
   "category": "Data Exposure",
   "component": null,
   "location": "The following parameters: token, sql_query, old_usr",
@@ -65,12 +66,12 @@
   "description": "Several parameters containing sensitive values are transmitted in URL GET query parameters. Sending sensitive information via URL GET query parameters unnecessarily exposes these values in logs, caches, and referer headers to third parties.",
   "recommendation": "Submit the above parameters using POST requests, instead of GET requests. The parameters should be passed in the POST request body and not as URL query parameters. Update all links from the change log and PHPMyAdmin setup site to use url.php to ensure that data is not unnecessarily exposed to third-party sites."
 },
-"ncc-1604_moss_phpmyadmin-002" : {
-  "title": "Vulnerability in PHPMyAdmin Content Security Policy",
+"testorg-1604_moss_phpmyadmin-002" : {
+  "title": "PHPMyAdmin Content Security Policy",
   "risk": "Low",
   "impact": "Low",
   "exploitability": "Low",
-  "identifier": "ncc-1604_moss_phpmyadmin-002",
+  "identifier": "testorg-1604_moss_phpmyadmin-002",
   "category": "Authentication,Content Security Policy defined in libraries/header.php",
   "component": null,
   "location": "The content security policy defined in libraries/header.php 12",
@@ -78,12 +79,12 @@
   "description": "Content Security Policy 13 is a security feature that allows web sites to specify settings for modern browsers to enforce protections on web content. In the case of PHPMyAdmin, the following Content-Security-Policy header allows inline elements such as <script> and <style> to be included in all pages as long as they are loaded in the context of the same origin.",
   "recommendation": "Tighten the Content Security Policy as much as possible. Disable `unsafe-eval' and 'unsafe-inline' if its use cannot be justified. When adding functionality to the site in the future, keep the scope for allowed scripts, styles, and JavaScript callbacks as small as possible."
 },
-"ncc-1604_moss_phpmyadmin-004" : {
-  "title": "vulnerability file traversal protection bypass on error reporting",
+"testorg-1604_moss_phpmyadmin-004" : {
+  "title": "file traversal protection bypass on error reporting",
   "risk": "low",
   "impact": "low",
   "exploitability": "low",
-  "identifier": "ncc-1604_moss_phpmyadmin-004",
+  "identifier": "testorg-1604_moss_phpmyadmin-004",
   "category": "data exposure",
   "component": null,
   "location": "the error reporting endpoint, available at error_report.php 15",
@@ -91,30 +92,30 @@
   "description": "the pma_countlines() function available online 229 of error_report.lib.php 16 contains logic to prevent malicious user input from opening files outside the javascript directory. however, it is possible to bypass the protections and access files anywhere on the system. the function attempts to track the file depth of the path by splitting the path in to parts between the slash ``/'' delimiters. the function decrements the depth on parent ``/../'' parts, correctly skips dot``/./''parts(no depth change) and increments the depth on every thing else. if at any time the depth becomes negative(meaning that the user reached a directory before the intended root javascript directory),the function returns. this logic can be bypassed by sending a path containing empty parts``//'', which will increment the tracked depth but remain in the actual folder, allowing an attacker to then use the parent ``/../'' while still keeping a positive depth. as the pma_countlines() function only reports the size of the target files and not their contents, the significance of this vulnerability is greatly reduced. furthermore,to exploit this finding, the senderrorreports configuration setting must be set to ask or always.",
   "recommendation": "use php's realpathfunction 17 to verify that the target javascript directory is in the path. if this is not possible, process empty parts``//''of the path the same way the dot``/./''path are processed: do not increment the depth. alternatively, consider rejecting altogether paths containing the parent``/../''directory."
 },
-"ncc-1604_moss_phpmyadmin-008" : {
+"testorg-1604_moss_phpmyadmin-008" : {
   "title": "self xss in table_row_action.php",
   "risk": "low",
   "impact": "low",
   "exploitability": "low",
-  "identifier": "ncc-1604_moss_phpmyadmin-008",
+  "identifier": "testorg-1604_moss_phpmyadmin-008",
   "category": "data validation",
   "component": null,
   "location": "the pma_getqueryfromselected() functionin libraries/mult_submits.lib.php",
   "impactdescription": "with knowledge of the csrf token it is possible to trigger a cross-site scripting vulnerability.",
-  "description": "the pma_getqueryfromselected() function inside mult_submits.lib.php 19 takes user input and sanitizes it before displaying it back inside the page. however,the function calls urldecode() after htmlspecialchars(),20 allowing for special html characters to be passed as urlencoded values and displayed back as special characters in the page. $full_query .= 'delete from ' . pma\\libraries \\util::backquote (htmlspecialchars ($table)) . ' where ' . urldecode(htmlspecialchars($sval)) . ';<br />'; this vulnerable code is executed when browsing the data of a table, then selecting multiple rows and marking them for deletion. phpmyadmin will prepare the delete sql statement it is about to execute and display it to the user for confirmation before executing it. an attacker who is able to gain access to the csrf token value,such as by exploiting find- ingncc-1604_moss_phpmyadmin-005 on page 9 ,will then be able to exploit this vulnerability and inject javascript code into the victim's session. reproduction steps 1. proxy browser traffic using a proxy similar to burp proxy. 2. navigate to the``browse''section of a table inside a database. 3. select some rows then click on``delete''. 4. modify the post request to /phpmyadmin/tbl_row_action.php with the following body: db=foo&table=bar&token=[token]&goto=sql.php&rows_to_delete %5b0%5d=%2560 bar%2560.%2560 a%2560%2 b%253d%2b3%25%33%31%25%33%63%25%34%39%25%34%64%25 %34%37%25%32%30%25%35%33%25%35%32%25%34%33%25%33%64%25%32%37%25%36%31%2 5%32%37%25%32%30%25%36%66%25%36%65%25%36%35%25%37%32%25%37%32%25%36%66% 25%37%32%25%33%64%25%32%37%25%36%31%25%36%63%25%36%35%25%37%32%25%37%34 %25%32%38%25%33%31%25%32%39%25%32%37%25%33%65& sql_query=select +*+from+% 60bar%60&clause _is_unique =1&ajax_request =true&ajax_page_request =true&su bmit_mult=delete &_nocache =1462283900030800007 a listing2: urlencoded payload of``<imgsrc='a'onerror='alert(1)'>'' 5. notice how the javascript payload is executed by the browser.",
+  "description": "the pma_getqueryfromselected() function inside mult_submits.lib.php 19 takes user input and sanitizes it before displaying it back inside the page. however,the function calls urldecode() after htmlspecialchars(),20 allowing for special html characters to be passed as urlencoded values and displayed back as special characters in the page.",
   "recommendation": "call htmlspecialchars() after calling any type of decoding on user input, in this case, swap the calls to have: . ' where ' . htmlspecialchars(urldecode($sval))"
 },
-"ncc-1604_moss_phpmyadmin-003" : {
-  "title": "vulnerability multiple http plaintext links",
+"testorg-1604_moss_phpmyadmin-003" : {
+  "title": "multiple http plaintext links",
   "risk": "informational",
   "impact": "medium",
   "exploitability": "low",
-  "identifier": "ncc-1604_moss_phpmyadmin-003",
+  "identifier": "testorg-1604_moss_phpmyadmin-003",
   "category": "data exposure",
   "component": null,
   "location": "linked pages in the following: * index.php21 * changelog.php22 * libraries/config/messages.inc.php23 * libraries/util.php24",
   "impactdescription": "requests for the various content linked from phpmyadmin and the associated setup site may be intercepted by an attacker and modified to include malicious content. alternatively, an attacker could use this vector to perform an sslstripping attack against the user.",
-  "description": "multiple pages linked from the phpmyadmin are hardcoded to make use of plaintext http connections. an attacker in a privileged network position could arbitrarily modify the returned content in order to perform a variety of attacks such as sslstripping, cross-site scripting, phishing, etc. in addition, pages linked from the changelog (/phpmyadmin/changelog.php) and the phpmyadmins etup site( /phpmyadmin/setup/index.php) donotmakeuseofurl.php. 25 asa result, links from either the change log or setup site will leak the token to third parties via the referer header(see finding ncc-1604_moss_phpmyadmin-001 on page 10 ).",
+  "description": "multiple pages linked from the phpmyadmin are hardcoded to make use of plaintext http connections. an attacker in a privileged network position could arbitrarily modify the returned content in order to perform a variety of attacks such as sslstripping, cross-site scripting, phishing, etc. in addition, pages linked from the changelog (/phpmyadmin/changelog.php) and the phpmyadmins etup site( /phpmyadmin/setup/index.php) donotmakeuseofurl.php. 25 asa result, links from either the change log or setup site will leak the token to third parties via the referer header(see finding testorg-1604_moss_phpmyadmin-001 on page 10 ).",
   "recommendation": "update all links to use https exclusively"
 }}
 }

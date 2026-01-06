@@ -21,7 +21,7 @@
 },
 "sr-109-003" : {
   "identifier": "sr-109-003",
-  "title": "unauthorised access to s3 buckets ",
+  "title": "unauthorised access to s3 buckets",
   "risk": "buckets ",
   "status": "medium",
   "description": "an s3 bucket was found to be configured with excessive permissions that could allow unauthorised access to the stored objects. this bucket included access to logs of the portal web application. the following screenshot from the management console shows how full permissions to access the objects stored in the 'bucketname' bucket were granted to any authenticated aws user: figure 5: s3 bucket access the \"any authenticated aws user\" is a special group that will include any user having access to aws and not only the users associated with the clientname account. to demonstrate this problem, the following command was executed using api keys belonging to an test organization account: $ aws --profile testorg s3 ls --recursive s3://[bucketname] ... 2021-01-25 09:45:04 765520 logs-01-25-2021.log 2021-01-26 11:22:01 801528 logs-01-26-2021.log ... according to the permissions visible above, objects could have been downloaded and also deleted or otherwise edited. additionally, new objects could be uploaded. the following table includes all the s3 buckets affected by this issue and the type of permissions allowed to anonymous and any other aws user (i.e. including aws users not belonging to clientname): s3 bucket user type list upload/delete view edit 'bucketname' any aws user yes yes yes yes technical details about this issue were transmitted to clientname during testing and some actions were performed to mitigate the risk associated with this issue.",

@@ -27,18 +27,18 @@ from jira import JIRA
 from openai import OpenAI
 
 import Stemmer
-
 import bm25s
-
-import numpy as np
-from scipy import stats
-
 import spacy
+from anyascii import anyascii
+
 
 # local
-from common import COLLECTION, OneResultWithType, ResultWithTypeList, OneResultList, OneQueryBM25SAppResult, OneQuerySemanticAppResult, AllQueryAppResults, StatsOnResults
+from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, OneResultList
+from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, AllQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
+
+from testQueries import TestQuery, TestSetCollection
 
 
 class QueryWorkflow(WorkflowBase):
@@ -54,7 +54,7 @@ class QueryWorkflow(WorkflowBase):
 
     def startup(self) -> bool:
         """
-        create LLM access object on startup
+        Open LLM connection
         
         :return: True if LLM object is created
         :rtype: bool
@@ -78,12 +78,31 @@ class QueryWorkflow(WorkflowBase):
     def getQuery(self) -> str :
         return self.context["query"]
 
+    def getQueryTransform(self) -> QUERYTYPES :
+        return self.context["querytransforms"]
+    
+    def getBM25SFolder(self) -> str :
+        return self.context["bm25sIndexFolder"]
+
+    def getRRFTopResults(self) -> int :
+        return self.context["rrfTopResults"]
+
+    def getTokenizerTypes(self) -> TOKENIZERTYPES:
+        return self.context["querybm25options"]
+
 
     def preprocessQuery(self, queryStr : str) :
         """
-        Preprocess query string for search: lowercase, remove whitespace, normalise spaces
+        Preprocess string for interaction with LLM: convert all characters to ASCII, lowercase, remove whitespace, normalise spaces
+        Can be used on user input or output of LLM
+
+        :param query: original query 
+        :type query: str
+        :return: preprocessed query
+        :rtype: str
         """
-        query = queryStr.strip().lower()
+        query = anyascii(queryStr)
+        query = query.strip().lower()
         query = re.sub(r'[^\w\s?!]', '', query)
         query = " ".join(query.split())
         return query
@@ -92,9 +111,13 @@ class QueryWorkflow(WorkflowBase):
     def compressQuery(self, query : str) -> str:
         """
         Perform Telegraphic Semantic Compression (TSC) on the query for semantic search. 
-        ref: https://developer-service.blog/telegraphic-semantic-compression-tsc-a-semantic-compression-method-for-llm-contexts/
-        get english dictionary: python -m spacy download en_core_web_sm
-        Overwrite self.context['queryCompressed'] with new value.
+        Ref: https://developer-service.blog/telegraphic-semantic-compression-tsc-a-semantic-compression-method-for-llm-contexts/.
+        Get english dictionary: python -m spacy download en_core_web_sm.
+
+        :param query:  original query 
+        :type query: str
+        :return: compressed query
+        :rtype: str
         """
 
         # Load spaCy English model
@@ -121,11 +144,11 @@ class QueryWorkflow(WorkflowBase):
             ]
             if words:
                 chunks.append(" ".join(words))
-        self.context["queryCompressed"] =  " ".join(chunks)
-        return self.context["queryCompressed"]
+        newQuery =  " ".join(chunks)
+        return newQuery
 
     
-    def tokenizeQuery(self, query : str, useStopWordsFlag : bool = True, useStemmerFlag : bool = False) -> str:
+    def tokenizeQuery(self, query : str, tokenizerTypes: TOKENIZERTYPES) -> str:
         """
         create list of tokens from the query for BM25S search.
         Overwrite self.context['queryTokenized'] with new value.
@@ -136,14 +159,17 @@ class QueryWorkflow(WorkflowBase):
         :type useStemmerFlag: bool
         """
 
-        if (useStopWordsFlag and useStemmerFlag):
-            query_tokens = bm25s.tokenize(query, return_ids=False, stopwords="en", stemmer=Stemmer.Stemmer("english"))
-        if (useStopWordsFlag and not useStemmerFlag):
-            query_tokens = bm25s.tokenize(query, return_ids=False, stopwords="en")
-        if (not useStopWordsFlag and useStemmerFlag):
-            query_tokens = bm25s.tokenize(query, return_ids=False, stemmer=Stemmer.Stemmer("english"))
-        if (not useStopWordsFlag and not useStemmerFlag):
-            query_tokens = bm25s.tokenize(query, return_ids=False)
+        if TOKENIZERTYPES.STOPWORDSEN in tokenizerTypes:
+            stopwords = "english"
+        else:
+            stopwords = None
+
+        if TOKENIZERTYPES.STEMMER in tokenizerTypes:
+            stemmer=Stemmer.Stemmer("english")
+        else:
+            stemmer = None
+
+        query_tokens = bm25s.tokenize(query, return_ids=False, stopwords=stopwords, stemmer=stemmer)
         self.context["queryTokenized"] = query_tokens
         return query_tokens
 
@@ -236,6 +262,7 @@ class QueryWorkflow(WorkflowBase):
 
     def prepBM25S(self, query : str) -> str:
         """Prepare query for BM25S search using LLM. 
+        Overwrite context['querybm25sprep'] with new value.
         """
 
         # Prompt for generating prepared query
@@ -244,101 +271,93 @@ class QueryWorkflow(WorkflowBase):
         Return only the results. Format output as a list of Python strings.
         Original query is supplied in user prompt"""
 
-        agentMultipleQ = Agent(self._llmModel, system_prompt = systemPrompt)
+        agentPrepBM25s = Agent(self._llmModel, system_prompt = systemPrompt)
         userPrompt = query
         try:
-            result = agentMultipleQ.run_sync(userPrompt)
+            result = agentPrepBM25s.run_sync(userPrompt)
+            self.context['querybm25sprep'] = result.output
             if result.usage():
                 self.context["llmrequests"] += 1
                 self.context["llmrequesttokens"] += result.usage().request_tokens
                 self.context["llmresponsetokens"] += result.usage().response_tokens
-            return result.output
+            return self.context['querybm25sprep']
         except Exception as e:
             msg = f"LLM exception on prepBM25S query request: {e}"
             self.workerError(msg)
 
 
 
-    def statsOnList(self, scoresForStats) -> StatsOnResults:
+    def bm25sQuery(self, query : str, folderName : str, queryLabel : str) -> OneQueryResultList : 
         """
-        Calculate stats on the array of scores
-        
-        :param scoresForStats: float list
-        :return: dataclass with stats
-        :rtype: StatsOnResults
+        Perform bm25s query for combined corpus of documents
+        data in corpus is encoded as 'identifier\\ntitle'
+        Number of items retrieved is limited to min of context['bm25sRetrieveNum'] and number of items
+        Discard items with score less or equal to value context['bm25sCutOffScore']
+
+        :param query: query for bm25s
+        :type query: str
+        :param folderName: name of folder with bm25s index
+        :type folderName: str
+        :param queryLabel: unique label to query run
+        :type queryLabel: str
+        :return: search result object
+        :rtype: OneQueryResultList
         """
 
-        statsOnResults = StatsOnResults()
+        oneQueryResultList = OneQueryResultList(
+            result_dict = {},
+            query = query,
+            searchType = SEARCH.BM25S.value,
+            label = queryLabel            
+        )
 
-        if not len(scoresForStats):
-            msg = f"Zero length results"
-            self.workerSnapshot(msg)
-            return statsOnResults
-
-        a1F = np.array(scoresForStats, dtype=np.float32)
-
-        statsOnResults.length = len(a1F)
-        statsOnResults.min = np.min(a1F)
-        statsOnResults.max = np.max(a1F)
-        statsOnResults.avg = np.average(a1F)
-        statsOnResults.mean = np.mean(a1F)
-        statsOnResults.median = np.median(a1F)
-        statsOnResults.range = np.max(a1F)-np.min(a1F)
-        statsOnResults.q1, statsOnResults.q2, statsOnResults.q3 = np.quantile(a1F, [0.25, 0.5, 0.75])
-
-#        msg = f"Length {statLength} Min {statMin}  Max {statMax}  Average {statAvg}  Mean {statMean}  Median {statMedian}"
-#        self.workerSnapshot(msg)
-#        msg = f"Range {statRange}  Variance {statVar}  Std Deviation {statStdDev}"
-#        self.workerSnapshot(msg)
-#        msg = f"Histogram(5) {statHist5}"
-#        self.workerSnapshot(msg)
-#        msg = f"Q1: {q1}, Median (Q2): {q2}, Q3: {q3}"
-#        self.workerSnapshot(msg)
-
-        return statsOnResults
-
-
-    def bm25sQuery(self, query : str, allQueryAppResults : AllQueryAppResults, folderName : str) -> AllQueryAppResults : 
-        """
-        Perform bm25s query for combined corpus of documents saved in the folder
-        data in corpus is encoded as 'identifier\ntitle'
-        """
-        query_tokens = query
-
-        print(f"================Accessing bm25s index in folder: {folderName}")
-
-        # read bm25s configuration for the document
-        with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
-            bm25sParams = json.load(jsonIn)
         retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
 
-        # number of issues in the document
-        numDocs = bm25sParams["num_docs"]
-        results, scores = retriever.retrieve(query_tokens, k=numDocs)
-        for i in range(results.shape[1]):
-            docN, score = results[0, i], scores[0, i]
+        max_items = self.context['bm25sRetrieveNum']
+        if retriever.scores["num_docs"] < self.context['bm25sRetrieveNum']:
+            max_items = retriever.scores["num_docs"]
+
+        results, scores = retriever.retrieve(query, k=max_items)
+        for rankIdx in range(results.shape[1]):
+            docN, score = results[0, rankIdx], scores[0, rankIdx]
             docN = docN["text"].splitlines()
-            if (score > 0):
-                oneQueryBM25SAppResult = OneQueryBM25SAppResult(
+            if (score > self.context['bm25sCutOffScore']):
+                oneQueryResultList.appendResult(
                     identifier = docN[0].strip(),
                     title = docN[1].strip(),
                     report = str(Path(folderName).stem),
-                    score = score
+                    score = score,
+                    rank = rankIdx + 1
                 )
-                allQueryAppResults.appendResult(oneQueryBM25SAppResult)
-            else:
-                print(f"{docN}")
+        return oneQueryResultList
 
-        return allQueryAppResults
-    
 
-    def vectorQuery(self, query : str, allQueryAppResults : AllQueryAppResults) -> AllQueryAppResults:
+    def vectorQuery(self, query : str, collection : COLLECTION, queryLabel : str) -> OneQueryResultList:
         """
-        Perform semantic query 
+        Performs vector (semantic) query. Returns list of results
+        Uses context['cutIssueDistance'] to cut results off
+        Uses context['semanticRetrieveNum'] to limit max number of items
+        
+        :param query: query for semantic search
+        :type query: str
+        :param collection: chroma DB collection name for query
+        :type query: COLLECTION
+        :param queryLabel: unique label to query run
+        :type queryLabel: str
+        :return: list of results
+        :rtype: OneQueryResultList
         """
+
+        oneQueryResultList = OneQueryResultList(
+            result_dict = {},
+            query = query,
+            searchType = SEARCH.SEMANTIC.value,
+            label = queryLabel
+        )
+
         cutDist = self.context['cutIssueDistance']
-        collectionReports = self.collections[COLLECTION.ISSUES.value]
-        queryResult = collectionReports.query(query_texts=query, n_results=1000)
+        chromaCollection = self.collections[collection]
+        queryResult = chromaCollection.query(query_texts=query, n_results=self.context['semanticRetrieveNum'])
 
         resultIdx = -1
 
@@ -346,6 +365,7 @@ class QueryWorkflow(WorkflowBase):
             resultIdx += 1
             if (distFloat > cutDist) :
                 break
+
     #            print(f"------dist {distFloat}-------------------")
     #            print(type(queryResult["documents"][0][resultIdx]))
     #            print(queryResult["documents"][0][resultIdx])
@@ -356,16 +376,14 @@ class QueryWorkflow(WorkflowBase):
             IssueTemplate = ParserClassFactory.factory(queryResult["metadatas"][0][resultIdx]["recordType"])
             oneIssue = IssueTemplate.model_validate_json(queryResult["documents"][0][resultIdx])
 
-            oneQuerySemanticAppResult = OneQuerySemanticAppResult(
+            oneQueryResultList.appendResult(
                 identifier = oneIssue.identifier,
                 title = oneIssue.title,
                 report = queryResult["metadatas"][0][resultIdx]["document"],
-                distanceSemantic = distFloat
+                score = distFloat,
+                rank = resultIdx + 1
             )
-
-            allQueryAppResults.appendResult(oneQuerySemanticAppResult)
-
-        return allQueryAppResults
+        return oneQueryResultList
 
 
     def agentPromptOllama(self):
@@ -445,92 +463,6 @@ class QueryWorkflow(WorkflowBase):
             ),
             settings=ModelSettings(temperature = 0.0)
         )
-
-        # use HyDE (Hypothetical Document Embedding)
-        systemPrompt = f"""
-        Write a two sentence answer to the user prompt query
-        """
-
-        agentHyDE = Agent(geminiModel, system_prompt = systemPrompt)
-        userPrompt = f"{self.context["query"]}"
-        try:
-            result = agentHyDE.run_sync(userPrompt)
-        except Exception as e:
-            msg = f"Gemini exception on HyDE request: {e}"
-            self.workerError(msg)
-            return
-       
-        msg = f"HyDE:{result.output}"
-        self.workerSnapshot(msg)
-
-        queryList = []
- #       queryList.append(self.context["query"])
-        queryList.append(result.output)
-        oneResultList = self.getDBIssueMatch(queryList)
-#        print(f"'n---------------\n{oneResultList.model_dump_json(indent=2)}")
-
-        systemPrompt = f"""
-        return subcategories and variants of user prompt.
-        Here is the JSON schema for the output:
-        {json.dumps(OneResultList.model_json_schema(), indent=2)}            
-        """
-
-        agentSynonyms = Agent(
-            geminiModel,
-            output_type=OneResultList,
-            system_prompt = systemPrompt)
-        userPrompt = f"{self.context["query"]}"
-        try:
-            result = agentSynonyms.run_sync(userPrompt)
-            synonymsResultList = OneResultList.model_validate_json(result.output.model_dump_json())
-        except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerError(msg)
-            return
-
-#        synonymsResultList.results_list.append(self.context["query"])
-        msg = f"Expanded bm25s query: {json.dumps(synonymsResultList.results_list)}"
-        self.workerSnapshot(msg)
-
-
-#        query_tokens = bm25s.tokenize(synonymsResultList.results_list, stemmer=Stemmer.Stemmer("english"), return_ids=False)
-        query_tokens = bm25s.tokenize(synonymsResultList.results_list, return_ids=False)
-
-        msg = f"Tokenised bm25s query: {json.dumps(query_tokens)}"
-        self.workerSnapshot(msg)
-
-        # for all data sources for bm25s
-        for folderName in self.context["bm25sJSON"]:
-            # first read bm25s configuration for the document
-            with open(f"{folderName}/params.index.json", "r", encoding='utf8', errors='ignore') as jsonIn:
-                bm25sParams = json.load(jsonIn)
-            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
-            numDocs = bm25sParams["num_docs"]
-            results, scores = retriever.retrieve(query_tokens, k=numDocs)
-            for i in range(results.shape[1]):
-                docN, score = results[0, i], scores[0, i]
-                if score > self.context["bm25sCutOffScore"]:
-                    outTitle = docN["text"].splitlines()[0]
-                    folderBaseName = str(Path(folderName).name)
-                    msg = f"{folderBaseName}   {outTitle}  Rank: {i+1} Score: {score:.2f})"
-                    self.workerSnapshot(msg)
-
-        return
-
-        resultWithTypeList = ResultWithTypeList(results_list = [])
-        for query in synList:
-            oneResultList = self.getDBIssueMatch(query)
-            if len(oneResultList.results_list):
-                for item in oneResultList.results_list:
-                    recordHash = hash(item)
-                    toAdd = True
-                    for existingItem in resultWithTypeList.results_list:
-                        if recordHash == hash(existingItem):
-                            toAdd = False
-                            break
-                    if toAdd:
-                        resultWithTypeList.results_list.append(item)
-
 
 
         msg = f"Found {len(resultWithTypeList.results_list)} issue related to query list"
@@ -646,61 +578,7 @@ class QueryWorkflow(WorkflowBase):
 
 
 
-    def getDBIssueMatch(self, queryList : list[str]) -> ResultWithTypeList :
-        """
-        Query collection and select vectors within cut-off distance
-        
-        Args:
-            queryList (list[str]) - query string list
-
-        Returns:
-            ResultWithTypeList
-        """
-
-        resultWithTypeList = ResultWithTypeList(results_list = [])
-
-        cutDist = self.context['cutIssueDistance']
-        queryResult = self._chromaReportIssues.query(query_texts=queryList, n_results=1000)
-
-        resultIdx = -1
-
-        for distFloat in queryResult["distances"][0]:
-            resultIdx += 1
-            if (distFloat > cutDist) :
-                break
-
-    #            print(f"------dist {distFloat}-------------------")
-    #            print(type(queryResult["documents"][0][resultIdx]))
-    #            print(queryResult["documents"][0][resultIdx])
-    #            print("-------------------------")
-    #            print(type(queryResult["metadatas"][0][resultIdx]))
-    #            print(queryResult["metadatas"][0][resultIdx])
-
-            # result from RAG table has typename attached as metadata
-            oneResultWithType = OneResultWithType(
-                data = queryResult["documents"][0][resultIdx], 
-                parser_typename = queryResult["metadatas"][0][resultIdx]["recordType"],
-                vector_dist = distFloat
-            )
-
-            recordHash = hash(oneResultWithType)
-            toAdd = True
-            for existingItem in resultWithTypeList.results_list:
-                if recordHash == hash(existingItem):
-                    toAdd = False
-                    break
-            if toAdd:
-                resultWithTypeList.results_list.append(oneResultWithType)
-
-        if len(resultWithTypeList.results_list) :
-            msg = f"Query returned {len(resultWithTypeList.results_list)} vectors within the distance of {cutDist}"
-            self.workerError(msg)
-        else:
-            msg = f"Query {queryList} did not return vectors within the distance of {cutDist}"
-            self.workerError(msg)
-        return resultWithTypeList
-
-
+    
     def getDBJiraMatch(self, issueTemplate : BaseModel) -> ResultWithTypeList :
         """
         Query jira item collection and select vectors within cut-off distance
@@ -748,6 +626,204 @@ class QueryWorkflow(WorkflowBase):
         return jiraWithTypeList
 
 
+    def rrfReRanking(self, allQueryResults : AllQueryResults) -> AllQueryResults:
+        """
+        Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results
+        
+        :param allQueryResults: query results
+        :type allQueryResults: AllQueryResults
+        :return: query results updated with rank
+        :rtype: AllQueryResults
+        """
+
+    #    for item in allQueryResults.result_lists:
+    #        msg = f"RRF:  {item.label} matches: {len(item.result_dict)}"    
+    #        queryWorkflow.workerSnapshot(msg)
+
+        # merge keys from all runs into set
+        setKeys = set()
+        for item in allQueryResults.result_lists:
+            for key in item.result_dict:
+                setKeys.add(key)
+
+    #    msg = f"RRF: Length of combined keys: {len(setKeys)}"
+    #    queryWorkflow.workerSnapshot(msg)
+        
+        # calculate rank for issue access all query runs
+        rrfScores = {}
+        for ident in list(setKeys):
+            finalRank = 0
+            oneQueryAppResult = None
+            for item in allQueryResults.result_lists:
+                if ident in item.result_dict:
+                    oneQueryAppResult = item.result_dict[ident]
+                    finalRank += 1/(60 + oneQueryAppResult.rank)
+            rrfScores[ident] = [finalRank, oneQueryAppResult]
+        # sort descending by rank
+        rrfScores = dict(sorted(rrfScores.items(), key=lambda item: item[1][0], reverse=True))
+        allQueryResults.rrfScores = rrfScores
+        return allQueryResults
+
+
+    def performQueries(self) -> AllQueryResults :
+
+        allQueryResults = AllQueryResults(
+            result_lists = [],
+            rrfScores = {}
+        )
+
+        originalQuery = self.getQuery()
+        queryTransform = self.getQueryTransform()
+        bm25sFolder = self.getBM25SFolder()
+
+        if QUERYTYPES.ORIGINAL in queryTransform:
+            msg = f"original: {originalQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                originalQuery = self.preprocessQuery(originalQuery)
+                msg = f"preprocessed: {originalQuery}"
+                self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(originalQuery, COLLECTION.ISSUES.value, "ORIG"))
+
+        if QUERYTYPES.ORIGINALCOMPRESS in queryTransform:
+            msg = f"original: {originalQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                originalQuery = self.preprocessQuery(originalQuery)
+                msg = f"preprocessed: {originalQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(originalQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "ORIGCOMPRESS"))
+
+        if QUERYTYPES.HYDE in queryTransform:
+            hydeQuery = self.hydeQuery(originalQuery)
+            msg = f"hyde: {hydeQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                hydeQuery = self.preprocessQuery(hydeQuery)
+                msg = f"preprocessed: {hydeQuery}"
+                self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(hydeQuery, COLLECTION.ISSUES.value, "HYDE"))
+
+        if QUERYTYPES.HYDECOMPRESS in queryTransform:
+            hydeQuery = self.hydeQuery(originalQuery)
+            msg = f"hyde: {hydeQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                hydeQuery = self.preprocessQuery(hydeQuery)
+                msg = f"preprocessed: {hydeQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(hydeQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "HYDECOMPRESS"))
+
+        if QUERYTYPES.MULTI in queryTransform:
+            multiQuery = self.multiQuery(originalQuery)
+            msg = f"multi: {json.dumps(multiQuery)}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                multiQuery = self.preprocessQuery(multiQuery)
+                msg = f"preprocessed: {multiQuery}"
+                self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(multiQuery, COLLECTION.ISSUES.value, "MULTI"))
+
+        if QUERYTYPES.MULTICOMPRESS in queryTransform:
+            multiQuery = self.multiQuery(originalQuery)
+            msg = f"multi: {json.dumps(multiQuery)}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                multiQuery = self.preprocessQuery(multiQuery)
+                msg = f"preprocessed: {multiQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(multiQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "MULTICOMPRESS"))
+
+        if QUERYTYPES.REWRITE in queryTransform:
+            rewriteQuery = self.rewriteQuery(originalQuery)
+            msg = f"rewrite: {rewriteQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                rewriteQuery = self.preprocessQuery(rewriteQuery)
+                msg = f"preprocessed: {rewriteQuery}"
+                self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITE"))
+
+        if QUERYTYPES.REWRITECOMPRESS in queryTransform:
+            rewriteQuery = self.rewriteQuery(originalQuery)
+            msg = f"rewrite: {rewriteQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                rewriteQuery = self.preprocessQuery(rewriteQuery)
+                msg = f"preprocessed: {rewriteQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(rewriteQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITECOMPRESS"))
+
+        if QUERYTYPES.BM25SORIG in queryTransform:
+            if self.context['queryPreprocess']:
+                originalQuery = self.preprocessQuery(originalQuery)
+                msg = f"preprocessed: {originalQuery}"
+                self.workerSnapshot(msg)
+            tokenizedQuery = self.tokenizeQuery(originalQuery, self.getTokenizerTypes())
+            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SORIG"))
+
+        if QUERYTYPES.BM25SORIGCOMPRESS in queryTransform:
+            if self.context['queryPreprocess']:
+                originalQuery = self.preprocessQuery(originalQuery)
+                msg = f"preprocessed: {originalQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(originalQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            tokenizedQuery = self.tokenizeQuery(compressedQuery, self.getTokenizerTypes())
+            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SORIGCOMPRESS"))
+
+        if QUERYTYPES.BM25PREP in queryTransform:
+            bm25sQuery = self.prepBM25S(originalQuery)
+    #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
+            msg = f"prep bm25s: {bm25sQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                bm25sQuery = self.preprocessQuery(bm25sQuery)
+                msg = f"preprocessed: {bm25sQuery}"
+                self.workerSnapshot(msg)
+            tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.getTokenizerTypes())
+            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SPREP"))
+
+        if QUERYTYPES.BM25PREPCOMPRESS in queryTransform:
+            bm25sQuery = self.prepBM25S(originalQuery)
+    #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
+            msg = f"Prep BM25S: {bm25sQuery}"
+            self.workerSnapshot(msg)
+            if self.context['queryPreprocess']:
+                bm25sQuery = self.preprocessQuery(bm25sQuery)
+                msg = f"preprocessed: {bm25sQuery}"
+                self.workerSnapshot(msg)
+            compressedQuery = self.compressQuery(bm25sQuery)
+            msg = f"compress: {compressedQuery}"
+            self.workerSnapshot(msg)
+            tokenizedQuery = self.tokenizeQuery(compressedQuery, self.getTokenizerTypes())
+            msg = f"Tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            self.workerSnapshot(msg)
+            allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SPREPCOMPRESS"))
+
+        allQueryResults = self.rrfReRanking(allQueryResults)
+        return allQueryResults
+
+
     def threadWorker(self):
         """
         Workflow to perform query. 
@@ -761,15 +837,31 @@ class QueryWorkflow(WorkflowBase):
         """
 
         if not self.startup():
-            msg = f"ERROR: Cannot initialize RAG database"
+            msg = f"workflow startup failed."
             self.workerError(msg)
             return
 
-        if self.context["llmProvider"] == "Gemini":
-            self.agentPromptGemini()
-        if self.context["llmProvider"] == "Ollama":
-            self.agentPromptOllama()
+        allQueryResults = self.performQueries()
+
+        testQuery = TestSetCollection().getCurrentTest()
+        for item in allQueryResults.result_lists:
+            msg = testQuery.outputRunInfo(item, item.label)
+            self.workerSnapshot(msg)
+
+        msg = testQuery.outputRRFInfo(allQueryResults.rrfScores, self.getRRFTopResults())
+        self.workerSnapshot(msg)
+
+        score = testQuery.calculateOverallScore(allQueryResults, self.getRRFTopResults()) * 100
+        msg = f"Overall score: {score:.4f} %"
+        self.workerSnapshot(msg)
+
+
+#        if self.context["llmProvider"] == "Gemini":
+#            self.agentPromptGemini()
+#        if self.context["llmProvider"] == "Ollama":
+#            self.agentPromptOllama()
 
         self.context["stage"] = "completed"
         msg = f"Processing completed."
         self.workerSnapshot(msg)
+

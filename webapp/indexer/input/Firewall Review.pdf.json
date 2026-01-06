@@ -48,7 +48,7 @@
 },
 "sr-104-006" : {
   "identifier": "sr-104-006",
-  "title": "proxy address resolution protocol (arp) was enabled ",
+  "title": "proxy address resolution protocol (arp) was enabled",
   "risk": "low",
   "status": "open",
   "description": " the proxy arp feature, used to support arp translation of ip addresses into mac addresses across network segments and vlans, was found to be supported. permitting arp packets to travel beyond the originating systems network segment may undermine network segmentation. proxy arp is a legacy setting designed for hosts that do not have a default gateway configured. there is usually no good reason to have proxy arp enabled in modern networks as it can allow attacks such as arp spoofing.",

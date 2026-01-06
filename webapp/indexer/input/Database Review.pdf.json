@@ -21,7 +21,7 @@
 },
 "sr-103-003" : {
   "identifier": "sr-103-003",
-  "title": "default passwords ",
+  "title": "default passwords",
   "risk": "high",
   "status": "open",
   "description": "several user accounts were found to have default passwords. the affected accounts are listed below: * abm * ad_monitor * ahm * amf * applsyspub * appqossys * css * ctxsys * cue * cun * dbsnmp * dip * dmsys * eaa * evm * fpt * iba * ipd * mddatd * mdsys * me * mgdsys * odm * odm_mtr * okb * oko * okr * olapsys * oracle_ocm * orddata * ordplugins * ordsys * outln * owapub * ozs * rhx * scott * ssosdk * sys * veh * xdb * xnc * xni * xnm * xns some of these accounts are privileged accounts and should have been configured with strong passwords.",
@@ -39,7 +39,7 @@
 },
 "sr-103-005" : {
   "identifier": "sr-103-005",
-  "title": "default profile settings not configured ",
+  "title": "default profile settings not configured",
   "risk": "medium",
   "status": "open",
   "description": "the default profile was found not to be configured and password related parameters were set to default values. the following parameters were not configured: u password_grace_time u password_lock_time u password_verify_function u password_reuse_max u password_reuse_time u password_life_time u failed_login_attempts all values were set to unlimited or null. therefore all user accounts under the default role were vulnerable to password guessing attacks, since there was no timeout or other restrictions in place regarding password use.",

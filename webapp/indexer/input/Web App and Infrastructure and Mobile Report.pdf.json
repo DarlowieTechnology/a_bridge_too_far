@@ -93,7 +93,7 @@
 },
 "sr-102-011" : {
   "identifier": "sr-102-011",
-  "title": "no jailbreak detection ",
+  "title": "no jailbreak detection",
   "risk": "medium",
   "status": "open",
   "description": "allowing the application to be installed or run on a jailbroken device exposes the application to trivial and sophisticated attacks, and to reverse engineering. ios jailbreaking refers to the process of removing the limitations imposed by apple on devices (such as the iphone, ipod touch and ipad) through the use of exploit tools. jailbreaking enables users to gain complete control of the ios operating system, allowing them to download additional applications which are not available via the apple store, and to use the device freely with any carrier. jailbreaking an ios device can be a trivial process which takes around five or ten minutes; this process can be undone by reinstalling ios (in around thirty minutes). however, jailbreaking an ios device in this way has security implications, because untrusted code can be installed, security protections can be removed, and installed applications and data can be tampered with (as well as an increased potential for malware on the device). in short, all ios protection mechanisms can be bypassed if a device has been jailbroken, and as such there can be no inherent guarantee of a secure platform, and any data at rest can potentially be decrypted. additionally, jailbreaking can be used on a stolen device in order to help retrieve data from it and access installed applications and services. if the device has no passcode, or a weak passcode set, then the device could be jailbroken to break the security protections included by default.",

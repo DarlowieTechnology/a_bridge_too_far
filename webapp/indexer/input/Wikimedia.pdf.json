@@ -146,7 +146,7 @@
   "longTermSolution": "ensure that this wpedittoken is included with all state-changing requests site-wide. additionally, update the api such that if this token is not present, the user cannot make any state changing requests."
 },
 "tstorg-wmf1214-12" : {
-  "title": "user access roles are public ",
+  "title": "user access roles are public",
   "vulnClass": "data exposure ",
   "severity": "informational",
   "difficulty": "low",

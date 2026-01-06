@@ -28,7 +28,7 @@
   "recommendation": "change the password to a strong, random value. do not store the password in source code; ensure that only a small number of trusted users have access to the primary admin password. do not use this account for day-to-day access. instead, set up individual accounts for each user with tightly-scoped permissions, and only use the high-privileged account in exceptional scenarios. when employees leave the company, all accounts they have access to should rotate credentials."
 },
 "tstorg-examplecorp001-012" : {
-  "title": "plaintext passwords written to logs ",
+  "title": "plaintext passwords written to logs",
   "risk": "logs ",
   "impact": "high",
   "exploitability": "high",
@@ -80,7 +80,7 @@
   "recommendation": "Implement an effective downgrade prevention mechanism at each stage of the boot process."
 },
 "tstorg-examplecorp001-005" : {
-  "title": "ineffective firmware integrity validation ",
+  "title": "ineffective firmware integrity validation",
   "risk": "validation ",
   "impact": "medium",
   "exploitability": "medium",

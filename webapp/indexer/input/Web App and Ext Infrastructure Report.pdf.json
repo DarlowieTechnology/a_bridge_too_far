@@ -3,7 +3,7 @@
 "finding_dict": {
 "sr-101-001" : {
   "identifier": "sr-101-001",
-  "title": "sql injection ",
+  "title": "sql injection",
   "risk": "critical",
   "status": "open",
   "description": "a critical sql injection vulnerability was found on one php page, allowing full access to the site's back-end database and extraction of sensitive customer details. this vulnerability occurs when user-supplied input is used in the dynamic construction of a sql query, without sufficient input validation being performed. this is usually a very serious vulnerability, as it effectively allows a remote attacker to execute (often arbitrary) sql commands on the underlying database server with the privileges of the web application's database access, leaving the database open to execution of stored procedures, privilege escalation, and information retrieval. it is important to note that this issue could be exploited by unauthenticated attackers. sql injection vulnerabilities of this nature are frequently the cause of high-profile website breaches, so it is strongly recommended that this issue is investigated further. the vulnerability was identified in at least one of the php pages (/scabc/vulnerable_page.php, job parameter). the results of an arbitrary query could be seen in the page by using the union operator to inject an additional select query into the job parameter of the url. in the screenshot below, the query injected is select user(): http://www.testgrp-client.co.uk/scabc/vulnerable_page.php?job=171%20union%20select%201,2,3,user%28%29, 5,6,7,8,9,10,11,12,13,14,15,16%20order%20by%201%20asc--&postcode=m1%207ef&r=1145767722 data could be extracted efficiently using the mysql limit and offset query options, obtaining one result row per http request. for example, a query such as that shown below could be used to obtain the name of the first table in the contact database (schema): http://www.testgrp-client.co.uk/scabc/jo3.php?job=171 union select 1,2,3,table_name,5,6,7,8,9,10,11,12,13,14,15,16 from information_schema.tables where table_schema = 0x6f6e65636f6e74616374 order by 1 asc limit 1 offset 1-- &postcode=m1 7ef&r=1145767722 the offset parameter would then be incremented to get the next row. the current database was identified as contact, with contact_agent and contact_test also being present. list of tables for the current database was extracted as follows: figure 1: extracted information all customer data (such as addresses and security questions and answers) could be eventually be extracted from the database using this technique",
@@ -12,7 +12,7 @@
 },
 "sr-101-002" : {
   "identifier": "sr-101-002",
-  "title": "uploaded file types were not restricted ",
+  "title": "uploaded file types were not restricted",
   "risk": "high",
   "status": "open",
   "description": "the application allowed any type of file to be uploaded, without performing anti-virus scanning or other content checking against the uploaded file. this meant that attackers could target other users of the application by uploading malware to the server. they might also have been able target the server itself, by uploading a web shell that would provide the attacker with the capability to run commands on the server and access the file system with the full privileges of the web server process. it was also possible for an attacker to upload a malicious executable to the server. as a proof of concept, a web shell was uploaded to the server. weaknesses in the manner in which these files were stored meant it was then possible to execute the web shell under the context of the user logged into the application which allowed some limited command execution. more generally, files could also be downloaded and so might be run by other regular users which could, for instance, facilitate the spread of malware. it was also possible to upload a flash file with an allowed extension such as .jpg; such a file could be used in a cross-site data hijacking attack. figure 2: flash file with amended file extension accepted for upload it was also found that uploaded files were robustly scanned for malware. as a proof of concept, the eicar file was uploaded. this is a benign file used to test the response of anti-virus software. the application allowed the upload of this file without any apparent server-side restriction, scanning, or removal of the file.",
@@ -39,7 +39,7 @@
 },
 "sr-101-004" : {
   "identifier": "sr-101-004",
-  "title": "asp.net header disclosure ",
+  "title": "asp.net header disclosure",
   "risk": "low",
   "status": "open",
   "description": "various headers produced by the application provide information about the software installed on the web server. an attacker may use this information to gain a greater understanding of the underlying technologies involved and tailor further attacks to these specific products. it is therefore good practice to exclude information such as this from http responses. an example http response from the server is shown below: figure 4: http response the highlighted headers revealed the exact version of asp.net which is in use.",
@@ -84,7 +84,7 @@
 },
 "sr-101-013" : {
   "identifier": "sr-101-013",
-  "title": "directory listings enabled ",
+  "title": "directory listings enabled",
   "risk": "low",
   "status": "open",
   "description": "directory listings were enabled for the site. this allows an attacker to browse directories for which there is no index page (e.g. index.html, index.php, or default.aspx) present. this can be used to gain knowledge of the file and folder structure, and makes it easy to look for information that may be useful when carrying out a targeted attack, such as the specific frameworks or libraries in use. it may also lead to the discovery of sensitive files which, without directory listings, would be much harder to find by brute-force. figure 7: screenshot of file structure",
@@ -93,7 +93,7 @@
 },
 "sr-101-015" : {
   "identifier": "sr-101-015",
-  "title": "no support for tls versions above 1.0 ",
+  "title": "no support for tls versions above 1.0",
   "risk": "low",
   "status": "open",
   "description": "the affected server did not support tls above version 1.0. since 2008, tls has been at version 1.2, with version 1.3 being defined in august 2018. versions 1.2 and 1.3 of tls are more resistant to known attacks, and tlsv1.2 supports more modern cipher suites that are widely acknowledged to offer the best cryptography available for securing internet connections. tlsv1.3 further improves on security by removing unsafe or unused features, eliminating unnecessary handshake steps and forcing the use of newer encryption methods. t should be noted that use of tls 1.0 and 1.1 is now flagged as insecure (such as by browser warnings) by the major browsers, and in january 2021 the nsa issued guidance urging system administrators to only provide support for tls versions 1.2 or 1.3.30 tls 1.0 was the highest protocol version supported, as shown in supplemental data - sslscan output on page 25. recent versions of all web browsers support 1.2 and 1.3, and therefore supporting these protocols server-side offers better security for those clients using modern browsers. tlsv1.2 also supports a class of cipher suites that offer authenticated encryption with associated data (aead). these cipher suites include an authenticated integrity check within the encryption operation, and are resistant to more attacks than their older counterparts. google's chrome browser states that the security of connections to websites that do not use aead ciphers is \"obsolete\". currently, this is not presented as an error to the user, merely as information for anyone viewing the page's security report (in the browser's developer console). however, as google continues to push for the rapid adoption of more robust internet cryptography, this message may become more prominent. tlsv1.3 was approved for use in august 2018 and goes to further enhance security. the security benefits of tlsv1.3 include the removal of unsafe or unused features, elimination of unnecessary handshake steps and the forced use of newer encryption methods. as well as preventing encryption downgrade attacks, the streamlined approach to session initiation will offer performance gains over previous tls implementations. supporting tls 1.0 as a security control is non-compliant with the payment card industry (pci) data security standard (dss). while these regulations may not be directly relevant, it should be expected that this directive will become security best practice and may also be reflected in more obvious ways, such as web browser warnings. refer also to the finding sr-101-014 on page 24.",

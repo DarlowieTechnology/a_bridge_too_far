@@ -30,7 +30,7 @@
 },
 "testorgphp-002" : {
   "identifier": "testorgphp-002",
-  "title": "hard-coded trivial credentials ",
+  "title": "hard-coded trivial credentials",
   "risk": "medium",
   "status": "open",
   "description": "the codebase contained hard-coded credentials. this does not conform to security best practice, and is not indicative of a secure platform. in addition, the credentials were easily guessable. line 14 environment: line 15 db_host: 127.0.0.1 line 16 mysql_root_password: ****** line 17 mysql_database: test line 18 mysql_user: user line 19 mysql_password: ****** while applications may need to access credentials without user interaction, storing them in the code makes it difficult to change them - should the credentials be discovered, an attacker could gain access to the program. discovery of the credentials would also be easy; strings hard-coded into a binary are trivially extractable, using a variety of common tools, and so anyone with access to the binary file would be able to discover them with little effort. further, if multiple installations of the product share the same credentials, then an attacker with access to one installation could gain access to other instances. this can also lead in some circumstances to the possibility of the program being used as a vector to propagate worms. a full list of the instances of credentials in code has been provided in affected resources section.",
@@ -111,7 +111,7 @@
 },
 "testorgphp-007" : {
   "identifier": "testorgphp-007",
-  "title": "php api calls without side effects ",
+  "title": "php api calls without side effects",
   "risk": "low",
   "status": "open",
   "description": "a number of php functions contained php api calls without side effects. such statements do not produce results and are effectively meaningless. this may indicate misunderstanding by software developer of how php apis work. as a result, the program can behave incorrectly as it relies on the result of the api call that was not assigned. an example of a php statements without side effects is placed below: line 68 trim($key); line 69 trim($value); the call to apitrim() was never assigned. the original string value was not changed and a new value created by trim() was lost. as a result, the expectation of the software developer that the string was trimmed was invalid.21 the list of php api calls without side effects is placed in affected resources section.",
@@ -147,7 +147,7 @@
 },
 "testorgphp-011" : {
   "identifier": "testorgphp-011",
-  "title": "hard-coded urls and cloud bucket names ",
+  "title": "hard-coded urls and cloud bucket names",
   "risk": "low",
   "status": "open",
   "description": "a number of php files contained hard-coded web service and aws s3 bucket urls. the implementation requires high manual effort to maintain and is prone to human errors. this is indicative of a poor software development lifecycle process. the application was deployed in a number of environments (development, ci, production). corresponding php configuration files are listed below. u development deployment - /client-api-aster/app/config/credentials/development.php u ci deployment - /client-api-master/app/config/credentials/ci.php u production deployment - /client-api-master/app/config/credentials/production.php u locale specific - /client-api-master/app/config/deferred_payment_delegator.php the number and format of configuration options for environments were different from each other. this indicated the deployments were also different from each other. as a result, functional tests executed in one environment (ci deployment) could not guarantee successful deployment in the other environment (production). the list of hard-coded urls, s3 bucket names and aws arns is placed in the affected resources section.",

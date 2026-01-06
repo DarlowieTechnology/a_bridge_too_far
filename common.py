@@ -1,4 +1,4 @@
-from enum import Enum, unique
+from enum import Enum, Flag, IntFlag, unique, auto
 
 from typing import Union
 from typing import List
@@ -28,6 +28,26 @@ class COLLECTION(Enum) :
     ISSUES = "reportissues"
     JIRA = "jiraissues"
     CACHE = "querycache"
+
+@unique
+class QUERYTYPES(IntFlag) :
+    ORIGINAL = auto()
+    ORIGINALCOMPRESS = auto()
+    HYDE = auto()
+    HYDECOMPRESS = auto()
+    MULTI = auto()
+    MULTICOMPRESS = auto()
+    REWRITE = auto()
+    REWRITECOMPRESS = auto()
+    BM25SORIG = auto()
+    BM25SORIGCOMPRESS = auto()
+    BM25PREP = auto()
+    BM25PREPCOMPRESS = auto()
+
+@unique
+class TOKENIZERTYPES(IntFlag) :
+    STOPWORDSEN = auto()
+    STEMMER = auto()
 
 
 class RecordCollection(BaseModel):
@@ -121,50 +141,6 @@ class ResultWithTypeList(BaseModel):
     results_list: list[OneResultWithType] = Field(..., description="list of results")
 
 
-class OneQueryBM25SAppResult(BaseModel):
-    """represents one query result for BM25S in query app"""
-    identifier: str = Field(..., description="identifier of record")
-    title: str = Field(..., description="title of record")
-    report: str = Field(..., description="report document name")
-    score : float = Field(..., description="score of record in BM25S")
-
-
-class OneQuerySemanticAppResult(BaseModel):
-    """represents one query result for semantic in query app"""
-    identifier: str = Field(..., description="identifier of record")
-    title: str = Field(..., description="title of record")
-    report: str = Field(..., description="report document name")
-    distanceSemantic : float = Field(..., description="distance of record in semantic search")
-
-
-class AllQueryAppResults(BaseModel):
-    """represents collection of all query results"""
-    bm25s_dict: Dict[str, OneQueryBM25SAppResult] = Field(default=None, description="dict of bm25s query results, key by issue identifier")
-    semantic_dict: Dict[str, OneQuerySemanticAppResult] = Field(default=None, description="dict of semantic query results, key by issue identifier")
-    queryBM25S: List[List[str]] = Field(..., description="query used for BM25S")
-    querySemantic: str = Field(..., description="query used in semantic search")
-
-    def appendResult(self, oneQueryAppResult : BaseModel) :
-        if type (oneQueryAppResult) is OneQueryBM25SAppResult:
-            identifier = oneQueryAppResult.identifier
-            self.bm25s_dict[identifier] = oneQueryAppResult
-        if type(oneQueryAppResult) is OneQuerySemanticAppResult:
-            identifier = oneQueryAppResult.identifier
-            self.semantic_dict[identifier] = oneQueryAppResult
-
-
-class StatsOnResults(BaseModel):
-    """represents statistics of data set"""
-    length : float = Field(default=0, description="length of dataset")
-    min : float = Field(default=0, description="minimum value in the dataset") 
-    max : float = Field(default=0, description="maximum value in the dataset") 
-    avg : float = Field(default=0, description="average value in the dataset") 
-    mean : float = Field(default=0, description="mean value in the dataset") 
-    median : float = Field(default=0, description="median value in the dataset") 
-    range : float = Field(default=0, description="range of values in the dataset") 
-    q1 : float = Field(default=0, description="1st quartile of the dataset") 
-    q2 : float = Field(default=0, description="2nd quartile of the dataset") 
-    q3 : float = Field(default=0, description="3nd quartile of the dataset") 
 
 
 class ConfigSingleton(object):

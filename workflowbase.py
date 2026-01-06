@@ -132,8 +132,8 @@ class WorkflowBase:
                 name=collectionName,
                 embedding_function=self.embeddingFunction
             )
-            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
-            self.workerSnapshot(msg)
+#            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
+#            self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             if createFlag:
                 try:

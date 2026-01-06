@@ -41,7 +41,7 @@
   "identifier": "sr-128-2-2",
   "title": "jenkins broken access control",
   "risk": "high",
-  "description": "jenkins extends its functionality with plugins that c an be developed by third party companies or by individuals. the github oauth plugin was identified as being responsible for authentication and authorisation. however, this plugin contained a bug that ignored the permission relationships and allowed any users to access data , even when this should have been denied as a result of that user's permissions.",
+  "description": "jenkins extends its functionality with plugins that can be developed by third party companies or by individuals. the github oauth plugin was identified as being responsible for authentication and authorisation. however, this plugin contained a bug that ignored the permission relationships and allowed any users to access data , even when this should have been denied as a result of that user's permissions.",
   "recommendation": "apply the workaround in the references or consider using a different authorisation and authentication plugin (after testing has provided a suitable level of assurance).",
   "affects": "dns name project-app-jenkins.staging.clientuk",
   "references": "github oauth plugin bug https://issues.jenkins-ci.org/browse/jenkins-54031"

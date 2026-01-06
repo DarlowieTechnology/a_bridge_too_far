@@ -1,10 +1,10 @@
 {"id":0,"text":"tstorg-examplecorp001-003\nlack of authorization controls for storage api"}
 {"id":1,"text":"tstorg-examplecorp001-011\nfinding weak administrative credentials"}
-{"id":2,"text":"tstorg-examplecorp001-012\nplaintext passwords written to logs "}
+{"id":2,"text":"tstorg-examplecorp001-012\nplaintext passwords written to logs"}
 {"id":3,"text":"tstorg-examplecorp001-001\nfinding sensitive production data used in staging"}
 {"id":4,"text":"tstorg-examplecorp001-002\nuse of shared administrator credentials"}
 {"id":5,"text":"tstorg-examplecorp001-004\nfirmware or bootloader downgrades not prevented"}
-{"id":6,"text":"tstorg-examplecorp001-005\nineffective firmware integrity validation "}
+{"id":6,"text":"tstorg-examplecorp001-005\nineffective firmware integrity validation"}
 {"id":7,"text":"tstorg-examplecorp001-007\nunencrypted communication channel in camera web services"}
 {"id":8,"text":"tstorg-examplecorp001-008\nhorizontal authorization bypass in storage api"}
 {"id":9,"text":"tstorg-examplecorp001-010\napplication uses weak hash to store passwords"}
@@ -13,7 +13,7 @@
 {"id":12,"text":"tstorg-examplecorp001-009\nweak password complexity requirements"}
 {"id":13,"text":"sr-109-001\niam roles assigned with excessive permissions"}
 {"id":14,"text":"sr-109-002\noverly permissive network configuration"}
-{"id":15,"text":"sr-109-003\nunauthorised access to s3 buckets "}
+{"id":15,"text":"sr-109-003\nunauthorised access to s3 buckets"}
 {"id":16,"text":"sr-109-004\nuser without mfa enabled"}
 {"id":17,"text":"sr-109-005\niam password policy"}
 {"id":18,"text":"sr-109-006\nautomated backups not enabled for rds instances"}
@@ -44,9 +44,9 @@
 {"id":43,"text":"sr-128-4-3\noutdated kubernetes in use"}
 {"id":44,"text":"sr-103-001\nmissing oracle security patches"}
 {"id":45,"text":"sr-103-002\noracle tns listener poisoning attack"}
-{"id":46,"text":"sr-103-003\ndefault passwords "}
+{"id":46,"text":"sr-103-003\ndefault passwords"}
 {"id":47,"text":"sr-103-004\nremote login password file in use"}
-{"id":48,"text":"sr-103-005\ndefault profile settings not configured "}
+{"id":48,"text":"sr-103-005\ndefault profile settings not configured"}
 {"id":49,"text":"sr-103-006\ncase insensitive password hashes in use"}
 {"id":50,"text":"sr-103-007\nusers with create procedure privilege"}
 {"id":51,"text":"sr-103-008\ndatabase communication over clear text"}
@@ -66,7 +66,7 @@
 {"id":65,"text":"sr-104-003\nlegacy clear text protocol rule permits access via telnet"}
 {"id":66,"text":"sr-104-004\n test / temporary rules present"}
 {"id":67,"text":"sr-104-005\nrules allow any icmp message type risk rating low status open"}
-{"id":68,"text":"sr-104-006\nproxy address resolution protocol (arp) was enabled "}
+{"id":68,"text":"sr-104-006\nproxy address resolution protocol (arp) was enabled"}
 {"id":69,"text":"sr-104-007\nicmp redirect messages were enabled"}
 {"id":70,"text":"sr-104-008\nnetwork time source not authenticated"}
 {"id":71,"text":"sr-104-009\nunrestricted administrative interfaces"}
@@ -87,7 +87,7 @@
 {"id":86,"text":"testorgphp-001\noutdated or unsupported third party software"}
 {"id":87,"text":"testorgphp-014\nlack of certificate validation"}
 {"id":88,"text":"testorgphp-018\npoor software development lifecycle"}
-{"id":89,"text":"testorgphp-002\nhard-coded trivial credentials "}
+{"id":89,"text":"testorgphp-002\nhard-coded trivial credentials"}
 {"id":90,"text":"testorgphp-003\nsubscope variable overshadows outer scope variable"}
 {"id":91,"text":"testorgphp-004\ntodo comments indicate incomplete code"}
 {"id":92,"text":"testorgphp-006\nhard-coded static secrets in configuration file"}
@@ -96,19 +96,19 @@
 {"id":95,"text":"testorgphp-016\nuse of md5 and sha1"}
 {"id":96,"text":"testorgphp-017\ninconsistent sql injection prevention"}
 {"id":97,"text":"testorgphp-005\nnested statements without curly braces"}
-{"id":98,"text":"testorgphp-007\nphp api calls without side effects "}
+{"id":98,"text":"testorgphp-007\nphp api calls without side effects"}
 {"id":99,"text":"testorgphp-008\nunreachable code"}
 {"id":100,"text":"testorgphp-009\nvariables assigned to itself"}
 {"id":101,"text":"testorgphp-010\nparameter assigned before use"}
-{"id":102,"text":"testorgphp-011\nhard-coded urls and cloud bucket names "}
+{"id":102,"text":"testorgphp-011\nhard-coded urls and cloud bucket names"}
 {"id":103,"text":"testorgphp-015\nhttp basic authentication in use"}
 {"id":104,"text":"pt-rcms-001\nstored xss in the title text in the image upload"}
 {"id":105,"text":"pt-rcms-002\nstored xss in the alt text in the image upload"}
 {"id":106,"text":"pt-rcms-003\nstored xss in refinery cms add new page title"}
 {"id":107,"text":"testorg-samplewapt-001\npre-authentication sql injection in dologin"}
 {"id":108,"text":"testorg-samplewapt-002\nusers can become other users via manipulated jwt"}
-{"id":109,"text":"testorg-samplewapt-014\naccount takeover via sms password reset "}
-{"id":110,"text":"testorg-samplewapt-003\nusers can change arbitrary user's password via updatepassword "}
+{"id":109,"text":"testorg-samplewapt-014\naccount takeover via sms password reset"}
+{"id":110,"text":"testorg-samplewapt-003\nusers can change arbitrary user's password via updatepassword"}
 {"id":111,"text":"testorg-samplewapt-004\narbitrary file read in example files object"}
 {"id":112,"text":"testorg-samplewapt-007\ndesign pattern creates risk of server-side request forgery (ssrf)"}
 {"id":113,"text":"testorg-samplewapt-011\napplication returns incorrect content-type for json responses"}
@@ -118,17 +118,17 @@
 {"id":117,"text":"testorg-samplewapt-008\nverbose error messages disclose sensitive information"}
 {"id":118,"text":"testorg-samplewapt-010\npotential backdoor user"}
 {"id":119,"text":"testorg-samplewapt-009\nmultiple complex authentication methods"}
-{"id":120,"text":"sr-101-001\nsql injection "}
-{"id":121,"text":"sr-101-002\nuploaded file types were not restricted "}
+{"id":120,"text":"sr-101-001\nsql injection"}
+{"id":121,"text":"sr-101-002\nuploaded file types were not restricted"}
 {"id":122,"text":"sr-101-003\nreflected cross-site scripting"}
 {"id":123,"text":"sr-101-007\nlogin to administrative interface exposed"}
-{"id":124,"text":"sr-101-004\nasp.net header disclosure "}
+{"id":124,"text":"sr-101-004\nasp.net header disclosure"}
 {"id":125,"text":"sr-101-005\nhttp header discloses internal ip address"}
 {"id":126,"text":"sr-101-009\nwsld descriptions could be obtained by unauthenticated users"}
 {"id":127,"text":"sr-101-010\ninvalid ssl certificate"}
 {"id":128,"text":"sr-101-012\nhosts respond to icmp"}
-{"id":129,"text":"sr-101-013\ndirectory listings enabled "}
-{"id":130,"text":"sr-101-015\nno support for tls versions above 1.0 "}
+{"id":129,"text":"sr-101-013\ndirectory listings enabled"}
+{"id":130,"text":"sr-101-015\nno support for tls versions above 1.0"}
 {"id":131,"text":"sr-101-014\nbeast ssl / tls weaknesses"}
 {"id":132,"text":"tstorg-wmf1214-8\nreflected xss in api.php"}
 {"id":133,"text":"tstorg-wmf1214-3\nexternal reference in svg class: data validation vulnerability"}
@@ -142,7 +142,7 @@
 {"id":141,"text":"tstorg-wmf1214-5\nlack of registry lock on domain names"}
 {"id":142,"text":"tstorg-wmf1214-7\nusers can inspect each other's personal javascript"}
 {"id":143,"text":"tstorg-wmf1214-6\ncheck user page lacks cross site request forgery (csrf) protection"}
-{"id":144,"text":"tstorg-wmf1214-12\nuser access roles are public "}
+{"id":144,"text":"tstorg-wmf1214-12\nuser access roles are public"}
 {"id":145,"text":"tstorg-wmf1214-4\nrc4 cipher enabled"}
 {"id":146,"text":"sr-102-001\nreflected cross-site scripting (xss)"}
 {"id":147,"text":"sr-102-002\nuploaded file types were not restricted"}
@@ -154,7 +154,7 @@
 {"id":153,"text":"sr-102-008\nclosed udp ports discovered"}
 {"id":154,"text":"sr-102-009\nhard-coded credentials"}
 {"id":155,"text":"sr-102-010\nssl certificate checking disabled"}
-{"id":156,"text":"sr-102-011\nno jailbreak detection "}
+{"id":156,"text":"sr-102-011\nno jailbreak detection"}
 {"id":157,"text":"sr-102-012\nssl/tls renegotiation dos"}
 {"id":158,"text":"sr-102-014\nbackgrounding screenshot disabled"}
 {"id":159,"text":"sr-102-015\nmanual screenshots not disabled"}

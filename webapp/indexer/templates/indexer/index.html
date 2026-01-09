@@ -1,13 +1,40 @@
 {% extends "base.html" %}
 
 {% block headcontent %}
-    <title>Document Indexer</title>
+    <title>Indexer</title>
 {% endblock %} 
 
 
 {% block content %}
 
-    <h1>Document Indexer</h1>
+    <h1>Indexer App</h1>
+
+    <div id="RAGSettingsDisplay">
+
+        <div class="rowthreecolumns">
+            <div class="column">
+                Load document: <b> {{ loadDocument }} </b><br>
+                Extract raw text:<b> {{ rawTextFromDocument }} </b><br>
+                Create raw JSON:<b> {{ rawJSONfromText }} </b><br>
+                Create final JSON:<b> {{ finalJSONfromRaw }} </b><br>
+            </div>
+            <div class="column">
+                BM25s cut-off score:<b>  </b><br>
+                Original BM25s query:<b>  </b><br>
+                Prepared BM25s query:<b>  </b><br>
+                Maximum BM25s records:<b>  </b><br>
+                BM25s stop words:<b>  </b><br>
+                BM25s stemmer:<b>  </b><br>
+            </div>
+            <div class="column">
+                Process query after transform:<b>  </b><br>
+                Compress query after transform:<b>  </b><br>
+                Maximum number of RRF results:<b>  </b><br>
+                Well-known test set:<b> {{ wellknownTestSet }} </b><br>
+            </div>
+        </div>
+    </div>
+    <hr class="custom-hr">
 
     <form action="{% url 'indexer:process' %}" method="post">
         {% csrf_token %}

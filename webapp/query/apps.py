@@ -53,7 +53,7 @@ class QueryConfig(AppConfig):
         context['queryPreprocess'] = True   # by default call preprocessQuery() after every query transform
         context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
-        self.queryWorkflow = QueryWorkflow(context, logger)         
+        self.queryWorkflow = QueryWorkflow(context, logger)
 
 
 

@@ -278,8 +278,8 @@ class TestQuery():
         self.extra = compareObject.secondonly()
         statsOnListGlobal, statsOnListKnown = self.getListStats(oneQueryResultList)
         strOut = (
-            f"\n{label}:GLOBAL  Q1: {statsOnListGlobal.q1:.4f}, Q2: {statsOnListGlobal.q2:.4f}, Q3: {statsOnListGlobal.q3:.4f} length: {statsOnListGlobal.length}, mean: {statsOnListGlobal.mean:.4f}, range: {statsOnListGlobal.range:.4f}"
-            f"\n{label}:KNOWN length: {statsOnListKnown.length}, mean: {statsOnListKnown.mean:.4f}, range: {statsOnListKnown.range:.4f} , M|C|E: {len(self.missing)}|{len(self.common)}|{len(self.extra)}"
+            f"{label}:GLOBAL  Q1: {statsOnListGlobal.q1:.4f}, Q2: {statsOnListGlobal.q2:.4f}, Q3: {statsOnListGlobal.q3:.4f} length: {statsOnListGlobal.length}, mean: {statsOnListGlobal.mean:.4f}, range: {statsOnListGlobal.range:.4f}"
+            f"{label}:KNOWN length: {statsOnListKnown.length}, mean: {statsOnListKnown.mean:.4f}, range: {statsOnListKnown.range:.4f} , M|C|E: {len(self.missing)}|{len(self.common)}|{len(self.extra)}"
         )
         return strOut
 
@@ -326,7 +326,7 @@ class TestQuery():
         return score
 
 
-    def outputRRFInfo(self, rrfScores : Dict[str, List[tuple[int, OneQueryAppResult]]], maxResults : int) :
+    def outputRRFInfo(self, rrfScores : Dict[str, List[tuple[int, OneQueryAppResult]]], maxResults : int) -> List[str]:
         compareObject = ListComparisonResult(self.knownIssues)
         idx = 0
         oneQueryResultList = OneQueryResultList(
@@ -335,22 +335,34 @@ class TestQuery():
             searchType = SEARCH.BM25S.value,
             label = ""            
         )
+        outStrings = []
         for ident in rrfScores:
             rank, oneResult = rrfScores[ident]
             if compareObject.inKnownSet(oneResult):
-                print(f"+ {rank:.4f} {oneResult.title.lower()} | {ident.lower()}")
+                msg = f"+ {rank:.4f} {oneResult.title.lower()} ({ident.lower()})"
+                print(msg)
+                outStrings.append(msg)
                 oneQueryResultList.appendResult(identifier=ident.lower(), title = oneResult.title.lower(), report = "", score = 0.0, rank = 0)
             else:
-                print(f"- {rank:.4f} {oneResult.title.lower()} | {ident.lower()}")
+                msg = f"- {rank:.4f} {oneResult.title.lower()} ({ident.lower()})"
+                print(msg)
+                outStrings.append(msg)
             idx += 1
             if idx >= maxResults:
                 break
         compareObject.Obj2 = oneQueryResultList
         missing = compareObject.firstonly()
         if len(missing):
-            print("Missing known items:")
+            msg = "<b>Missing known items</b>"
+            print(msg)
+            outStrings.append(" ")
+            outStrings.append(msg)
+            outStrings.append(" ")
             for item in missing:
                 itemList = item.splitlines()
-                print(f"{itemList[0]} | {itemList[0]}")
+                msg = f"{itemList[0]} ({itemList[1]})"
+                print(msg)
+                outStrings.append(msg)
+        return outStrings
 
     

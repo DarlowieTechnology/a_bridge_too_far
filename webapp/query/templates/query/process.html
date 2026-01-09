@@ -9,34 +9,25 @@
 
 {% block content %}
 
-   <div class="bold-text">Query</div>
-   <div id="query">
-      {% if query %}
-         <div">{{ query }}</div>
-      {% endif %}
+    <h1>Query App Results</h1>
+
+   <div>
+         <b>Query: </b> {{ query }}
    </div>
-   <hr class="custom-hr">
 
-   <b>Stage</b>
-   {% if stage %}
-      {{ stage }}
-   {% endif %}
-
-   <hr class="custom-hr">
-
-   <div class="bold-text">Activity log</div>
-   <div id="status">
-      {% if status %}
-         <div>{{ status }}</div>
-      {% endif %}
-   </div>
    <hr class="custom-hr">
 
    <a id="cost" href="">Potential cost of access to cloud-deployed LLMs</a>
+
    <hr class="custom-hr">
 
+   <h3>Results</h3>
+   <div id="results">
+      {{ results }}
+   </div>
+
    <script>
-      window.setTimeout(getData, 3000);
+      window.setTimeout(getData, 5000);
 
       async function getData() {
          try {
@@ -59,6 +50,14 @@
                document.getElementById('status').innerHTML = ""
                for (const value of result["status"]) {
                   document.getElementById('status').innerHTML += "<br>" + value
+               }
+            } catch (error) {
+               console.error(error.message);
+            }
+            try {
+               document.getElementById('results').innerHTML = ""
+               for (const value of result["results"]) {
+                  document.getElementById('results').innerHTML += "<br>" + value
                }
             } catch (error) {
                console.error(error.message);

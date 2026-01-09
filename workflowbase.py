@@ -3,6 +3,7 @@
 #
 from logging import Logger
 import json
+from typing import List
 
 
 from pydantic import BaseModel, Field
@@ -196,3 +197,23 @@ class WorkflowBase:
             formattedOut = json.dumps(self.context, indent=2)
             jsonOut.write(formattedOut)
 
+
+    def workerResult(self, msg : List[str]):
+        """
+        Logs result and updates status file
+
+        Args:
+            msg (str) - list of message strings 
+
+        Returns:
+            None
+        """
+        if msg:
+            self.logger.info(msg)
+            if 'results' not in self.context:
+                self.context['results'] = []
+            for oneMsg in msg:
+                self.context['results'].append(oneMsg)
+        with open(self.context['statusFileName'], "w") as jsonOut:
+            formattedOut = json.dumps(self.context, indent=2)
+            jsonOut.write(formattedOut)

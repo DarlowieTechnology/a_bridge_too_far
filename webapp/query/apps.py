@@ -32,11 +32,13 @@ class QueryConfig(AppConfig):
         context["llmresponsetokens"] = 0
 
         context['status'] = []
+        context['results'] = []
 
         context['query'] = "xss issues"  # default query
         TestSetCollection().setCurrentTest(TESTSET.XSS)
 
-        context["querytransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+#        context["querytransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+        context["querytransforms"] = QUERYTYPES.ORIGINAL | QUERYTYPES.BM25SORIG
 
         context['cutIssueDistance'] = 0.5       # distance cut-off for semantic matches
         context['semanticRetrieveNum'] = 1000   # maximum number of semantic items to retrieve
@@ -49,7 +51,7 @@ class QueryConfig(AppConfig):
         context['rrfTopResults'] = 50       # maximum number of RRF results to show
 
         context['queryPreprocess'] = True   # by default call preprocessQuery() after every query transform
-        context["queryCompress"] = True    # by default Telegraphic Semantic Compression (TSC) is disabled
+        context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
         self.queryWorkflow = QueryWorkflow(context, logger)         
 

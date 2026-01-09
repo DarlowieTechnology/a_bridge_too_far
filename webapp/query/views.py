@@ -282,6 +282,8 @@ def process(request):
         queryWorkflow.context['query'] = request.POST['query']
         queryWorkflow.context['stage'] = "starting"
         queryWorkflow.context['status'] = []
+        queryWorkflow.context['results'] = []
+
         queryWorkflow.context['statusFileName'] = statusFileName
 
         msg = f"Starting query app"

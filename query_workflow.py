@@ -676,9 +676,10 @@ class QueryWorkflow(WorkflowBase):
         queryTransform = self.getQueryTransform()
         bm25sFolder = self.getBM25SFolder()
 
+        msg = f"original: {originalQuery}"
+        self.workerSnapshot(msg)
+
         if QUERYTYPES.ORIGINAL in queryTransform:
-            msg = f"original: {originalQuery}"
-            self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed: {originalQuery}"
@@ -686,8 +687,6 @@ class QueryWorkflow(WorkflowBase):
             allQueryResults.result_lists.append(self.vectorQuery(originalQuery, COLLECTION.ISSUES.value, "ORIG"))
 
         if QUERYTYPES.ORIGINALCOMPRESS in queryTransform:
-            msg = f"original: {originalQuery}"
-            self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed: {originalQuery}"
@@ -769,54 +768,54 @@ class QueryWorkflow(WorkflowBase):
         if QUERYTYPES.BM25SORIG in queryTransform:
             if self.context['queryPreprocess']:
                 originalQuery = self.preprocessQuery(originalQuery)
-                msg = f"preprocessed: {originalQuery}"
+                msg = f"preprocessed for BM25s: {originalQuery}"
                 self.workerSnapshot(msg)
             tokenizedQuery = self.tokenizeQuery(originalQuery, self.getTokenizerTypes())
-            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SORIG"))
 
         if QUERYTYPES.BM25SORIGCOMPRESS in queryTransform:
             if self.context['queryPreprocess']:
                 originalQuery = self.preprocessQuery(originalQuery)
-                msg = f"preprocessed: {originalQuery}"
+                msg = f"preprocessed for TSC: {originalQuery}"
                 self.workerSnapshot(msg)
             compressedQuery = self.compressQuery(originalQuery)
-            msg = f"compress: {compressedQuery}"
+            msg = f"compressed for BM25s: {compressedQuery}"
             self.workerSnapshot(msg)
             tokenizedQuery = self.tokenizeQuery(compressedQuery, self.getTokenizerTypes())
-            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SORIGCOMPRESS"))
 
         if QUERYTYPES.BM25PREP in queryTransform:
             bm25sQuery = self.prepBM25S(originalQuery)
     #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
-            msg = f"prep bm25s: {bm25sQuery}"
+            msg = f"prepared for BM25s: {bm25sQuery}"
             self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
                 bm25sQuery = self.preprocessQuery(bm25sQuery)
-                msg = f"preprocessed: {bm25sQuery}"
+                msg = f"preprocessed for BM25s: {bm25sQuery}"
                 self.workerSnapshot(msg)
             tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.getTokenizerTypes())
-            msg = f"tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SPREP"))
 
         if QUERYTYPES.BM25PREPCOMPRESS in queryTransform:
             bm25sQuery = self.prepBM25S(originalQuery)
     #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
-            msg = f"Prep BM25S: {bm25sQuery}"
+            msg = f"prepared for TSC: {bm25sQuery}"
             self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
                 bm25sQuery = self.preprocessQuery(bm25sQuery)
-                msg = f"preprocessed: {bm25sQuery}"
+                msg = f"preprocessed for TSC: {bm25sQuery}"
                 self.workerSnapshot(msg)
             compressedQuery = self.compressQuery(bm25sQuery)
-            msg = f"compress: {compressedQuery}"
+            msg = f"compressed for BM25s: {compressedQuery}"
             self.workerSnapshot(msg)
             tokenizedQuery = self.tokenizeQuery(compressedQuery, self.getTokenizerTypes())
-            msg = f"Tokenized, stop words, no stemmer: {json.dumps(tokenizedQuery)}"
+            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             allQueryResults.result_lists.append(self.bm25sQuery(tokenizedQuery, bm25sFolder, "BM25SPREPCOMPRESS"))
 
@@ -848,12 +847,15 @@ class QueryWorkflow(WorkflowBase):
             msg = testQuery.outputRunInfo(item, item.label)
             self.workerSnapshot(msg)
 
-        msg = testQuery.outputRRFInfo(allQueryResults.rrfScores, self.getRRFTopResults())
-        self.workerSnapshot(msg)
+        msgList = testQuery.outputRRFInfo(allQueryResults.rrfScores, self.getRRFTopResults())
+        self.workerResult(msgList)
 
         score = testQuery.calculateOverallScore(allQueryResults, self.getRRFTopResults()) * 100
-        msg = f"Overall score: {score:.4f} %"
-        self.workerSnapshot(msg)
+        msg = f"Overall score: <b>{score:.4f} %</b>"
+        msgList = []
+        msgList.append(" ")
+        msgList.append(msg)
+        self.workerResult(msgList)
 
 
 #        if self.context["llmProvider"] == "Gemini":

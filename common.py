@@ -27,10 +27,10 @@ sys.path.append("../..")
 class COLLECTION(Enum) :
     ISSUES = "reportissues"
     JIRA = "jiraissues"
-    CACHE = "querycache"
 
 @unique
 class QUERYTYPES(IntFlag) :
+    NONE = 0
     ORIGINAL = auto()
     ORIGINALCOMPRESS = auto()
     HYDE = auto()
@@ -46,6 +46,7 @@ class QUERYTYPES(IntFlag) :
 
 @unique
 class TOKENIZERTYPES(IntFlag) :
+    NONE = 0
     STOPWORDSEN = auto()
     STEMMER = auto()
 

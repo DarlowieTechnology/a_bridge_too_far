@@ -9,12 +9,48 @@
 
     <h1>Query App</h1>
 
+   <div id="RAGSettingsDisplay">
+
+        {% if RAGSettingsDisplay %}
+            <div class="rowtwocolumns">
+                <div class="column">
+                    Vector cut-off distance:<b> {{ cutIssueDistance }} </b><br>
+                    Original query:<b> {{ QUERYTYPESORIGINAL }} </b><br>
+                    HyDE query:<b> {{ QUERYTYPESHYDE }} </b><br>
+                    Multi query:<b> {{ QUERYTYPESMULTI }} </b><br>
+                    Rewrite query:<b> {{ QUERYTYPESREWRITE }} </b><br>
+                    Maximum vector records:<b> {{ semanticRetrieveNum }} </b><br>
+                </div>
+                <div class="column">
+                    BM25s cut-off score:<b> {{ bm25sCutOffScore }} </b><br>
+                    Original BM25s query:<b> {{ QUERYTYPESBM25SORIG }} </b><br>
+                    Prepared BM25s query:<b> {{ QUERYTYPESBM25PREP }} </b><br>
+                    Maximum BM25s records:<b> {{ bm25sRetrieveNum }} </b><br>
+                    BM25s stop words:<b> {{ TOKENIZERTYPESSTOPWORDSEN }} </b><br>
+                    BM25s stemmer:<b> {{ TOKENIZERTYPESSTEMMER }} </b><br>
+                </div>
+                <div class="column">
+                    Process query after transform:<b> {{ queryPreprocess }} </b><br>
+                    Compress query after transform:<b> {{ queryCompress }} </b><br>
+                    Maximum number of RRF results:<b> {{ rrfTopResults }} </b><br>
+                    Well-known test set:<b> {{ wellknownTestSet }} </b><br>
+                </div>
+            </div>
+            <form action="{% url 'query:settings' %}" method="get">
+                <input type="submit" class="submitbutton" value="Settings">
+            </form>
+        {% endif %}
+   </div>
+   <hr class="custom-hr">
+
     <form action="{% url 'query:process' %}" method="post">
         {% csrf_token %}
         <fieldset>
-            Query: <input id="query" type="text" size=100 name="query" value="" />
+
+            {{ query }}
+
+            <input type="submit" class="submitbutton" value="Run">
         </fieldset>
-        <input type="submit" class="submitbutton" value="Process">
     </form>
 
 {% endblock %} 

@@ -85,6 +85,7 @@ def main():
     context['rrfTopResults'] = 50       # maximum number of RRF results to show
 
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
+    context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(context["session_key"])
@@ -103,6 +104,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 

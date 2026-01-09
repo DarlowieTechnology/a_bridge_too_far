@@ -11,7 +11,7 @@ from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, A
 
 @unique
 class TESTSET(IntEnum) :
-    NOTEST = auto()
+    NOTEST = 0
     XSS = auto()
     CREDS = auto()
 
@@ -34,6 +34,19 @@ class TestSetCollection(object):
             self.allSets_dict[self.current_test] = TestQuery(self.current_test, knowIssuesDict[self.current_test])
         return self.allSets_dict[self.current_test]
     
+    def getCurrentTestType(self):
+        return self.current_test
+
+    def getCurrentTestName(self) ->str:
+        if self.current_test == TESTSET.NOTEST:
+            return 'None'
+        if self.current_test == TESTSET.XSS:
+            return 'XSS issues'
+        if self.current_test == TESTSET.CREDS:
+            return 'Credentials issues'
+
+        return self.current_test
+
     def setCurrentTest(self, test : TESTSET):
         self.current_test = test
 

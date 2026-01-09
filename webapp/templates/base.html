@@ -24,6 +24,15 @@
                 border: 1px solid;
                 text-align:left;
             }
+            .column {
+                float: left;
+                width: 33%;
+                }
+            .rowtwocolumns:after {
+                content: "";
+                display: table;
+                clear: both;
+            }
         </style>
 
         <div>{% block headcontent %}{% endblock %}</div>

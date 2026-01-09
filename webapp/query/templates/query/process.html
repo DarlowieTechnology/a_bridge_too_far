@@ -17,12 +17,11 @@
    </div>
    <hr class="custom-hr">
 
-   <div class="bold-text">Stage</div>
-   <div id="stage">
-      {% if stage %}
-         <div">{{ stage }}</div>
-      {% endif %}
-   </div>
+   <b>Stage</b>
+   {% if stage %}
+      {{ stage }}
+   {% endif %}
+
    <hr class="custom-hr">
 
    <div class="bold-text">Activity log</div>

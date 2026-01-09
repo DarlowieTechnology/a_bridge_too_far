@@ -1,5 +1,39 @@
-<html>
-    <body>
-        Placeholder Status
-    </body>
-</html>
+{% extends "base.html" %}
+
+{% block headcontent %}
+    <title>Query Settings</title>
+{% endblock %} 
+
+{% block content %}
+
+   <div id="RAGSettings">
+      {% if RAGSettings %}
+        <form action="{% url 'query:settings' %}" method="post">
+            {% csrf_token %}
+            Vector cut-off distance: <input id="cutIssueDistance" type="text" size=4 name="cutIssueDistance" value="0.50" /><br>
+            Maximum number of vector records: <input id="semanticRetrieveNum" type="text" size=4 name="semanticRetrieveNum" value="1000" /><br>
+            Original query: <input type="checkbox" id="QUERYTYPES.ORIGINAL" name="QUERYTYPES.ORIGINAL" value="QUERYTYPES.ORIGINAL" checked><br>
+            HyDE query: <input type="checkbox" id="QUERYTYPES.HYDE" name="QUERYTYPES.HYDE" value="QUERYTYPES.HYDE" checked><br>
+            Multi query: <input type="checkbox" id="QUERYTYPES.MULTI" name="QUERYTYPES.MULTI" value="QUERYTYPES.MULTI" checked><br>
+            Rewrite query: <input type="checkbox" id="QUERYTYPES.REWRITE" name="QUERYTYPES.REWRITE" value="QUERYTYPES.REWRITE" checked><br>
+           
+            BM25s cut-off score: <input id="bm25sCutOffScore" type="text" size=4 name="bm25sCutOffScore" value="0" /><br>
+            Maximum number of BM25s records: <input id="bm25sRetrieveNum" type="text" size=4 name="bm25sRetrieveNum" value="50" /><br>
+            Original BM25s query: <input type="checkbox" id="QUERYTYPES.BM25SORIG" name="QUERYTYPES.BM25SORIG" value="QUERYTYPES.BM25SORIG" checked><br>
+            Prepared BM25s query: <input type="checkbox" id="QUERYTYPES.BM25PREP" name="QUERYTYPES.BM25PREP" value="QUERYTYPES.BM25PREP" checked><br>
+
+            BM25s stop words: <input type="checkbox" id="TOKENIZERTYPES.STOPWORDSEN" name="TOKENIZERTYPES.STOPWORDSEN" value="TOKENIZERTYPES.STOPWORDSEN" checked><br>
+            BM25s stemmer: <input type="checkbox" id="TOKENIZERTYPES.STEMMER" name="TOKENIZERTYPES.STEMMER" value="TOKENIZERTYPES.STEMMER"><br>
+            Process query after transform: <input type="checkbox" id="queryPreprocess" name="queryPreprocess" value="queryPreprocess" checked><br>
+
+            Maximum number of RRF results: <input id="rrfTopResults" type="text" size=4 name="rrfTopResults" value="50" /><br>
+
+            Well-known query - XSS issues: <input type="checkbox" id="TESTSET.XSS" name="TESTSET.XSS" value="TESTSET.XSS" checked><br>
+            Well-known query - Credentials issues: <input type="checkbox" id="TESTSET.CREDS" name="TESTSET.CREDS" value="TESTSET.CREDS"><br>
+
+            <input type="submit" class="submitbutton" value="Configure">
+        </form>
+      {% endif %}
+   </div>
+
+{% endblock %} 

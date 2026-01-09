@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block headcontent %}
+    <title>Query</title>
+{% endblock %} 
+
+
+{% block content %}
+
+    <h1>Query Settings</h1>
+
+    <div id="RAGSettingsDisplay">
+        {% if RAGSettingsDisplay %}
+
+            <form action="{% url 'query:settings' %}" method="post">
+                {% csrf_token %}
+                <div class="rowtwocolumns">
+                    <div class="column">
+
+                        {{ columnOne }}
+
+                    </div>
+                    <div class="column">
+
+                        {{ columnTwo }}
+
+                    </div>
+                    <div class="column">
+
+                        {{ columnThree }}
+
+                    </div>
+                </div>
+                <input type="submit" name="save" class="submitbutton" value="Save">
+                <input type="submit" name="cancel" class="submitbutton" value="Cancel">
+                <input type="submit" name="default" class="submitbutton" value="Default">
+            </form>
+        {% endif %}
+    </div>
+
+{% endblock %} 

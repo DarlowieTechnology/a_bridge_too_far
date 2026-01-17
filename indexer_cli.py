@@ -153,10 +153,17 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
         jiraExport(indexerWorkflow, issueTemplate)
         vectorize(context, indexerWorkflow, issueTemplate)
     else:
-#        loadPDF(context, indexerWorkflow)
-#        preprocess(context, indexerWorkflow)
-#        parseIssues(context, indexerWorkflow, issueTemplate)
-        bm25prepare(context, indexerWorkflow, issueTemplate, corpus)
+        if "loadDocument" in context and context["loadDocument"]:
+            loadPDF(context, indexerWorkflow)
+        if "rawTextFromDocument" in context and context["rawTextFromDocument"]:
+            preprocess(context, indexerWorkflow)
+        if "finalJSONfromRaw" in context and context["finalJSONfromRaw"]:
+            parseIssues(context, indexerWorkflow, issueTemplate)
+        if "prepareBM25sCorpus" in context and context["prepareBM25sCorpus"]:
+            bm25prepare(context, indexerWorkflow, issueTemplate, corpus)
+        if "completeBM25database" in context and context["completeBM25database"]:
+            bm25complete(context=context, indexerWorkflow = indexerWorkflow, corpus = corpus)
+
         vectorize(context, indexerWorkflow, issueTemplate)
 
 
@@ -229,6 +236,26 @@ def main():
 
             context["finalJSON"] = context["inputFileName"] + ".json"
             inputFileBaseName = str(Path(context["inputFileName"]).name)
+
+            # text extraction from PDF
+            context["loadDocument"] = False
+            context["stripWhiteSpace"] = True
+            context["convertToLower"] = True
+            context["convertToASCII"] = True
+            context["singleSpaces"] = True
+
+            # preprocess text
+            context["rawTextFromDocument"] = False
+
+            # create final JSON
+            context["finalJSONfromRaw"] = False
+
+            # prepare BM25s corpus
+            context["prepareBM25sCorpus"] = False
+
+            # complete BM25 database
+            context["completeBM25database"] = False
+
 
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
             if "extract" in dictDocuments[inputFileBaseName]:

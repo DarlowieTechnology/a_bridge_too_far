@@ -59,7 +59,7 @@ class IndexerWorkflow(WorkflowBase):
             inputFile (str) - PDF file name
 
         Returns:
-            str - combined text with pages separated by \n
+            str - combined text 
         """
 
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
@@ -67,9 +67,16 @@ class IndexerWorkflow(WorkflowBase):
 
         textCombined = ""
         for page in docs:
-            pageContent = page.page_content.strip().lower()
-            pageContent = anyascii(pageContent)
-            pageContent = " ".join(pageContent.split())
+            pageContent = page.page_content
+            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+                pageContent = pageContent.strip()
+            if "convertToLower" in self.context and self.context["convertToLower"]:
+                pageContent = pageContent.lower()
+            if "convertToASCII" in self.context and self.context["convertToASCII"]:
+                pageContent = anyascii(pageContent)
+            if "singleSpaces" in self.context and self.context["singleSpaces"]:
+                pageContent = " ".join(pageContent.split())
+            textCombined += " "
             textCombined += pageContent
         return textCombined
 
@@ -536,7 +543,7 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         # ---------------stage Jira export
-        if self.context["JiraExport"]:
+        if "JiraExport" in self.context ans self.context["JiraExport"]:
 
             totalStart = time.time()
             startTime = totalStart
@@ -560,61 +567,64 @@ class IndexerWorkflow(WorkflowBase):
             return
 
         # ---------------stage readpdf ---------------
-        totalStart = time.time()
-        startTime = totalStart
+        if "loadDocument" in self.context and self.context["loadDocument"]:
+            totalStart = time.time()
+            startTime = totalStart
 
-        self.context["stage"] = "reading document"
-        self.workerSnapshot(None)
+            self.context["stage"] = "reading document"
+            self.workerSnapshot(None)
 
-        textCombined = self.loadPDF(self.context["inputFileName"])
-        with open(self.context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
-            rawOut.write(textCombined)
-        endTime = time.time()
+            textCombined = self.loadPDF(self.context["inputFileName"])
+            with open(self.context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
+                rawOut.write(textCombined)
+            endTime = time.time()
 
-        inputFileBaseName = str(Path(self.context['inputFileName']).name)
-        msg = f"Read input document {inputFileBaseName}. Time: {(endTime - startTime):9.4f} seconds"
-        self.workerSnapshot(msg)
+            inputFileBaseName = str(Path(self.context['inputFileName']).name)
+            msg = f"Read input document {inputFileBaseName}. Time: {(endTime - startTime):9.4f} seconds"
+            self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
+        if "rawTextFromDocument" in self.context and self.context["rawTextFromDocument"]:
+            startTime = time.time()
+            self.context["stage"] = "pre-processing document"
+            self.workerSnapshot(None)
 
-        startTime = time.time()
-        self.context["stage"] = "pre-processing document"
-        self.workerSnapshot(None)
+            dictRawIssues = self.preprocessReportRawText(textCombined)
+            rawJSONFileName = self.context["rawJSON"]
+            with open(rawJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+                jsonOut.writelines(json.dumps(dictRawIssues, indent=2))
+            endTime = time.time()
 
-        dictRawIssues = self.preprocessReportRawText(textCombined)
-        rawJSONFileName = self.context["rawJSON"]
-        with open(rawJSONFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(json.dumps(dictRawIssues, indent=2))
-        endTime = time.time()
-
-        rawTextFromPDFBaseName = str(Path(self.context['rawtextfromPDF']).name)
-        msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
-        self.workerSnapshot(msg)
+            rawTextFromPDFBaseName = str(Path(self.context['rawtextfromPDF']).name)
+            msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
+            self.workerSnapshot(msg)
 
         # ---------------stage fetch issues ---------------
+        if "finalJSONfromRaw" in self.context and self.context["finalJSONfromRaw"]:
+            startTime = time.time()
+            self.context["stage"] = "fetching issues"
+            self.workerSnapshot(None)
+
+            recordCollection = self.parseAllIssues(self.context["inputFileName"], dictRawIssues, issueTemplate)
+
+            # ignore error state coming from item parser
+            #if self.context["stage"] == "error":
+            #    return
+            self.writeFinalJSON(recordCollection)
+
+            endTime = time.time()
+
+            finalJSONBaseName = str(Path(self.context['finalJSON']).name)
+            msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
+            self.workerSnapshot(msg)
+
+        # ---------------stage bm25s preparation ---------------
 
         startTime = time.time()
-        self.context["stage"] = "fetching issues"
+        self.context["stage"] = "bm25s preparation"
         self.workerSnapshot(None)
 
-        recordCollection = self.parseAllIssues(self.context["inputFileName"], dictRawIssues, issueTemplate)
-
-        # ignore error state coming from item parser
-        #if self.context["stage"] == "error":
-        #    return
-        self.writeFinalJSON(recordCollection)
-
-        endTime = time.time()
-
-        finalJSONBaseName = str(Path(self.context['finalJSON']).name)
-        msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
-        self.workerSnapshot(msg)
-
-        # ---------------stage bm25s index ---------------
-
-        startTime = time.time()
-        self.context["stage"] = "bm25s index"
-        self.workerSnapshot(None)
+        self.bm25sAddReportToCorpus(corpus : list[str], issues: RecordCollection, ClassTemplate : BaseModel) -> List[str] :
 
         self.bm25sProcessIssueText(recordCollection, issueTemplate)
 

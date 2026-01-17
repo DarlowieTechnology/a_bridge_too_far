@@ -14,23 +14,22 @@
         <div class="rowthreecolumns">
             <div class="column">
                 Load document: <b> {{ loadDocument }} </b><br>
-                Extract raw text:<b> {{ rawTextFromDocument }} </b><br>
-                Create raw JSON:<b> {{ rawJSONfromText }} </b><br>
+                <ul>
+                    <li>Strip whitespace: <b> {{ stripWhiteSpace }} </b></li>
+                    <li>Convert to lower case: <b> {{ convertToLower }} </b></li>
+                    <li>Convert UTF to ASCII: <b> {{ convertToASCII }} </b></li>
+                    <li>Replace separators by single spaces: <b> {{ singleSpaces }} </b></li>
+                </ul>
+            </div>
+            <div class="column">
+                Extract raw records:<b> {{ rawTextFromDocument }} </b><br>
                 Create final JSON:<b> {{ finalJSONfromRaw }} </b><br>
+                Prepare BM25s Corpus:<b> {{ prepareBM25corpus }} </b><br>
+                Complete BM25s database:<b> {{ completeBM25database }} </b><br>
             </div>
             <div class="column">
-                BM25s cut-off score:<b>  </b><br>
-                Original BM25s query:<b>  </b><br>
-                Prepared BM25s query:<b>  </b><br>
-                Maximum BM25s records:<b>  </b><br>
-                BM25s stop words:<b>  </b><br>
-                BM25s stemmer:<b>  </b><br>
-            </div>
-            <div class="column">
-                Process query after transform:<b>  </b><br>
-                Compress query after transform:<b>  </b><br>
-                Maximum number of RRF results:<b>  </b><br>
-                Well-known test set:<b> {{ wellknownTestSet }} </b><br>
+                Create vector database:<b> {{ rawTextFromDocument }} </b><br>
+
             </div>
         </div>
     </div>
@@ -38,19 +37,26 @@
 
     <form action="{% url 'indexer:process' %}" method="post">
         {% csrf_token %}
-        <fieldset>
-            <legend><h2>Input files</h2></legend>
-            {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-            {% if filelist %}
-                <ul>
-                    {% for item in filelist %}
-                        <li>{{ item }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-            File: <input id="filename" type="text" size=100 name="filename" value="" />
-        </fieldset>
+            
+        {{ indexer }}
+            
         <input type="submit" class="submitbutton" value="Process">
     </form>
+
+
+    <script>
+        
+        function handleSelection() {
+
+            try {
+                val = document.querySelector('input[name="File Choices"]:checked').value;
+                document.getElementById('id_inputFile').value = val
+            } catch (error) {
+               console.error(error.message);
+            }
+
+
+        }
+    </script>
 
 {% endblock %} 

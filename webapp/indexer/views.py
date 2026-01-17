@@ -1,6 +1,8 @@
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.apps import apps
+
 
 from typing import List
 
@@ -43,6 +45,8 @@ from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, All
 from parserClasses import ParserClassFactory
 from indexer_workflow import IndexerWorkflow
 
+from .forms import IndexerForm
+
 
 def status(request):
     """
@@ -81,7 +85,7 @@ def index(request):
     Front page of indexer web app with the form. 
     Open documents.json and show list of known data sources.
     Accept chosen data source name.
-    Pass local context dict to renderer. IndexerWorkflow is not created yet.
+    Pass local context dict to renderer. 
     
     Args:
         request
@@ -95,16 +99,34 @@ def index(request):
     logger = logging.getLogger("indexer:" + request.session.session_key)
     logger.info(f"Starting session")
 
-    localContext = {}
+    indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
+
+    context = {}
 
     # read and display known data sources
     with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    localContext["filelist"] = []
+    fileList = []
     for fileName in dictDocuments:
-        localContext["filelist"].append(fileName)
-    return render(request, "indexer/index.html", localContext)
+        fileList.append(fileName)
+
+    indexerForm = IndexerForm( context, fileList=fileList )
+    context["indexer"] = indexerForm
+
+    context["loadDocument"] = "Execute" if indexerWorkflow.context["loadDocument"] else "Skip"
+    context["stripWhiteSpace"] = "Yes" if indexerWorkflow.context["stripWhiteSpace"] else "No"
+    context["convertToLower"] = "Yes" if indexerWorkflow.context["convertToLower"] else "No"
+    context["convertToASCII"] = "Yes" if indexerWorkflow.context["convertToASCII"] else "No"
+    context["singleSpaces"] = "Yes" if indexerWorkflow.context["singleSpaces"] else "No"
+
+    context["rawTextFromDocument"] = "Execute" if indexerWorkflow.context["rawTextFromDocument"] else "Skip"
+
+    context["finalJSONfromRaw"] = "Execute" if indexerWorkflow.context["finalJSONfromRaw"] else "Skip"
+
+
+
+    return render(request, "indexer/index.html", context)
 
 
 def process(request):
@@ -124,7 +146,8 @@ def process(request):
         request.session.create() 
 
     logger = logging.getLogger("indexer:" + request.session.session_key)
-    logger.info(f"Process: Serving POST")
+    indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
+
 
     statusFileName = "status.indexer." + request.session.session_key + ".json"
     boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
@@ -183,9 +206,6 @@ def process(request):
 
     issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
 
-    indexerWorkflow = IndexerWorkflow(context, logger)
-    msg = f"Starting indexer"
-    indexerWorkflow.workerSnapshot(msg)
 
     thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
     thread.start()

@@ -32,10 +32,24 @@ class IndexerConfig(AppConfig):
         context['results'] = []
 
         context["inputFilePath"] = "indexer/input/"
-        context["loadDocument"] = 'Skip'
-        context["rawTextFromDocument"] = 'Skip'
-        context["rawJSONfromText"] = 'Skip'
-        context["finalJSONfromRaw"] = 'Skip'
 
+        # text extraction from PDF
+        context["loadDocument"] = False
+        context["stripWhiteSpace"] = True
+        context["convertToLower"] = True
+        context["convertToASCII"] = True
+        context["singleSpaces"] = True
+
+        # preprocess text
+        context["rawTextFromDocument"] = False
+
+        # create final JSON
+        context["finalJSONfromRaw"] = False
+        
+        # prepare BM25 corpus
+        context["prepareBM25Corpus"] = False
+
+        # complete BM25 database
+        context["completeBM25database"] = False
 
         self.indexerWorkflow = IndexerWorkflow(context, logger)

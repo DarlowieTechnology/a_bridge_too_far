@@ -45,7 +45,7 @@ from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, All
 from parserClasses import ParserClassFactory
 from indexer_workflow import IndexerWorkflow
 
-from .forms import IndexerForm
+from .forms import IndexerForm, SettingsColumnOne, SettingsColumnTwo, SettingsColumnThree
 
 
 def status(request):
@@ -97,7 +97,6 @@ def index(request):
     if not request.session.session_key:
         request.session.create() 
     logger = logging.getLogger("indexer:" + request.session.session_key)
-    logger.info(f"Starting session")
 
     indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
 
@@ -124,9 +123,112 @@ def index(request):
 
     context["finalJSONfromRaw"] = "Execute" if indexerWorkflow.context["finalJSONfromRaw"] else "Skip"
 
+    context["prepareBM25corpus"] = "Execute" if indexerWorkflow.context["prepareBM25corpus"] else "Skip"
 
+    context["completeBM25database"] = "Execute" if indexerWorkflow.context["completeBM25database"] else "Skip"
+
+    context["vectorizeFinalJSON"] = "Execute" if indexerWorkflow.context["vectorizeFinalJSON"] else "Skip"
+
+    context["JiraExport"] = "Execute" if indexerWorkflow.context["JiraExport"] else "Skip"
+
+    context["llmProvider"] = indexerWorkflow.context["llmProvider"]
+    context["llmVersion"] = indexerWorkflow.context["llmVersion"]
 
     return render(request, "indexer/index.html", context)
+
+
+def settings(request):
+    """
+    Settings form of Indexer web app
+    Accepts IndexerWorkflow settings
+    
+    Args:
+        request
+
+    Returns:
+        render indexer/settings.html
+
+    """
+    if not request.session.session_key:
+        request.session.create() 
+    logger = logging.getLogger("indexer:" + request.session.session_key)
+    indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
+
+    context = {}
+
+    if request.method == "GET":
+
+        columnOneForm = SettingsColumnOne(
+            initial={"LoadDocument": indexerWorkflow.context["loadDocument"],
+                     "stripWhiteSpace" : indexerWorkflow.context["stripWhiteSpace"],
+                     "convertToLower" : indexerWorkflow.context["convertToLower"],
+                     "convertToASCII" : indexerWorkflow.context["convertToASCII"],
+                     "singleSpaces" : indexerWorkflow.context["singleSpaces"]
+                     }
+        )
+        context["columnOne"] = columnOneForm
+
+        columnTwoForm = SettingsColumnTwo(
+            initial={"rawTextFromDocument": indexerWorkflow.context["rawTextFromDocument"],
+                     "finalJSONfromRaw": indexerWorkflow.context["finalJSONfromRaw"],
+                     "prepareBM25corpus": indexerWorkflow.context["prepareBM25corpus"],
+                     "completeBM25database": indexerWorkflow.context["completeBM25database"]
+                    }
+        )
+        context["columnTwo"] = columnTwoForm
+
+        columnThreeForm = SettingsColumnThree(
+               initial={"vectorizeFinalJSON": indexerWorkflow.context["vectorizeFinalJSON"],
+                        "JiraExport": indexerWorkflow.context["JiraExport"]
+               }
+        )
+        context["columnThree"] = columnThreeForm
+
+        return render(request, "indexer/settings.html", context)
+    
+    elif request.method == "POST":
+
+        if 'save' in request.POST:
+
+            columnOneForm = SettingsColumnOne(request.POST)
+            if columnOneForm.is_valid():
+                indexerWorkflow.context["loadDocument"] = columnOneForm.cleaned_data["LoadDocument"]
+                indexerWorkflow.context["stripWhiteSpace"] = columnOneForm.cleaned_data["stripWhiteSpace"]
+                indexerWorkflow.context["convertToLower"] = columnOneForm.cleaned_data["convertToLower"]
+                indexerWorkflow.context["convertToASCII"] = columnOneForm.cleaned_data["convertToASCII"]
+                indexerWorkflow.context["singleSpaces"] = columnOneForm.cleaned_data["singleSpaces"]
+
+            columnTwoForm = SettingsColumnTwo(request.POST)
+            if columnTwoForm.is_valid():
+                indexerWorkflow.context["rawTextFromDocument"] = columnTwoForm.cleaned_data ["rawTextFromDocument"]
+                indexerWorkflow.context["finalJSONfromRaw"] = columnTwoForm.cleaned_data["finalJSONfromRaw"]
+                indexerWorkflow.context["prepareBM25corpus"] = columnTwoForm.cleaned_data["prepareBM25corpus"]
+                indexerWorkflow.context["completeBM25database"] = columnTwoForm.cleaned_data["completeBM25database"]
+
+            columnThreeForm = SettingsColumnThree(request.POST)
+            if columnThreeForm.is_valid():
+                indexerWorkflow.context["vectorizeFinalJSON"] = columnThreeForm.cleaned_data["vectorizeFinalJSON"]
+                indexerWorkflow.context["JiraExport"] = columnThreeForm.cleaned_data["JiraExport"]
+
+        elif 'cancel' in request.POST:
+            pass
+
+        elif 'default' in request.POST:
+            indexerWorkflow.context["loadDocument"] = False
+            indexerWorkflow.context["stripWhiteSpace"] = True
+            indexerWorkflow.context["convertToLower"] = True
+            indexerWorkflow.context["convertToASCII"] = True
+            indexerWorkflow.context["singleSpaces"] = True
+            indexerWorkflow.context["rawTextFromDocument"] = False
+            indexerWorkflow.context["finalJSONfromRaw"] = False
+            indexerWorkflow.context["prepareBM25Corpus"] = False
+            indexerWorkflow.context["completeBM25database"] = False
+            indexerWorkflow.context["vectorizeFinalJSON"] = False
+            indexerWorkflow.context["JiraExport"] = False
+
+        response = redirect('/indexer/')
+        return response
+
 
 
 def process(request):
@@ -158,7 +260,7 @@ def process(request):
                 logger.info(f"Process: Removing completed session file {statusFileName}")
             else:    
                 logger.info(f"Process: Existing async processing found : {statusFileName}")
-                return render(request, "indexer/process.html", context)
+                return render(request, "indexer/process.html", indexerWorkflow.context)
         except:
             logger.info(f"Process: Removing corrupt session file : {statusFileName}")
 
@@ -166,50 +268,39 @@ def process(request):
     with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    context = {}
-    context['stage'] = "starting"
-    context['session_key'] = request.session.session_key
-    context['statusFileName'] = statusFileName
-    context["llmrequests"] = 0
-    context['llmrequesttokens'] = 0
-    context['llmresponsetokens'] = 0
-    context['llmProvider'] = "Gemini"
-#    context["llmGeminiVersion"] = "gemini-2.0-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash"
-    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
-    context['status'] = []
-    context["issuePattern"] = None
-    context["issueTemplate"] = None
-    context["JiraExport"] = False
+    indexerWorkflow.context['stage'] = "starting"
+    indexerWorkflow.context['session_key'] = request.session.session_key
+    indexerWorkflow.context['statusFileName'] = statusFileName
+    indexerWorkflow.context['status'] = []
 
-    if re.match('jira:', request.POST['filename']):
+    if indexerWorkflow.context["JiraExport"]:
         # Jira export processing
-        context["JiraExport"] = True
-        context["inputFileName"] = request.POST['filename'][5:]
-        context["finalJSON"] = "indexer/input/" + request.POST['filename'][5:] + ".json"
-        inputFileBaseName = request.POST['filename']
+        indexerWorkflow.context["inputFileName"] = "SCRUM"
+        indexerWorkflow.context["inputFileBaseName"] = "jira:SCRUM"
+        indexerWorkflow.context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
+        indexerWorkflow.context["issueTemplate"] = "JiraIssueRAG"
     else:
-        context["inputFileName"] = "indexer/input/" + request.POST['filename']
-        context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-        context["rawJSON"] = context["inputFileName"] + ".raw.json"
-        context["finalJSON"] = context["inputFileName"] + ".json"
-        inputFileBaseName = str(Path(context["inputFileName"]).name)
+        indexerWorkflow.context["inputFileName"] = "indexer/input/" + request.POST['inputFile']
+        indexerWorkflow.context["rawtextfromPDF"] = indexerWorkflow.context["inputFileName"] + ".raw.txt"
+        indexerWorkflow.context["rawJSON"] = indexerWorkflow.context["inputFileName"] + ".raw.json"
+        indexerWorkflow.context["finalJSON"] = indexerWorkflow.context["inputFileName"] + ".json"
+        indexerWorkflow.context["inputFileBaseName"] = str(Path(indexerWorkflow.context["inputFileName"]).name)
 
-    if inputFileBaseName in dictDocuments:
-        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-    else:
-        logger.error(f"ERROR: no definition for document {inputFileBaseName}")
-        return render(request, "indexer/process.html", context)
+        inputFileBaseName = indexerWorkflow.context["inputFileBaseName"]
+        if inputFileBaseName in dictDocuments:
+            indexerWorkflow.context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+            indexerWorkflow.context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+        else:
+            logger.error(f"ERROR: no definition for document {inputFileBaseName}")
+            return render(request, "indexer/process.html", indexerWorkflow.context)
 
-    logger.info(f"Serving POST {inputFileBaseName}")
+    issueTemplate = ParserClassFactory.factory(indexerWorkflow.context["issueTemplate"])
 
-    issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-
-
-    thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
+    # global corpus for bm25s = updated for every file, completed once for all files
+    corpus = []
+    thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate, corpus))
     thread.start()
-    return render(request, "indexer/process.html", context)
+    return render(request, "indexer/process.html", indexerWorkflow.context)
 
 
 # use this to display genAI pricing

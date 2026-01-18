@@ -24,7 +24,7 @@ class QueryConfig(AppConfig):
 
         context = {}
         context["llmProvider"] = "Ollama"
-        context["llmOllamaVersion"] = "llama3.1:latest"
+        context["llmVersion"] = "llama3.1:latest"
         context["llmBaseUrl"] = "http://localhost:11434/v1"
 
         context["llmrequests"] = 0

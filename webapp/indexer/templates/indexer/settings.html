@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block headcontent %}
+    <title>Indexer</title>
+{% endblock %} 
+
+
+{% block content %}
+
+    <h1>Indexer Settings</h1>
+
+    <div id="RAGSettingsDisplay">
+        <form action="{% url 'indexer:settings' %}" method="post">
+            {% csrf_token %}
+            <div class="rowthreecolumns">
+                <div class="column">
+
+                    {{ columnOne }}
+
+                </div>
+                <div class="column">
+
+                    {{ columnTwo }}
+
+                </div>
+                <div class="column">
+
+                    {{ columnThree }}
+
+                </div>
+            </div>
+            <input type="submit" name="save" class="submitbutton" value="Save">
+            <input type="submit" name="cancel" class="submitbutton" value="Cancel">
+            <input type="submit" name="default" class="submitbutton" value="Default">
+        </form>
+    </div>
+
+{% endblock %} 

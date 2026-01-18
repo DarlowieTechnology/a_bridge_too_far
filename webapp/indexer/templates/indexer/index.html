@@ -13,25 +13,29 @@
 
         <div class="rowthreecolumns">
             <div class="column">
-                Load document: <b> {{ loadDocument }} </b><br>
-                <ul>
-                    <li>Strip whitespace: <b> {{ stripWhiteSpace }} </b></li>
-                    <li>Convert to lower case: <b> {{ convertToLower }} </b></li>
-                    <li>Convert UTF to ASCII: <b> {{ convertToASCII }} </b></li>
-                    <li>Replace separators by single spaces: <b> {{ singleSpaces }} </b></li>
-                </ul>
+                Load document text: <b> {{ loadDocument }} </b><br>
+                Strip whitespace: <b> {{ stripWhiteSpace }} </b><br>
+                Convert to lower case: <b> {{ convertToLower }} </b><br>
+                Convert UTF to ASCII: <b> {{ convertToASCII }} </b><br>
+                Replace separators by single spaces: <b> {{ singleSpaces }} </b>
             </div>
             <div class="column">
-                Extract raw records:<b> {{ rawTextFromDocument }} </b><br>
-                Create final JSON:<b> {{ finalJSONfromRaw }} </b><br>
-                Prepare BM25s Corpus:<b> {{ prepareBM25corpus }} </b><br>
-                Complete BM25s database:<b> {{ completeBM25database }} </b><br>
+                Extract raw records: <b> {{ rawTextFromDocument }} </b><br>
+                Create final JSON: <b> {{ finalJSONfromRaw }} </b><br>
+                Prepare BM25s Corpus: <b> {{ prepareBM25corpus }} </b><br>
+                Complete BM25s database: <b> {{ completeBM25database }} </b><br>
             </div>
             <div class="column">
-                Create vector database:<b> {{ rawTextFromDocument }} </b><br>
-
+                Create vector database: <b> {{ vectorizeFinalJSON }} </b><br>
+                Create Jira database: <b> {{ JiraExport }} </b><br>
+                LLM host: <b> {{ llmProvider }} </b><br>
+                LLM version: <b> {{ llmVersion }} </b><br>
             </div>
         </div>
+        <form action="{% url 'indexer:settings' %}" method="get">
+            <input type="submit" class="submitbutton" value="Settings">
+        </form>
+
     </div>
     <hr class="custom-hr">
 

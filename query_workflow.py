@@ -62,11 +62,11 @@ class QueryWorkflow(WorkflowBase):
         self._llmModel = None
 
         if self.context["llmProvider"] == "Ollama":
-            self._llmModel = OpenAIModel(model_name=self.context["llmOllamaVersion"], 
+            self._llmModel = OpenAIModel(model_name=self.context["llmVersion"], 
                             provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
         if self.context["llmProvider"] == "Gemini":
             self._llmModel = GeminiModel(
-                model_name=self.context["llmGeminiVersion"], 
+                model_name=self.context["llmVersion"], 
                 provider=GoogleGLAProvider(
                     api_key = self.config["gemini_key"]
                 ),
@@ -402,7 +402,7 @@ class QueryWorkflow(WorkflowBase):
         query_tokens = self.context["query"]
 
 
-        ollModel = OpenAIModel(model_name=self.context["llmOllamaVersion"], 
+        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
                             provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
 
         oneResultList = self.getDBIssueMatch(query_tokens)
@@ -435,7 +435,7 @@ class QueryWorkflow(WorkflowBase):
         userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
         print(f"======User prompt=======\n\n{userPrompt}")
 
-        ollModel = OpenAIModel(model_name=self.context["llmOllamaVersion"], 
+        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
                             provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
         agent = Agent(ollModel,
                     system_prompt = systemPrompt)
@@ -457,7 +457,7 @@ class QueryWorkflow(WorkflowBase):
         """
 
         geminiModel = GeminiModel(
-            model_name=self.context["llmGeminiVersion"], 
+            model_name=self.context["llmVersion"], 
             provider=GoogleGLAProvider(
                 api_key = self._config["gemini_key"]
             ),
@@ -544,7 +544,7 @@ class QueryWorkflow(WorkflowBase):
 
         try:
             completion = openAIClient.beta.chat.completions.parse(
-                model = self.context["llmGeminiVersion"],
+                model = self.context["llmVersion"],
                 temperature=0.0,
                 messages=[
                     {"role": "system", "content": f"{systemPrompt}"},

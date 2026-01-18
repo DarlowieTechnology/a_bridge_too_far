@@ -28,4 +28,23 @@ class IndexerForm(forms.Form):
                         'size': '200'
                     })
             )
-                                           
+
+
+class SettingsColumnOne(forms.Form):
+    LoadDocument = forms.BooleanField(label="Load document: ", required=False)
+    stripWhiteSpace = forms.BooleanField(label="Strip whitespace: ", required=False)
+    convertToLower = forms.BooleanField(label="Convert to lower case: ", required=False)
+    convertToASCII = forms.BooleanField(label="Convert UTF to ASCII: ", required=False)
+    singleSpaces = forms.BooleanField(label="Replace separators by single spaces: ", required=False)
+
+
+class SettingsColumnTwo(forms.Form):
+    rawTextFromDocument = forms.BooleanField(label="Extract raw records: ", required=False)
+    finalJSONfromRaw = forms.BooleanField(label="Create final JSON: ", required=False)
+    prepareBM25corpus = forms.BooleanField(label="Prepare BM25s Corpus: ", required=False)
+    completeBM25database = forms.BooleanField(label="Complete BM25s database: ", required=False)
+
+
+class SettingsColumnThree(forms.Form):
+    vectorizeFinalJSON = forms.BooleanField(label="Create vector database: ", required=False)
+    JiraExport = forms.BooleanField(label="Create Jira database: ", required=False)

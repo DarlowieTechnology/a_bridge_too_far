@@ -21,7 +21,7 @@ class IndexerConfig(AppConfig):
 
         context = {}
         context["llmProvider"] = "Ollama"
-        context["llmOllamaVersion"] = "llama3.1:latest"
+        context["llmVersion"] = "llama3.1:latest"
         context["llmBaseUrl"] = "http://localhost:11434/v1"
 
         context["llmrequests"] = 0
@@ -47,9 +47,15 @@ class IndexerConfig(AppConfig):
         context["finalJSONfromRaw"] = False
         
         # prepare BM25 corpus
-        context["prepareBM25Corpus"] = False
+        context["prepareBM25corpus"] = False
 
         # complete BM25 database
         context["completeBM25database"] = False
+
+        # vectorize final JSON
+        context["vectorizeFinalJSON"] = False
+
+        # export Jira issues
+        context["JiraExport"] = False
 
         self.indexerWorkflow = IndexerWorkflow(context, logger)

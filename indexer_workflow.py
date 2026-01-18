@@ -191,7 +191,7 @@ class IndexerWorkflow(WorkflowBase):
         
         prompt = f"{docs}"
 
-        ollModel = OpenAIModel(model_name=self.context["llmOllamaVersion"], 
+        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
                             provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
 
         agent = Agent(ollModel,
@@ -239,7 +239,7 @@ class IndexerWorkflow(WorkflowBase):
 
         try:
             completion = openAIClient.beta.chat.completions.parse(
-                model = self.context["llmGeminiVersion"],
+                model = self.context["llmVersion"],
                 temperature=0.0,
                 messages=[
                     {"role": "system", "content": f"JSON schema for the ClassTemplate model you must use as context for what information is expected:  {json.dumps(ClassTemplate.model_json_schema(), indent=2)}"},
@@ -531,21 +531,24 @@ class IndexerWorkflow(WorkflowBase):
             jsonOut.writelines('}\n}\n')
 
 
-    def threadWorker(self, issueTemplate : BaseModel):
+    def threadWorker(self, issueTemplate : BaseModel, corpus : list[str]):
         """
         Workflow to read, parse, vectorize records
         
         Args:
             issueTemplate (BaseModel) - issue template
+            global corpus for BM25
         
         Returns:
             None
         """
 
-        # ---------------stage Jira export
-        if "JiraExport" in self.context ans self.context["JiraExport"]:
+        totalStart = time.time()
 
-            totalStart = time.time()
+
+        # ---------------stage Jira export
+        if "JiraExport" in self.context and self.context["JiraExport"]:
+
             startTime = totalStart
             self.context["stage"] = "vectorizing"
 
@@ -558,17 +561,14 @@ class IndexerWorkflow(WorkflowBase):
             msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
             self.workerSnapshot(msg)
 
-            # ---------------stage completed ---------------
-
             self.context["stage"] = "completed"
             totalEnd = time.time()
             msg = f"Processing completed. Total time {(totalEnd - totalStart):9.4f} seconds."
             self.workerSnapshot(msg)
             return
 
-        # ---------------stage readpdf ---------------
+        # ---------------stage read pdf ---------------
         if "loadDocument" in self.context and self.context["loadDocument"]:
-            totalStart = time.time()
             startTime = totalStart
 
             self.context["stage"] = "reading document"
@@ -619,34 +619,58 @@ class IndexerWorkflow(WorkflowBase):
             self.workerSnapshot(msg)
 
         # ---------------stage bm25s preparation ---------------
+        if "prepareBM25sCorpus" in self.context and self.context["prepareBM25sCorpus"]:
 
-        startTime = time.time()
-        self.context["stage"] = "bm25s preparation"
-        self.workerSnapshot(None)
+            startTime = time.time()
+            self.context["stage"] = "bm25s preparation"
+            self.workerSnapshot(None)
 
-        self.bm25sAddReportToCorpus(corpus : list[str], issues: RecordCollection, ClassTemplate : BaseModel) -> List[str] :
+            self.bm25sAddReportToCorpus(corpus = corpus, issues = recordCollection, ClassTemplate = issueTemplate)
 
-        self.bm25sProcessIssueText(recordCollection, issueTemplate)
+            endTime = time.time()
 
-        endTime = time.time()
+            msg = f"Created BM25 index in {self.context["bm25sIndexFolder"]}. {(endTime - startTime):9.4f} seconds"
+            self.workerSnapshot(msg)
 
-        msg = f"Created BM25s index in {self.context["bm25sJSON"]}. {(endTime - startTime):9.4f} seconds"
-        self.workerSnapshot(msg)
+        # ---------------stage bm25s completion ---------------
+        if "completeBM25database" in self.context and self.context["completeBM25database"]:
+
+            startTime = time.time()
+            self.context["stage"] = "bm25s completion"
+            self.workerSnapshot(None)
+
+            folderName = self.context["bm25sIndexFolder"]
+            self.bm25sProcessCorpus(corpus, folderName)
+
+            endTime = time.time()
+
+            msg = f"Created BM25 database in {folderName}. {(endTime - startTime):9.4f} seconds"
+            self.workerSnapshot(msg)
 
 
         # ---------------stage vectorize --------------
+        if "vectorizeFinalJSON" in self.context and self.context["vectorizeFinalJSON"]:
 
-        startTime = time.time()
-        self.context["stage"] = "vectorizing"
-        self.workerSnapshot(None)
+            startTime = time.time()
+            self.context["stage"] = "vectorizing"
+            self.workerSnapshot(None)
 
-        accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-        if self.context["stage"] == "error":
-            return
+            if 'recordCollection' not in locals():
+                msg = f"Opening file {self.context["inputFileBaseName"]}."
+                self.workerSnapshot(msg)
+                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
+                    jsonStr = json.load(jsonIn)
+                recordCollection = RecordCollection.model_validate(jsonStr)
+                msg = f"Read {recordCollection.objectCount()} records from file {self.context["inputFileBaseName"]}."
+                self.workerSnapshot(msg)
 
-        endTime = time.time()
-        msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
-        self.workerSnapshot(msg)
+            accepted, rejected = self.vectorize(recordCollection, issueTemplate)
+            if self.context["stage"] == "error":
+                return
+
+            endTime = time.time()
+            msg = f"Processed {recordCollection.objectCount()}, accepted {accepted} rejected {rejected}."
+            self.workerSnapshot(msg)
 
         # ---------------stage completed ---------------
 

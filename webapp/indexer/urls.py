@@ -12,4 +12,6 @@ urlpatterns = [
     path("results/", views.results, name="results"),
     # ex: /indexer/process/
     path("process/", views.process, name="process"),
+    # ex: /indexer/settings/
+    path("settings/", views.settings, name="settings"),
 ]

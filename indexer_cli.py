@@ -68,7 +68,7 @@ def bm25prepare(context : dict, indexerWorkflow : IndexerWorkflow, issueTemplate
 
 def bm25complete(context : dict, indexerWorkflow : IndexerWorkflow, corpus : list[str]):
     """
-    Docstring for bm25complete
+    Complete creation of BM25 database
     
     :param context: context for execution
     :type context: dict
@@ -124,7 +124,7 @@ def testLock(context, logger) -> bool :
     return True
 
 
-def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel, corpus : list[str]) :
+def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel, corpus : list[str]) -> list[str]:
     """ 
     Test for indexer stages, called for each report document
     
@@ -135,7 +135,7 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
         issueTemplate (BaseModel) - template for issue for the document
         corpus (list[str]) - global corpus for bm25s
     Returns:
-        None
+        updated corpus
     
     """
 
@@ -161,10 +161,12 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
             parseIssues(context, indexerWorkflow, issueTemplate)
         if "prepareBM25sCorpus" in context and context["prepareBM25sCorpus"]:
             bm25prepare(context, indexerWorkflow, issueTemplate, corpus)
+        if "vectorizeFinalJSON" in context and context["vectorizeFinalJSON"]:
+            vectorize(context, indexerWorkflow, issueTemplate)
         if "completeBM25database" in context and context["completeBM25database"]:
-            bm25complete(context=context, indexerWorkflow = indexerWorkflow, corpus = corpus)
+            bm25complete(context, indexerWorkflow, corpus)
 
-        vectorize(context, indexerWorkflow, issueTemplate)
+    return corpus
 
 
 
@@ -174,12 +176,12 @@ def main():
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
     context["llmProvider"] = "Ollama"
-    context["llmOllamaVersion"] = "llama3.1:latest"
+    context["llmVersion"] = "llama3.1:latest"
     context["llmBaseUrl"] = "http://localhost:11434/v1"
 #    context["llmProvider"] = "Gemini"
-#    context["llmGeminiVersion"] = "gemini-2.0-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+#    context["llmVersion"] = "gemini-2.0-flash"
+#    context["llmVersion"] = "gemini-2.5-flash"
+#    context["llmVersion"] = "gemini-2.5-flash-lite"
 
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
@@ -216,14 +218,20 @@ def main():
     if context["JiraExport"]:
         context["inputFileName"] = "SCRUM"
         context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
-        inputFileBaseName = "jira:SCRUM"
+        context["inputFileBaseName"] = "jira:SCRUM"
+        inputFileBaseName = context["inputFileBaseName"]
         context["issueTemplate"] = "JiraIssueRAG"
         issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
         indexerWorkflow = IndexerWorkflow(context, logger)
         testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate)
 
+#        thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate, corpus]))
+#        thread.start()
+#        thread.join()
+
+
     else:
-        # global corpus for bm25s
+        # global corpus for bm25s = updated for every file, completed once for all files
         corpus = []
 
         for fileName in fileList:
@@ -235,7 +243,8 @@ def main():
             context["bm25sIndexFolder"] = "webapp/indexer/input/combined.bm25s"
 
             context["finalJSON"] = context["inputFileName"] + ".json"
-            inputFileBaseName = str(Path(context["inputFileName"]).name)
+            context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
+            inputFileBaseName = context["inputFileBaseName"]
 
             # text extraction from PDF
             context["loadDocument"] = False
@@ -256,6 +265,8 @@ def main():
             # complete BM25 database
             context["completeBM25database"] = False
 
+            # vectorize final JSON
+            context["vectorizeFinalJSON"] = False
 
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
             if "extract" in dictDocuments[inputFileBaseName]:
@@ -266,14 +277,12 @@ def main():
 
             issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
             indexerWorkflow = IndexerWorkflow(context, logger)
-            testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate, corpus=corpus)
+            corpus = testRun(context=context, indexerWorkflow=indexerWorkflow, logger=logger, issueTemplate=issueTemplate, corpus=corpus)
 
-#            thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate,))
+#            thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate, corpus]))
 #            thread.start()
 #            thread.join()
 
-        # complete b25s index using corpus for all documents
-        bm25complete(context=context, indexerWorkflow = indexerWorkflow, corpus = corpus)
         context["stage"] = "completed"
         msg = f"Processing completed."
         indexerWorkflow.workerSnapshot(msg)

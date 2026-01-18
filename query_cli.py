@@ -51,11 +51,11 @@ def main():
     context["session_key"] = "QUERY"
     context["statusFileName"] = "status.QUERY.json"
 #    context["llmProvider"] = "Gemini"
-#    context["llmGeminiVersion"] = "gemini-2.0-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash"
-#    context["llmGeminiVersion"] = "gemini-2.5-flash-lite"
+#    context["llmVersion"] = "gemini-2.0-flash"
+#    context["llmVersion"] = "gemini-2.5-flash"
+#    context["llmVersion"] = "gemini-2.5-flash-lite"
     context["llmProvider"] = "Ollama"
-    context["llmOllamaVersion"] = "llama3.1:latest"
+    context["llmVersion"] = "llama3.1:latest"
     context["llmBaseUrl"] = "http://localhost:11434/v1"
 
 

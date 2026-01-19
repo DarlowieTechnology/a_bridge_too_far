@@ -82,7 +82,7 @@ class QueryWorkflow(WorkflowBase):
         return self.context["querytransforms"]
     
     def getBM25SFolder(self) -> str :
-        return self.context["bm25sIndexFolder"]
+        return self.context["bm25IndexFolder"]
 
     def getRRFTopResults(self) -> int :
         return self.context["rrfTopResults"]
@@ -188,7 +188,7 @@ class QueryWorkflow(WorkflowBase):
             result = agentHyDE.run_sync(userPrompt)
             self.context["queryHyDE"] = result.output
             if result.usage():
-                self.context["llmrequests"] += 1
+                self.context["llmrequests"] += result.usage().requests
                 self.context["llmrequesttokens"] += result.usage().request_tokens
                 self.context["llmresponsetokens"] += result.usage().response_tokens
             return self.context["queryHyDE"]
@@ -217,7 +217,7 @@ class QueryWorkflow(WorkflowBase):
             result = agentMultipleQ.run_sync(userPrompt)
             self.context["queryMultiple"] = result.output
             if result.usage():
-                self.context["llmrequests"] += 1
+                self.context["llmrequests"] += result.usage().requests
                 self.context["llmrequesttokens"] += result.usage().request_tokens
                 self.context["llmresponsetokens"] += result.usage().response_tokens
             return self.context["queryMultiple"]
@@ -250,7 +250,7 @@ class QueryWorkflow(WorkflowBase):
             result = agentRewriteQ.run_sync(userPrompt)
             self.context["queryRewrite"] = result.output
             if result.usage():
-                self.context["llmrequests"] += 1
+                self.context["llmrequests"] += result.usage().requests
                 self.context["llmrequesttokens"] += result.usage().request_tokens
                 self.context["llmresponsetokens"] += result.usage().response_tokens
             return self.context["queryRewrite"]
@@ -277,7 +277,7 @@ class QueryWorkflow(WorkflowBase):
             result = agentPrepBM25s.run_sync(userPrompt)
             self.context['querybm25sprep'] = result.output
             if result.usage():
-                self.context["llmrequests"] += 1
+                self.context["llmrequests"] += result.usage().requests
                 self.context["llmrequesttokens"] += result.usage().request_tokens
                 self.context["llmresponsetokens"] += result.usage().response_tokens
             return self.context['querybm25sprep']

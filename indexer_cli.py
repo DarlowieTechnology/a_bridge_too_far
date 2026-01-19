@@ -74,12 +74,12 @@ def bm25complete(context : dict, indexerWorkflow : IndexerWorkflow, corpus : lis
     :type context: dict
     :param indexerWorkflow: indexer workflow object
     :type indexerWorkflow: IndexerWorkflow
-    :param corpus: global corpus for bm25s
+    :param corpus: global corpus for bm25
     :type corpus: list[str]
     """
-    folderName = context["bm25sIndexFolder"]
+    folderName = context["bm25IndexFolder"]
     indexerWorkflow.bm25sProcessCorpus(corpus=corpus, folderName = folderName)
-    msg = f"Indexed {len(corpus)} records for bm25s in folder {folderName}."
+    msg = f"Indexed {len(corpus)} records for bm25 in folder {folderName}."
     indexerWorkflow.workerSnapshot(msg)
 
 
@@ -159,7 +159,7 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
             preprocess(context, indexerWorkflow)
         if "finalJSONfromRaw" in context and context["finalJSONfromRaw"]:
             parseIssues(context, indexerWorkflow, issueTemplate)
-        if "prepareBM25sCorpus" in context and context["prepareBM25sCorpus"]:
+        if "prepareBM25corpus" in context and context["prepareBM25corpus"]:
             bm25prepare(context, indexerWorkflow, issueTemplate, corpus)
         if "vectorizeFinalJSON" in context and context["vectorizeFinalJSON"]:
             vectorize(context, indexerWorkflow, issueTemplate)
@@ -240,7 +240,7 @@ def main():
             context["rawJSON"] = context["inputFileName"] + ".raw.json"
             
             # folder for combined bm25s index - the same for all documents
-            context["bm25sIndexFolder"] = "webapp/indexer/input/combined.bm25s"
+            context["bm25IndexFolder"] = "webapp/indexer/input/combined.bm25s"
 
             context["finalJSON"] = context["inputFileName"] + ".json"
             context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
@@ -260,7 +260,7 @@ def main():
             context["finalJSONfromRaw"] = False
 
             # prepare BM25s corpus
-            context["prepareBM25sCorpus"] = False
+            context["prepareBM25corpus"] = False
 
             # complete BM25 database
             context["completeBM25database"] = False

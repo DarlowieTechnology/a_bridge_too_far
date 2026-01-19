@@ -221,7 +221,7 @@ def settings(request):
             indexerWorkflow.context["singleSpaces"] = True
             indexerWorkflow.context["rawTextFromDocument"] = False
             indexerWorkflow.context["finalJSONfromRaw"] = False
-            indexerWorkflow.context["prepareBM25Corpus"] = False
+            indexerWorkflow.context["prepareBM25corpus"] = False
             indexerWorkflow.context["completeBM25database"] = False
             indexerWorkflow.context["vectorizeFinalJSON"] = False
             indexerWorkflow.context["JiraExport"] = False

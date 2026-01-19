@@ -46,7 +46,7 @@ class QueryConfig(AppConfig):
         context["querybm25options"] = TOKENIZERTYPES.STOPWORDSEN    # default options for BM25S
         context['bm25sCutOffScore'] = 0.0       # bm25s score cut-off
         context['bm25sRetrieveNum'] = 50        # maximum number of bm25s items to retrieve
-        context["bm25sIndexFolder"] = "indexer/input/combined.bm25s" # # folder for combined bm25s index
+        context["bm25IndexFolder"] = "indexer/input/combined.bm25s" # # folder for combined bm25s index
 
         context['rrfTopResults'] = 50       # maximum number of RRF results to show
 

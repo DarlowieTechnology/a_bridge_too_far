@@ -309,12 +309,13 @@ class IndexerWorkflow(WorkflowBase):
 
             endOneIssue = time.time()
             if usageStats:
-                msg = f"{key}. {usageStats.requests} request(s). {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
-                self.context["llmrequests"] += 1
+                requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+                msg = f"Issue: {key}. LLM usage: {usageStats.requests} {requestLabel}. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
+                self.context["llmrequests"] += usageStats.requests
                 self.context["llmrequesttokens"] += usageStats.request_tokens
                 self.context["llmresponsetokens"] += usageStats.response_tokens
             else:
-                msg = f"{key}. {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"Issue: {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
             self.workerSnapshot(msg)
 
         return recordCollection
@@ -376,7 +377,7 @@ class IndexerWorkflow(WorkflowBase):
 
     def bm25sAddReportToCorpus(self, corpus : list[str], issues: RecordCollection, ClassTemplate : BaseModel) -> List[str] :
         """
-        For each issue add lower case identifier and title to corpus
+        Add each issue to corpus
 
         Args:
             corpus - list of strings to add to
@@ -388,9 +389,11 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         for key in issues.finding_dict:
-            reportItem = ClassTemplate.model_validate(issues.finding_dict[key])
+            issue = issues.finding_dict[key]
+            reportItem = ClassTemplate.model_validate(issue)
             issueText = reportItem.bm25s()
-            corpus.append(issueText.lower())
+            corpus.append(issueText)
+
         return corpus
 
 
@@ -545,6 +548,14 @@ class IndexerWorkflow(WorkflowBase):
 
         totalStart = time.time()
 
+        msg = f"Document: <b>{self.context['inputFileBaseName']}</b>"
+        self.workerSnapshot(msg)
+        msg = f"Raw text file: <b>{self.context["rawtextfromPDF"]}</b>"
+        self.workerSnapshot(msg)
+        msg = f"Raw JSON file: <b>{self.context["rawJSON"]}</b>"
+        self.workerSnapshot(msg)
+        msg = f"Final JSON file: <b>{self.context["finalJSON"]}</b>"
+        self.workerSnapshot(msg)
 
         # ---------------stage Jira export
         if "JiraExport" in self.context and self.context["JiraExport"]:
@@ -580,7 +591,7 @@ class IndexerWorkflow(WorkflowBase):
             endTime = time.time()
 
             inputFileBaseName = str(Path(self.context['inputFileName']).name)
-            msg = f"Read input document {inputFileBaseName}. Time: {(endTime - startTime):9.4f} seconds"
+            msg = f"Read input document {self.context['inputFileBaseName']}. Time: {(endTime - startTime):9.4f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
@@ -588,6 +599,13 @@ class IndexerWorkflow(WorkflowBase):
             startTime = time.time()
             self.context["stage"] = "pre-processing document"
             self.workerSnapshot(None)
+
+            if 'textCombined' not in locals():
+                # if this is a separate step - read extracted text file
+                with open(self.context['rawtextfromPDF'], "r", encoding='utf8', errors='ignore') as txtIn:
+                    textCombined = txtIn.read()
+                msg = f"Read raw text from file {self.context['inputFileBaseName']}."
+                self.workerSnapshot(msg)
 
             dictRawIssues = self.preprocessReportRawText(textCombined)
             rawJSONFileName = self.context["rawJSON"]
@@ -599,11 +617,18 @@ class IndexerWorkflow(WorkflowBase):
             msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
             self.workerSnapshot(msg)
 
-        # ---------------stage fetch issues ---------------
+        # ---------------stage create final JSON ---------------
         if "finalJSONfromRaw" in self.context and self.context["finalJSONfromRaw"]:
             startTime = time.time()
-            self.context["stage"] = "fetching issues"
+            self.context["stage"] = "create final JSON"
             self.workerSnapshot(None)
+
+            if 'dictRawIssues' not in locals():
+                # if this is a separate step - read raw JSON into record collection
+                with open(self.context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
+                    dictRawIssues = json.load(jsonIn)
+                msg = f"Read {len(dictRawIssues)} raw records from file {self.context['inputFileBaseName']}."
+                self.workerSnapshot(msg)
 
             recordCollection = self.parseAllIssues(self.context["inputFileName"], dictRawIssues, issueTemplate)
 
@@ -619,17 +644,25 @@ class IndexerWorkflow(WorkflowBase):
             self.workerSnapshot(msg)
 
         # ---------------stage bm25s preparation ---------------
-        if "prepareBM25sCorpus" in self.context and self.context["prepareBM25sCorpus"]:
+        if "prepareBM25corpus" in self.context and self.context["prepareBM25corpus"]:
 
             startTime = time.time()
             self.context["stage"] = "bm25s preparation"
             self.workerSnapshot(None)
 
-            self.bm25sAddReportToCorpus(corpus = corpus, issues = recordCollection, ClassTemplate = issueTemplate)
+            if 'recordCollection' not in locals():
+                # if this is a separate step - read final JSON into record collection
+                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
+                    jsonStr = json.load(jsonIn)
+                recordCollection = RecordCollection.model_validate(jsonStr)
+                msg = f"Read {recordCollection.objectCount()} records from file {self.context['inputFileBaseName']}."
+                self.workerSnapshot(msg)
+
+            corpus = self.bm25sAddReportToCorpus(corpus, recordCollection, issueTemplate)
 
             endTime = time.time()
 
-            msg = f"Created BM25 index in {self.context["bm25sIndexFolder"]}. {(endTime - startTime):9.4f} seconds"
+            msg = f"Added {recordCollection.objectCount()} records to BM25 corpus. {(endTime - startTime):9.4f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage bm25s completion ---------------
@@ -639,7 +672,7 @@ class IndexerWorkflow(WorkflowBase):
             self.context["stage"] = "bm25s completion"
             self.workerSnapshot(None)
 
-            folderName = self.context["bm25sIndexFolder"]
+            folderName = self.context["bm25IndexFolder"]
             self.bm25sProcessCorpus(corpus, folderName)
 
             endTime = time.time()
@@ -656,12 +689,11 @@ class IndexerWorkflow(WorkflowBase):
             self.workerSnapshot(None)
 
             if 'recordCollection' not in locals():
-                msg = f"Opening file {self.context["inputFileBaseName"]}."
-                self.workerSnapshot(msg)
+                # if this is a separate step - read final JSON into record collection
                 with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
                     jsonStr = json.load(jsonIn)
                 recordCollection = RecordCollection.model_validate(jsonStr)
-                msg = f"Read {recordCollection.objectCount()} records from file {self.context["inputFileBaseName"]}."
+                msg = f"Read {recordCollection.objectCount()} records from file {self.context['inputFileBaseName']}."
                 self.workerSnapshot(msg)
 
             accepted, rejected = self.vectorize(recordCollection, issueTemplate)
@@ -677,5 +709,5 @@ class IndexerWorkflow(WorkflowBase):
         self.context["stage"] = "completed"
 
         totalEnd = time.time()
-        msg = f"Processing completed. {self.context["llmrequests"]} requests. {self.context["llmrequesttokens"]} request tokens. {self.context["llmresponsetokens"]} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
+        msg = f"Processing completed. {self.context['llmrequests']} requests. {self.context['llmrequesttokens']} request tokens. {self.context['llmresponsetokens']} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
         self.workerSnapshot(msg)

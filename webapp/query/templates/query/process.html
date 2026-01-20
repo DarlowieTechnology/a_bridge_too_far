@@ -64,7 +64,7 @@
             }
 
             var anchorCost = document.getElementById('cost');
-            anchorCost.href = '../results?totalrequests=' + result["llmrequests"] + "&totalrequesttokens=" + result["llmrequesttokens"] + "&totalresponsetokens=" + result["llmresponsetokens"];
+            anchorCost.href = '../results?totalrequests=' + result["llmrequests"] + "&totalinputtokens=" + result["llminputtokens"] + "&totaloutputtokens=" + result["llmoutputtokens"];
             anchorCost.target = '_blank';
 
             const stages = ["error", "completed"]

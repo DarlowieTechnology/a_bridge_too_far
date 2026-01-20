@@ -135,8 +135,8 @@ def process(request):
     context["llmProvider"] = "Gemini"
     context['status'] = list()
     context["llmrequests"] = 0
-    context["llmrequesttokens"] = 0
-    context["llmresponsetokens"] = 0
+    context["llminputtokens"] = 0
+    context["llmoutputtokens"] = 0
 
     generatorWorkflow = GeneratorWorkflow(context, logger)
     msg = f"Starting generator"
@@ -166,7 +166,6 @@ def results(request):
 
     providers = [
         { "provider" : "anthropic", "model": "claude-3-5-haiku-latest"  },
-        { "provider" : "aws", "model": "nova-pro-v1" },
         { "provider" : "azure", "model": "gpt-4" },
         { "provider" : "deepseek", "model": "deepseek-chat" },
         { "provider" : "google", "model": "gemini-pro-1.5" },
@@ -178,13 +177,13 @@ def results(request):
 
     context = {}
     context["totalrequests"] = request.GET["totalrequests"]
-    context["totalrequesttokens"] = request.GET["totalrequesttokens"]
-    context["totalresponsetokens"] = request.GET["totalresponsetokens"]
+    context["totalinputtokens"] = request.GET["totalinputtokens"]
+    context["totaloutputtokens"] = request.GET["totaloutputtokens"]
 
     context["llminfo"] = []
     for providerInfo in providers:
         price_data = genai_prices.calc_price(
-            genai_prices.Usage(input_tokens=int(context["totalrequesttokens"]), output_tokens=int(context["totalresponsetokens"])),
+            genai_prices.Usage(input_tokens=int(context["totalinputtokens"]), output_tokens=int(context["totaloutputtokens"])),
             model_ref= providerInfo["model"],
             provider_id = providerInfo["provider"]
         )

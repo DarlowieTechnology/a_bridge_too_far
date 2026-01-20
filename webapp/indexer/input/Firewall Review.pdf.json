@@ -1,68 +1,69 @@
+
+"report": {recordCollection.report}
 {
-  "report" : "Firewall Review.pdf",
 "finding_dict": {
 "sr-104-001" : {
   "identifier": "sr-104-001",
   "title": "device software vulnerabilities",
   "risk": "high",
   "status": "open",
-  "description": "the firewall was running an outdated version of the fortios operating system software. this was identified as version 6.2.3, released in december 2019. at the time of writing, the latest stable and supported version in this branch was 6.2.8, released in april 2021. the installed version of the software contained an authentication flaw which could allow someone in possession of a valid set of user credentials to bypass the requirement for a second factor of authentication. in addition, there was an information disclosure vulnerability which could allow a remote attacker to recover information about the platform including version and model information. this issue was originally addressed in version 6.2.1 but was re-introduced in version 6.2.3. the software version from the device configuration was checked against the fortios release notes; this showed that it contained the vulnerabilities below: cve reference cvssv2 fixed in version cve-2018-13367 5.0 6.2.4, 6.4.0 cve-2020-12812 9.8 6.2.4, 6.4.0 it is extremely important that software is regularly maintained with patches and upgrades in order to help mitigate the risk of an attacker exploiting a known software vulnerability. in addition to security features and fixes, software updates will often include additional functionality, performance improvements and features. recommendation: the latest system software upgrades, updates or patches should be applied within a short time following their release by the vendor. additionally, it is suggested that the current patching policy should be reviewed to ensure that future updates are applied in a timely manner.1 in addition the length of time this software has remained outdated suggests that this software is outside the software patching process. the reason for this should be identified and addressed.",
-  "recommendation": "the latest system software upgrades, updates or patches should be applied within a short time following their release by the vendor. additionally, it is suggested that the current patching policy should be reviewed to ensure that future updates are applied in a timely manner.1 in addition the length of time this software has remained outdated suggests that this software is outside the software patching process. the reason for this should be identified and addressed.",
-  "affects": "device installed latest fortifw01 6.2.3 6.2.8, 6.4.5"
+  "description": "the firewall was running an outdated version of the fortios operating system software. this was identified as version 6.2.3, released in december 2019. at the time of writing, the latest stable and supported version in this branch was 6.2.8, released in april 2021. the installed version of the software contained an authentication flaw which could allow someone in possession of a valid set of user credentials to bypass the requirement for a second factor of authentication. in addition, there was an information disclosure vulnerability which could allow a remote attacker to recover information about the platform including version and model information. this issue was originally addressed in version 6.2.1 but was re-introduced in version 6.2.3. the software version from the device configuration was checked against the fortios release notes; this showed that it contained the vulnerabilities below: cve reference cvssv2 fixed in version cve-2018-13367 5.0 6.2.4, 6.4.0 cve-2020-12812 9.8 6.2.4, 6.4.0 it is extremely important that software is regularly maintained with patches and upgrades in order to help mitigate the risk of an attacker exploiting a known software vulnerability. in addition to security features and fixes, software updates will often include additional functionality, performance improvements and features.",
+  "recommendation": "the latest system software upgrades, updates or patches should be applied within a short time following their release by the vendor. additionally, it is suggested that the current patching policy should be reviewed to ensure that future updates are applied in a timely manner. 1 in addition the length of time this software has remained outdated suggests that this software is outside the software patching process. the reason for this should be identified and addressed.",
+  "affects": "device installed latest fortifw01 6.2.3 6.2.8, 6.4.5 1 fortios release notes https://docs.fortinet.com/document/fortigate/6.2.8/fortios-release-notes/760203/introduction-and-supported-models"
 },
 "sr-104-002" : {
   "identifier": "sr-104-002",
-  "title": "Widely scoped access controls",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "Rules were observed that could be considered overly permissive and allow potentially inappropriate traffic flows. A weak configuration could contribute to a malicious user or an attacker gaining unauthorised access to network services.",
-  "recommendation": "In general, network filtering rules should be as restrictive as possible while still maintaining business functionality. Rules should be configured to restrict access to network addresses and services from only those hosts that require it. Devices provided for a specific service should allow access only to that service and should not use the 'any' keyword. Rules should be modified where feasible, to restrict the traffic to specific hosts and services as required.",
-  "affects": "Device FortiFW01 version 3.0"
+  "title": "widely scoped access controls",
+  "risk": "medium",
+  "status": "open",
+  "description": "rules were observed that could be considered overly permissive and allow potentially inappropriate traffic flows. a weak configuration could contribute to a malicious user or an attacker gaining unauthorised access to network services. the primary purpose of a firewall is to be a security barrier, preventing unauthorised access to devices and services by filtering the network traffic. the network filtering can be configured to allow or deny access from specific network addresses to specific network addresses and specific services. best practice dictates that access to services should only be configured for those hosts that require it and that this should be restricted on a need-only basis to the required services. the potential risk from this issue is that an attacker could leverage these widely scoped rules to communicate with hosts or network subnets which they should not be able to. in the event of a compromise of any server it is important that the firewall restricts the accessibility an attacker has. full details of rules considered overly permissive are detailed in supplemental data - test / temporary rules on page 29.",
+  "recommendation": "in general, network filtering rules should be as restrictive as possible while still maintaining business functionality. rules should be configured to restrict access to network addresses and services from only those hosts that require it. devices provided for a specific service should allow access only to that service and should not use the 'any' keyword. rules should be modified where feasible, to restrict the traffic to specific hosts and services as required. the following best practice guidelines should be followed: u rules do not allow access from any source u rules do not allow access to any port from a source network address u rules do not allow access to any destination u rules do not allow access to any port on a destination network address u rules do not allow access to any destination service u rules do not allow access to a range of destination services however, it is worth noting that it may not be possible to achieve this in all circumstances, such as with a public web server where business requirements imply that any network address should be permitted to access the service.",
+  "affects": "device fortifw01"
 },
 "sr-104-003" : {
   "identifier": "sr-104-003",
-  "title": "Legacy Clear Text Protocol rule permits access via Telnet",
-  "risk": "Medium",
-  "status": "Open",
-  "description": "A single firewall rule permitted access via the legacy clear text protocol, Telnet. Information that travels along a telnet connection is not encrypted, as such data including credentials are susceptible to interception.",
-  "recommendation": "Where possible, the use of clear text protocols should be avoided. The network services associated with the identified rule should be decommissioned and replaced with cryptographically secure alternatives. Once completed, the ruleset should be modified to reflect the changes.",
-  "affects": "Device FortiFW01"
+  "title": "rule permits a legacy clear text protocol",
+  "risk": "medium",
+  "status": "open",
+  "description": "a single firewall rule permitted access via the legacy clear text protocol, telnet. information that travels along a telnet connection is not encrypted, as such data including credentials are susceptible to interception. due to the lack of encryption provided by the telnet protocol, an attacker who is able to monitor a telnet session would be able to view all of the authentication credentials and data passed in the session. the attacker could then attempt to gain access to the device using the authentication credentials extracted from the associated rule from the production vdom is presented below: rule action source destination service 139 allow psz_rds_10.107.143.0/26 switch01.uk.acme.com_10.171.186.81 switch02.uk.acme.com_10.171.186.82 telnet figure 1: securezone-live-inf to zone1-live",
+  "recommendation": "where possible, the use of clear text protocols should be avoided. the network services associated with the identified rule should be decommissioned and replaced with cryptographically secure alternatives. once completed, the ruleset should be modified to reflect the changes.",
+  "affects": "device fortifw01"
 },
 "sr-104-004" : {
   "identifier": "sr-104-004",
-  "title": " test / temporary rules present",
+  "title": "test / temporary rules present",
   "risk": "low",
   "status": "open",
-  "description": "a large number of rules were configured with a name that indicated they were either temporary or used for testing purposes. whilst these temporary/test rules present no direct threat to security, they should be reviewed as a matter of ",
+  "description": "a large number of rules were configured with a name that indicated they were either temporary or used for testing purposes. whilst these temporary/test rules present no direct threat to security, they should be reviewed as a matter of 'good housekeeping' to establish whether they are required. any which are required should be made permanent. it is understood that a significant proportion of these rules are present to provide connectivity during the migration, of servers and their associated services from the legacy network. particular attention should be paid to the removal of these rules following completion of this work, as several rules provide access to privileged hosts and services. full details of rules which appeared to be temporary or test related are detailed in the supplemental data - test / temporary rules on page 29.",
   "recommendation": "the rules should be reviewed and removed if no longer required.",
   "affects": "device fortifw01"
 },
 "sr-104-005" : {
   "identifier": "sr-104-005",
-  "title": "Rules allow any ICMP message type risk rating low status open",
+  "title": "rules allow any icmp message type",
   "risk": "low",
   "status": "open",
-  "description": "rules were configured that allowed any icmp message type between network segments. icmp can be used to identify connected devices, and may be abused to exfiltrate data, where access controls ordinarily would restrict such action. icmp can be useful for network administrators who wish to determine if a network device is reachable or responding, but it can also be abused by an attacker to enumerate potential targets and learn more about them. icmp can also be used to tunnel traffic out of a network using a tool such as icmpsh. using this tool it may be possible for an attacker to exfiltrate data to an external host. rules which permitted all icmp types are detailed below: root vdom rule action source destination service 17 allow zone1_admins_group tsz_rds_mgt_10.106.214.0/27 usz_rds_mgt_10.106.74.0/27 psz_rds_mgt_10.106.183.0/26 https rdp all_icmp 36 allow solarwinds_10.193.145.80 uk_site1_flbd01 uk_site1_flbd02 uk_site1_flbd_vip all_icmp figure 2: zone1-mgmt to securezone-mgmt-tool rule action source destination service 129 allow solarwinds_10.193.145.80 mgmt_sz_net_any_10.106.193.64/26 snmp all_icmp figure 3: zone1-mgmt to securezone-mgm rule action source destination service 35 allow uk_site1_flbd_vip uk_site1_flbd01 uk_site1_flbd02 solarwinds_10.193.145.80 all_icmp figure 4: securezone-mgmt-tools to zone1-mgm test vdom rule action source destination service 54 allow zone1154_any_10.116.194.0/24 zone1155_any_10.116.174.0/24 admin1_10.145.37.205 tsz_csv_biz_10.32.242.192/26 rdp all_icmp figure 5: zone1-test to securezone-test-in",
-  "recommendation": "rules should be configured to only allow icmp messages between specific hosts or subnets, and in those instances specific message types should be specified.",
-  "affects": "device fortifw01"
+  "description": "rules were configured that allowed any icmp message type between network segments. icmp can be used to identify connected devices, and may be abused to exfiltrate data, where access controls ordinarily would restrict such action. icmp can be useful for network administrators who wish to determine if a network device is reachable or responding, but it can also be abused by an attacker to enumerate potential targets and learn more about them. icmp can also be used to tunnel traffic out of a network using a tool such as icmpsh. using this tool it may be possible for an attacker to exfiltrate data to an external host. rules which permitted all icmp types are detailed below: \\n\\nroot vdom \\nrule action source destination service \\n17 allow zone1_admins_group tsz_rds_mgt_10.106.214.0/27 usz_rds_mgt_10.106.74.0/27 psz_rds_mgt_10.106.183.0/26 https rdp all_icmp \\n36 allow solarwinds_10.193.145.80 uk_site1_flbd01 uk_site1_flbd02 uk_site1_flbd_vip all_icmp \\nfigure 2: zone1-mgmt to securezone-mgmt-tool \\nrule action source destination service \\n129 allow solarwinds_10.193.145.80 mgmt_sz_net_any_10.106.193.64/26 snmp all_icmp \\nfigure 3: zone1-mgmt to securezone-mgm \\nrule action source destination service \\n35 allow uk_site1_flbd_vip uk_site1_flbd01 uk_site1_flbd02 solarwinds_10.193.145.80 all_icmp \\nfigure 4: securezone-mgmt-tools to zone1-mgm \\n\\ntest vdom \\nrule action source destination service \\n54 allow zone1154_any_10.116.194.0/24 zone1155_any_10.116.174.0/24 admin1_10.145.37.205 tsz_csv_biz_10.32.242.192/26 rdp all_icmp \\nfigure 5: zone1-test to securezone-test-in",
+  "recommendation": "rules should be configured to only allow icmp messages between specific hosts or subnets, and in those instances specific message types should be specified. 2, 3",
+  "affects": "device fortifw01 2 common exploits-icmp shell fun https://www.commonexploits.com/?p=896 3 icmp tunnelling https://hackaday.com/2009/08/21/tunneling-ip-traffic-over-icmp/"
 },
 "sr-104-006" : {
   "identifier": "sr-104-006",
   "title": "proxy address resolution protocol (arp) was enabled",
   "risk": "low",
   "status": "open",
-  "description": " the proxy arp feature, used to support arp translation of ip addresses into mac addresses across network segments and vlans, was found to be supported. permitting arp packets to travel beyond the originating systems network segment may undermine network segmentation. proxy arp is a legacy setting designed for hosts that do not have a default gateway configured. there is usually no good reason to have proxy arp enabled in modern networks as it can allow attacks such as arp spoofing.",
-  "recommendation": "proxy arp functionality should be disabled, unless there is a significant business need. this should be done for each interface using the following command: 'set arpforward disable'",
+  "description": "the proxy arp feature, used to support arp translation of ip addresses into mac addresses across network segments and vlans, was found to be supported. permitting arp packets to travel beyond the originating systems network segment may undermine network segmentation. proxy arp is a legacy setting designed for hosts that do not have a default gateway configured. there is usually no good reason to have proxy arp enabled in modern networks as it can allow attacks such as arp spoofing.",
+  "recommendation": "proxy arp functionality should be disabled, unless there is a significant business need. this should be done for each interface using the following command: set arpforward disable",
   "affects": "device fortifw01"
 },
 "sr-104-007" : {
   "identifier": "sr-104-007",
-  "title": "ICMP Redirect Messages Were Enabled",
-  "risk": "Low",
-  "status": "Open",
-  "description": "Interfaces were configured to accept ICMP redirects. An attacker in a position to generate arbitrary ICMP packets may be able to manipulate the routing table to launch a man-in-the-middle attack.",
-  "recommendation": "ICMP redirect message sending can be disabled on network interfaces with the following command: 'set icmp-redirect disable'",
-  "affects": "Device FortiFW01"
+  "title": "icmp redirect messages were enabled",
+  "risk": "low",
+  "status": "open",
+  "description": "interfaces were configured to accept icmp redirects. an attacker in a position to generate arbitrary icmp packets may be able to manipulate the routing table to launch a man-in-the-middle attack. icmp redirect messages could be sent to the router in order to indicate a specific route that the sending host would like the network traffic to take. on a router that accepts icmp redirect message the network traffic will be forwarded using the specified route. furthermore, some routers will cache the new routing information for use with future network packets.",
+  "recommendation": "icmp redirect message sending can be disabled on network interfaces with the following command: set icmp-redirect disable",
+  "affects": "device fortifw01"
 },
 "sr-104-008" : {
   "identifier": "sr-104-008",
@@ -88,7 +89,7 @@
   "risk": "low",
   "status": "open",
   "description": "a login banner warning the user about any unauthorised access or referring to the computer misuse act was not in use. it is recommended that a pre-logon banner is used to inform users of their rights prior to accessing a device. furthermore if legal proceedings were executed against an attacker it would be easier to prove intent on behalf of the attacker, if they were first warned against unauthorised access.",
-  "recommendation": "a disclaimer should be configured, thereby ensuring users are aware of their legal and procedural responsibilities. general guidelines suggest that warning messages include at least the name of the organisation that owns the system, the fact that the system is subject to monitoring and that the use of the system implies consent to such monitoring. the following command will enable the pre-login banner: config system global set pre-login-banner enable end with the banner being configured as follows: config system replacemsg admin  \"pre_admin-disclaimer-text\" <warning> end",
+  "recommendation": "a disclaimer should be configured, thereby ensuring users are aware of their legal and procedural responsibilities. general guidelines suggest that warning messages include at least the name of the organisation that owns the system, the fact that the system is subject to monitoring and that the use of the system implies consent to such monitoring. the following command will enable the pre-login banner: config system global set pre-login-banner enable end with the banner being configured as follows: config system replacemsg admin 'pre_admin-disclaimer-text' <warning> end",
   "affects": "device fortifw01"
 },
 "sr-104-011" : {
@@ -102,7 +103,7 @@
 },
 "sr-104-012" : {
   "identifier": "sr-104-012",
-  "title": "duplicate / overlapping rules risk rating low status open",
+  "title": "duplicate / overlapping rules",
   "risk": "low",
   "status": "open",
   "description": "rules that duplicated or overlapped one another were identified. although not a direct threat to security, these rules could lead to confusion when administering the firewall. the clarity of a ruleset is important as confusion could lead to a configuration where access to services is overly permissive. the following rules were identified: vdom uat rule action source destination service 8 allow uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 usz_csv_exch_10.83.193.128/26 ad_port_tcp/udp 9 allow uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 usz_csv_exch_10.83.193.128/26 ad_port_tcp/udp figure 6: securezone-uat-inf to securezone-uat-in rule action source destination service 41 allow usz_rds_mgt_10.106.74.0/27 uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 ad_port_tcp/udp 21 allow usz_rds_mgt_10.106.74.0/27 uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 ad_port_tcp/udp figure 7: uat-mgt to securezone-uat-in rule action source destination service 42 allow uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 usz_rds_mgt_10.106.74.0/27 ad_port_tcp/udp 22 allow uatuk_site1_fdcs01_10.83.193.80 uatuk_site1_fdcs02_10.83.193.81 usz_rds_mgt_10.106.74.0/27 ad_port_tcp/udp figure 8: securezone-uat-inf to uat-mg in addition, a number of rules within the root vdom were seen to utilise two service groups which were nearly identical in their composure: ad_client_port_tcp/udp & ad_port_tcp/udp. the rules noted to be utilising these groups were numbers 40, 89, 111, 112, 41, 33, 35, 46, 48, 76.",
@@ -114,8 +115,8 @@
   "title": "disabled rules present",
   "risk": "informational",
   "status": "open",
-  "description": "a number of inactive rules were identified. although not a direct threat to security, disabled rules can make network administration more difficult.",
-  "recommendation": "delete all disabled rules that are no longer required as a matter of ",
+  "description": "a number of inactive rules were identified. although not a direct threat to security, disabled rules can make network administration more difficult. the ability to disable rules is useful for administrators who simply want to disable access to a service temporarily, for diagnostic purposes or to disable a rule which is planned to be re-activated again in the immediate future. despite this, disabled rules should not remain indefinitely and can make the policy configuration unclear to network administrators. this could lead to rules being configured that duplicate disabled rules and could potentially lead to mistakes with the policy configuration. rules which were identified as being inactive are detailed below: root vdom rule action source destination service 190 allow uk_ctr_rds01_10.193.145.230 psz_rds_mgt_10.106.183.0/26 tsz_rds_mgt_10.106.214.0/27 usz_rds_mgt_10.106.74.0/27 dce-rpc tcp/udp_rpc_49152-50151 figure 9: zone1-mgmt to securezone-mgmt-tool rule action source destination service 189 allow psz_rds_mgt_10.106.183.0/26 tsz_rds_mgt_10.106.214.0/27 usz_rds_mgt_10.106.74.0/27 uk_ctr_rds01_10.193.145.230 dce-rpc tcp/udp_rpc_49152-50151 tcp_5985_winrm figure 10: securezone-mgmt-tools to zone1-mgm production vdom rule action source destination service 84 allow psz_rds_10.107.143.0/26 uk_site1_vl1_linuxsvr_10.145.105.0/24 uk_site1_vl1_othsvr_10.145.200.0/24 https smb ssh tcp_8080 tcp_rmi_50500 figure 11: securezone-live-inf to zone1-liv",
+  "recommendation": "delete all disabled rules that are no longer required as a matter of 'good housekeeping'.",
   "affects": "device fortifw01"
 },
 "sr-104-014" : {
@@ -123,7 +124,7 @@
   "title": "rules without comment text or annotation",
   "risk": "informational",
   "status": "open",
-  "description": "the majority of rules did not have a comment or annotation associated with them. although not a threat to security, without comment text, the purpose of rules can be unclear making the administration of policies more difficult.",
+  "description": "the majority of rules did not have a comment or annotation associated with them. although not a threat to security, without comment text, the purpose of rules can be unclear making the administration of policies more difficult. this can lead to a situation where rules that are no longer required remain configured, giving an attacker additional access. it is common for rules to initially be configured to allow access to a limited number of services and hosts and gradually grow over time as the business evolves and access to additional services or hosts are required. when access to a service is no longer required that related rule should be modified or removed. without adequate tracking or change control, it may not be clear as to which rule applies to which service so the rule is not modified. in order to aid the clarity of rules, comment text can be included. this comment text is helpful in indicating why the rule exists.",
   "recommendation": "all rules should include a comment indicating its purpose.",
   "affects": "device fortifw01"
 }}

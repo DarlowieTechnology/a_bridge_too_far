@@ -116,7 +116,7 @@ def testRun(context : dict) :
         return
 
     end = time.time()
-    msg = f"Opened vector collections ACTIVITY with {chromaActivity.count()} documents, SCENARIO with {chromaScenario.count()} documents. {(end-start):9.4f} seconds"
+    msg = f"Opened collections ACTIVITY with {chromaActivity.count()} documents, SCENARIO with {chromaScenario.count()} documents. Time: {(end-start):9.2f} seconds"
     generatorWorkflow.workerSnapshot(msg)
 
     #----------------stage summary
@@ -134,15 +134,16 @@ def testRun(context : dict) :
     context['execsummary'] = execSummary.description
     if usageStats:
         context["llmrequests"] = usageStats.requests
-        context["llmrequesttokens"] += usageStats.input_tokens
-        context["llmresponsetokens"] += usageStats.output_tokens
+        context["llmrinputtokens"] += usageStats.input_tokens
+        context["llmoutputtokens"] += usageStats.output_tokens
 
     end = time.time()
 
     if usageStats:
-        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+        requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+        msg = f"Extracted executive summary. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time:{(end-start):9.2f} seconds."
     else:
-        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds."
+        msg = f"Extracted executive summary. Time: {(end-start):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
 
     #----------------stage extract
@@ -167,15 +168,16 @@ def testRun(context : dict) :
     context['extracted'] = oneResultList.results_list
     if usageStats:
         context["llmrequests"] += usageStats.requests
-        context["llmrequesttokens"] += usageStats.input_tokens
-        context["llmresponsetokens"] += usageStats.output_tokens
+        context["llmrinputtokens"] += usageStats.input_tokens
+        context["llmoutputtokens"] += usageStats.output_tokens
 
     end = time.time()
 
     if usageStats:
-        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+        requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+        msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
     else:
-        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds."
+        msg = f"Extracted {len(oneResultList.results_list)} activities. Time: {(end-start):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
 
     #--------------stage mapping
@@ -192,7 +194,7 @@ def testRun(context : dict) :
 
     end = time.time()
 
-    msg = f"Mapped {len(oneResultList.results_list)} activities to vector database. {(end-start):9.4f} seconds"
+    msg = f"Mapped {len(oneResultList.results_list)} activities to database. Time: {(end-start):9.2f} seconds"
     generatorWorkflow.workerSnapshot(msg)
 
     #----------------stage projects
@@ -218,17 +220,18 @@ def testRun(context : dict) :
 
             if usageStats:
                 context["llmrequests"] += usageStats.requests
-                context["llmrequesttokens"] += usageStats.input_tokens
-                context["llmresponsetokens"] += usageStats.output_tokens
+                context["llmrinputtokens"] += usageStats.input_tokens
+                context["llmoutputtokens"] += usageStats.output_tokens
 
             end = time.time()
 
-            msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+            msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens. {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
             generatorWorkflow.workerSnapshot(msg)
 
     endAllProjects = time.time()
 
-    msg = f"Created {len(context['projects'])} projects. {(endAllProjects-startAllProjects):9.4f} seconds"
+    msg = f"Created {len(context['projects'])} projects. {(endAllProjects-startAllProjects):9.2f} seconds"
     generatorWorkflow.workerSnapshot(msg)
 
     with open(context["adJSONName"], "w") as jsonOut:
@@ -243,7 +246,7 @@ def testRun(context : dict) :
     generatorWorkflow.makeWordDoc(allDescriptions)
 
     end = time.time()
-    msg = f"Created Word document {context['wordFileName']}. {(end-start):9.4f} seconds"
+    msg = f"Created Word document {context['wordFileName']}. {(end-start):9.2f} seconds"
     generatorWorkflow.workerSnapshot(msg)
 
     #--------------stage completed
@@ -251,10 +254,9 @@ def testRun(context : dict) :
     totalEnd = time.time()
 
     context["stage"] = "completed"
-    msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. {context["llmrequests"]} LLM requests. {context["llmrequesttokens"]} request tokens. {context["llmresponsetokens"]} response tokens."
+    requestLabel = 'requests' if context["llmrequests"] > 1 else 'request'
+    msg = f"Processing completed. Usage: {context["llmrequests"]} {requestLabel}, {context["llminputtokens"]} input tokens, {context["llmroutputtokens"]} output tokens. Total time {(totalEnd-totalStart):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
-
-
 
 
 def main():
@@ -268,8 +270,8 @@ def main():
     context["llmProvider"] = "Gemini"
     context['status'] = list()
     context["llmrequests"] = 0
-    context["llmrequesttokens"] = 0
-    context["llmresponsetokens"] = 0
+    context["llminputtokens"] = 0
+    context["llmoutputtokens"] = 0
 
 
     #testRun(context=context)

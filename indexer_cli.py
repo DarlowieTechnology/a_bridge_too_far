@@ -181,8 +181,8 @@ def main():
     context["llmBaseUrl"] = "http://localhost:11434/v1"
 
     context["llmrequests"] = 0
-    context["llmrequesttokens"] = 0
-    context["llmresponsetokens"] = 0
+    context["llminputtokens"] = 0
+    context["llmoutputtokens"] = 0
     context['status'] = []
     context["issuePattern"] = None
     context["issueTemplate"] = None

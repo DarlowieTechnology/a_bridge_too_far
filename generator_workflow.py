@@ -58,29 +58,29 @@ class GeneratorWorkflow(WorkflowBase):
         start = time.time()
         totalStart = start
 
-        self._context["stage"] = "configure"
+        self.context["stage"] = "configure"
         self.workerSnapshot(None)
 
         # read ad text if CLI, else it is already in context["adtext"]
-        if "adtext" in self._context:
+        if "adtext" in self.context:
             jobAdRecord = OneRecord(
                 id = "", 
-                name=self._context['adFileName'], 
-                description=self._context["adtext"]
+                name=self.context['adFileName'], 
+                description=self.context["adtext"]
             )
             msg = f"Got job descriptions from HTML form"
             self.workerSnapshot(msg)
         else:
-            boolResult, contentJDOrError = OpenFile.open(filePath = self._context['adFileName'], readContent = True)
+            boolResult, contentJDOrError = OpenFile.open(filePath = self.context['adFileName'], readContent = True)
             if not boolResult:
                 self.workerError(contentJDOrError)
                 return
             jobAdRecord = OneRecord(
                 id = "", 
-                name=self._context['adFileName'], 
+                name=self.context['adFileName'], 
                 description=contentJDOrError
             )
-            msg = f"Read job descriptions from file {self._context['adFileName']}"
+            msg = f"Read job descriptions from file {self.context['adFileName']}"
             self.workerSnapshot(msg)
 
         try:
@@ -123,40 +123,41 @@ class GeneratorWorkflow(WorkflowBase):
             return
 
         end = time.time()
-        msg = f"Opened vector collections ACTIVITY with {chromaActivity.count()} documents, SCENARIO with {chromaScenario.count()} documents. {(end-start):9.4f} seconds"
+        msg = f"Opened vector collections ACTIVITY with {chromaActivity.count()} documents, SCENARIO with {chromaScenario.count()} documents. {(end-start):9.2f} seconds"
         self.workerSnapshot(msg)
 
         #----------------stage summary
 
         start = time.time()
 
-        self._context["stage"] = "summary"
+        self.context["stage"] = "summary"
         self.workerSnapshot(None)
 
         execSummary, usageStats = self.extractExecSection(jobAdRecord)
         if not execSummary:
             return
 
-        self._context['jobtitle'] = execSummary.title
-        self._context['execsummary'] = execSummary.description
+        self.context['jobtitle'] = execSummary.title
+        self.context['execsummary'] = execSummary.description
         if usageStats:
             self.context["llmrequests"] += usageStats.requests
-            self.context["llmrequesttokens"] += usageStats.input_tokens
-            self.context["llmresponsetokens"] += usageStats.output_tokens
+            self.context["llminputtokens"] += usageStats.input_tokens
+            self.context["llmoutputtokens"] += usageStats.output_tokens
 
         end = time.time()
 
         if usageStats:
-            msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+            msg = f"Extracted executive summary. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
         else:
-            msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds."
+            msg = f"Extracted executive summary. Time: {(end-start):9.2f} seconds."
         self.workerSnapshot(msg)
 
         #----------------stage extract
 
         start = time.time()
 
-        self._context["stage"] = "extract"
+        self.context["stage"] = "extract"
         self.workerSnapshot(None)
 
         allDescriptions = AllDesc(
@@ -171,45 +172,46 @@ class GeneratorWorkflow(WorkflowBase):
             self.workerError(msg)
             return
 
-        self._context['extracted'] = oneResultList.results_list
+        self.context['extracted'] = oneResultList.results_list
         if usageStats:
             self.context["llmrequests"] += usageStats.requests
-            self.context["llmrequesttokens"] += usageStats.input_tokens
-            self.context["llmresponsetokens"] += usageStats.output_tokens
+            self.context["llminputtokens"] += usageStats.input_tokens
+            self.context["llmoutputtokens"] += usageStats.output_tokens
 
         end = time.time()
 
         if usageStats:
-            msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+            msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
         else:
-            msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds."
+            msg = f"Extracted {len(oneResultList.results_list)} activities. Time: {(end-start):9.2f} seconds."
         self.workerSnapshot(msg)
 
         #--------------stage mapping
 
         start = time.time()
 
-        self._context["stage"] = "mapping"
+        self.context["stage"] = "mapping"
         self.workerSnapshot(None)
 
         # ChromaDB calls do not account for LLM usage
         oneResultList = self.mapToActivity(oneResultList, chromaActivity)
 
-        self._context['mapped'] = oneResultList.results_list
+        self.context['mapped'] = oneResultList.results_list
 
         end = time.time()
 
-        msg = f"Mapped {len(oneResultList.results_list)} activities to vector database. {(end-start):9.4f} seconds"
+        msg = f"Mapped {len(oneResultList.results_list)} activities to vector database. {(end-start):9.2f} seconds"
         self.workerSnapshot(msg)
 
         #----------------stage projects
 
         startAllProjects = time.time()
 
-        self._context["stage"] = "projects"
+        self.context["stage"] = "projects"
         self.workerSnapshot(None)
 
-        self._context['projects'] = []
+        self.context['projects'] = []
         prjCount = 0
         for chromaQuery in oneResultList.results_list:
 
@@ -221,21 +223,21 @@ class GeneratorWorkflow(WorkflowBase):
             if oneDesc:
                 prjCount += 1
                 allDescriptions.project_list.append(oneDesc)
-                self._context['projects'].append(oneDesc.description)
+                self.context['projects'].append(oneDesc.description)
 
                 if usageStats:
                     self.context["llmrequests"] += usageStats.requests
-                    self.context["llmrequesttokens"] += usageStats.input_tokens
-                    self.context["llmresponsetokens"] += usageStats.output_tokens
+                    self.context["llminputtokens"] += usageStats.input_tokens
+                    self.context["llmoutputtokens"] += usageStats.output_tokens
 
                 end = time.time()
-
-                msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
+                requestLabel = 'requests' if usageStats.requests > 1 else 'request'
+                msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
                 self.workerSnapshot(msg)
 
         endAllProjects = time.time()
 
-        msg = f"Created {len(self._context['projects'])} projects. {(endAllProjects-startAllProjects):9.4f} seconds"
+        msg = f"Created {len(self.context['projects'])} projects. {(endAllProjects-startAllProjects):9.2f} seconds"
         self.workerSnapshot(msg)
 
 
@@ -243,12 +245,13 @@ class GeneratorWorkflow(WorkflowBase):
 
         totalEnd = time.time()
 
-        self._context["stage"] = "completed"
-        msg = f"Processing completed. Total time {(totalEnd-totalStart):9.4f} seconds. {self._context["llmrequests"]} LLM requests. {self._context["llmrequesttokens"]} request tokens. {self._context["llmresponsetokens"]} response tokens."
+        self.context["stage"] = "completed"
+        requestLabel = 'requests' if self.context["llmrequests"] > 1 else 'request'
+        msg = f"Processing completed. Usage: {self.context["llmrequests"]} {requestLabel}. {self.context["llminputtokens"]} input tokens. {self.context["llmoutputtokens"]} output tokens. Total time {(totalEnd-totalStart):9.2f} seconds."
         self.workerSnapshot(msg)
 
 
-    def extractExecSectionOllama(self, jobInfo : OneRecord)  -> tuple[OneDesc, Usage] :
+    def extractExecSectionOllama(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
         """
         Extract summary from job add text
         
@@ -360,9 +363,9 @@ class GeneratorWorkflow(WorkflowBase):
 
 
     def extractExecSection(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
-        if self._context["llmProvider"] == "Ollama":
+        if self.context["llmProvider"] == "Ollama":
             oneDesc, usageStats = self.extractExecSectionOllama(jobInfo)
-        if self._context["llmProvider"] == "Gemini":
+        if self.context["llmProvider"] == "Gemini":
             oneDesc, usageStats = self.extractExecSectionGemini(jobInfo)
         return oneDesc, usageStats
 
@@ -523,9 +526,9 @@ class GeneratorWorkflow(WorkflowBase):
         Returns:
             OneResultList and Usage or None
         """
-        if self._context["llmProvider"] == "Ollama":
+        if self.context["llmProvider"] == "Ollama":
             oneResultList, usageStats = self.extractInfoFromJobAdOllama(jobInfo)
-        if self._context["llmProvider"] == "Gemini":
+        if self.context["llmProvider"] == "Gemini":
             oneResultList, usageStats = self.extractInfoFromJobAdGemini(jobInfo)
         return oneResultList, usageStats
 
@@ -742,7 +745,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneDesc, usage
 
 
-    def makeProject(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, Usage] :
+    def makeProject(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, RunUsage] :
         """
         Make a project from information in scenario table
         
@@ -753,9 +756,9 @@ class GeneratorWorkflow(WorkflowBase):
         Returns:
             OneDesc and Usage or None
         """
-        if self._context["llmProvider"] == "Ollama":
+        if self.context["llmProvider"] == "Ollama":
             oneResultList, usageStats = self.makeProjectOllama(chromaQuery, chromaScenario)
-        if self._context["llmProvider"] == "Gemini":
+        if self.context["llmProvider"] == "Gemini":
             # fit Rate Per Minute quota for free account
             time.sleep(10)
             oneResultList, usageStats = self.makeProjectGemini(chromaQuery, chromaScenario)
@@ -841,5 +844,5 @@ class GeneratorWorkflow(WorkflowBase):
                 idxGlobalJob += 1
 
         # Save the document
-        doc.save(self._context['wordFileName'])
+        doc.save(self.context['wordFileName'])
 

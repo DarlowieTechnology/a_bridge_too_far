@@ -246,12 +246,12 @@ class IndexerWorkflow(WorkflowBase):
             endOneIssue = time.time()
             if usageStats:
                 requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-                msg = f"Issue: {key}. LLM usage: {usageStats.requests} {requestLabel}. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"Record: <b>{key}</b>. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(endOneIssue - startOneIssue):9.2f} seconds."
                 self.context["llmrequests"] += usageStats.requests
-                self.context["llmrequesttokens"] += usageStats.input_tokens
-                self.context["llmresponsetokens"] += usageStats.output_tokens
+                self.context["llminputtokens"] += usageStats.input_tokens
+                self.context["llmoutputtokens"] += usageStats.output_tokens
             else:
-                msg = f"Issue: {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"Record: <b>{key}</b>. {(endOneIssue - startOneIssue):9.2f} seconds."
             self.workerSnapshot(msg)
 
         return recordCollection
@@ -510,7 +510,7 @@ class IndexerWorkflow(WorkflowBase):
 
             self.context["stage"] = "completed"
             totalEnd = time.time()
-            msg = f"Processing completed. Total time {(totalEnd - totalStart):9.4f} seconds."
+            msg = f"Processing completed. Total time {(totalEnd - totalStart):9.2f} seconds."
             self.workerSnapshot(msg)
             return
 
@@ -527,7 +527,7 @@ class IndexerWorkflow(WorkflowBase):
             endTime = time.time()
 
             inputFileBaseName = str(Path(self.context['inputFileName']).name)
-            msg = f"Read input document {self.context['inputFileBaseName']}. Time: {(endTime - startTime):9.4f} seconds"
+            msg = f"Read input document {self.context['inputFileBaseName']}. Time: {(endTime - startTime):9.2f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage preprocess raw text ---------------
@@ -550,7 +550,7 @@ class IndexerWorkflow(WorkflowBase):
             endTime = time.time()
 
             rawTextFromPDFBaseName = str(Path(self.context['rawtextfromPDF']).name)
-            msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.4f} seconds"
+            msg = f"Preprocessed raw text {rawTextFromPDFBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.2f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage create final JSON ---------------
@@ -576,7 +576,7 @@ class IndexerWorkflow(WorkflowBase):
             endTime = time.time()
 
             finalJSONBaseName = str(Path(self.context['finalJSON']).name)
-            msg = f"Fetched {recordCollection.objectCount()} Wrote final JSON {finalJSONBaseName}. {(endTime - startTime):9.4f} seconds"
+            msg = f"Found {recordCollection.objectCount()} records. Wrote final JSON: <b>{finalJSONBaseName}</b>. {(endTime - startTime):9.2f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage bm25s preparation ---------------
@@ -598,7 +598,7 @@ class IndexerWorkflow(WorkflowBase):
 
             endTime = time.time()
 
-            msg = f"Added {recordCollection.objectCount()} records to BM25 corpus. {(endTime - startTime):9.4f} seconds"
+            msg = f"Added {recordCollection.objectCount()} records to BM25 corpus. {(endTime - startTime):9.2f} seconds"
             self.workerSnapshot(msg)
 
         # ---------------stage bm25s completion ---------------
@@ -613,7 +613,7 @@ class IndexerWorkflow(WorkflowBase):
 
             endTime = time.time()
 
-            msg = f"Created BM25 database in {folderName}. {(endTime - startTime):9.4f} seconds"
+            msg = f"Created BM25 database in {folderName}. {(endTime - startTime):9.2f} seconds"
             self.workerSnapshot(msg)
 
 
@@ -645,5 +645,6 @@ class IndexerWorkflow(WorkflowBase):
         self.context["stage"] = "completed"
 
         totalEnd = time.time()
-        msg = f"Processing completed. {self.context['llmrequests']} requests. {self.context['llmrequesttokens']} request tokens. {self.context['llmresponsetokens']} response tokens. Total time {(totalEnd - totalStart):9.4f} seconds."
+        requestLabel = 'requests' if self.context["llmrequests"] > 1 else 'request'        
+        msg = f"Processing completed. Usage: {self.context['llmrequests']} {requestLabel}, {self.context['llminputtokens']} input tokens, {self.context['llmoutputtokens']} output tokens. Total time {(totalEnd - totalStart):9.2f} seconds."
         self.workerSnapshot(msg)

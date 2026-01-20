@@ -179,8 +179,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryHyDE"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().input_tokens
-                self.context["llmresponsetokens"] += result.usage().output_tokens
+                self.context["llminputtokens"] += result.usage().input_tokens
+                self.context["llmoutputtokens"] += result.usage().output_tokens
             return self.context["queryHyDE"]
         except Exception as e:
             msg = f"LLM exception on HyDE request: {e}"
@@ -208,8 +208,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryMultiple"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().input_tokens
-                self.context["llmresponsetokens"] += result.usage().output_tokens
+                self.context["llminputtokens"] += result.usage().input_tokens
+                self.context["llmoutputtokens"] += result.usage().output_tokens
             return self.context["queryMultiple"]
         except Exception as e:
             msg = f"LLM exception on multi query request: {e}"
@@ -241,8 +241,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryRewrite"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().input_tokens
-                self.context["llmresponsetokens"] += result.usage().output_tokens
+                self.context["llminputtokens"] += result.usage().input_tokens
+                self.context["llmoutputtokens"] += result.usage().output_tokens
             return self.context["queryRewrite"]
         except Exception as e:
             msg = f"LLM exception on rewrite query request: {e}"
@@ -268,8 +268,8 @@ class QueryWorkflow(WorkflowBase):
             self.context['querybm25sprep'] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().input_tokens
-                self.context["llmresponsetokens"] += result.usage().output_tokens
+                self.context["llminputtokens"] += result.usage().input_tokens
+                self.context["llmoutputtokens"] += result.usage().output_tokens
             return self.context['querybm25sprep']
         except Exception as e:
             msg = f"LLM exception on prepBM25S query request: {e}"

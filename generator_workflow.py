@@ -1,8 +1,6 @@
 #
 # generator workflow class used by Django app and command line
 #
-import sys
-import logging
 from logging import Logger
 import json
 import time
@@ -11,9 +9,11 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import pydantic_ai
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.usage import Usage
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.usage import RunUsage
+
+
 
 import chromadb
 from chromadb import Collection
@@ -140,14 +140,14 @@ class GeneratorWorkflow(WorkflowBase):
         self._context['jobtitle'] = execSummary.title
         self._context['execsummary'] = execSummary.description
         if usageStats:
-            self._context["llmrequests"] = usageStats.requests
-            self._context["llmrequesttokens"] = usageStats.request_tokens
-            self._context["llmresponsetokens"] = usageStats.response_tokens
+            self.context["llmrequests"] += usageStats.requests
+            self.context["llmrequesttokens"] += usageStats.input_tokens
+            self.context["llmresponsetokens"] += usageStats.output_tokens
 
         end = time.time()
 
         if usageStats:
-            msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+            msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
         else:
             msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds."
         self.workerSnapshot(msg)
@@ -173,14 +173,14 @@ class GeneratorWorkflow(WorkflowBase):
 
         self._context['extracted'] = oneResultList.results_list
         if usageStats:
-            self._context["llmrequests"] += usageStats.requests
-            self._context["llmrequesttokens"] += usageStats.request_tokens
-            self._context["llmresponsetokens"] += usageStats.response_tokens
+            self.context["llmrequests"] += usageStats.requests
+            self.context["llmrequesttokens"] += usageStats.input_tokens
+            self.context["llmresponsetokens"] += usageStats.output_tokens
 
         end = time.time()
 
         if usageStats:
-            msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+            msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
         else:
             msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds."
         self.workerSnapshot(msg)
@@ -224,13 +224,13 @@ class GeneratorWorkflow(WorkflowBase):
                 self._context['projects'].append(oneDesc.description)
 
                 if usageStats:
-                    self._context["llmrequests"] += usageStats.requests
-                    self._context["llmrequesttokens"] += usageStats.request_tokens
-                    self._context["llmresponsetokens"] += usageStats.response_tokens
+                    self.context["llmrequests"] += usageStats.requests
+                    self.context["llmrequesttokens"] += usageStats.input_tokens
+                    self.context["llmresponsetokens"] += usageStats.output_tokens
 
                 end = time.time()
 
-                msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+                msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
                 self.workerSnapshot(msg)
 
         endAllProjects = time.time()
@@ -267,8 +267,9 @@ class GeneratorWorkflow(WorkflowBase):
             {json.dumps(OneDesc.model_json_schema(), indent=2)}
             """
 
-        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+                                  provider=OllamaProvider(base_url=self._config["llm_base_url"]))
+
         agent = Agent(ollModel, 
                     output_type=OneDesc,                  
                     system_prompt = systemPromptPhase1,
@@ -299,7 +300,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneDesc, runUsage
 
 
-    def extractExecSectionGemini(self, jobInfo : OneRecord)  -> tuple[OneDesc, Usage] :
+    def extractExecSectionGemini(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
         """
         Use Google Gemini AI Agent to extracts summary from job add text
         
@@ -350,15 +351,15 @@ class GeneratorWorkflow(WorkflowBase):
             oneDesc.__dict__[attr] = oneDesc.__dict__[attr].encode("ascii", "ignore").decode("ascii")
 
         # map Google usage to Pydantic usage            
-        usage = Usage()
+        usage = RunUsage()
         usage.requests = 1
-        usage.request_tokens = completion.usage.prompt_tokens
-        usage.response_tokens = completion.usage.completion_tokens
+        usage.input_tokens = completion.usage.prompt_tokens
+        usage.output_tokens = completion.usage.completion_tokens
 
         return oneDesc, usage
 
 
-    def extractExecSection(self, jobInfo : OneRecord)  -> tuple[OneDesc, Usage] :
+    def extractExecSection(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
         if self._context["llmProvider"] == "Ollama":
             oneDesc, usageStats = self.extractExecSectionOllama(jobInfo)
         if self._context["llmProvider"] == "Gemini":
@@ -366,7 +367,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneDesc, usageStats
 
 
-    def extractInfoFromJobAdOllama(self, jobInfo : OneRecord)  -> tuple[OneResultList, Usage] :
+    def extractInfoFromJobAdOllama(self, jobInfo : OneRecord)  -> tuple[OneResultList, RunUsage] :
         """
         Extract information from job add text
         
@@ -383,8 +384,9 @@ class GeneratorWorkflow(WorkflowBase):
             Your job is to extract information from the text that matches user's request.
             """
 
-        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+                                  provider=OllamaProvider(base_url=self._config["llm_base_url"]))
+
         agent = Agent(ollModel, 
                     system_prompt = systemPromptPhase1,
                     retries=5,
@@ -448,7 +450,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneResultList, runUsage
 
 
-    def extractInfoFromJobAdGemini(self, jobInfo : OneRecord)  -> tuple[OneResultList, Usage] :
+    def extractInfoFromJobAdGemini(self, jobInfo : OneRecord)  -> tuple[OneResultList, RunUsage] :
         """
         Extract information from job add text using Google Gemini API
         
@@ -503,7 +505,7 @@ class GeneratorWorkflow(WorkflowBase):
         oneResultList.results_list = values
 
         # map Google usage to Pydantic usage            
-        usage = Usage()
+        usage = RunUsage()
         usage.requests = 1
         usage.request_tokens = completion.usage.prompt_tokens
         usage.response_tokens = completion.usage.completion_tokens
@@ -511,7 +513,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneResultList, usage
 
 
-    def extractInfoFromJobAd(self, jobInfo : OneRecord)  -> tuple[OneResultList, Usage] :
+    def extractInfoFromJobAd(self, jobInfo : OneRecord)  -> tuple[OneResultList, RunUsage] :
         """
         Extract information from job add text
         
@@ -585,7 +587,7 @@ class GeneratorWorkflow(WorkflowBase):
 
 
 
-    def makeProjectOllama(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, Usage] :
+    def makeProjectOllama(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, RunUsage] :
         """
         Make a project from information in scenario table using Ollama host
         
@@ -635,8 +637,8 @@ class GeneratorWorkflow(WorkflowBase):
         prompt = f"{combinedDoco}"
         # self._logger.info(f"-------prompt---------\n{prompt}\n-------------\n")
 
-        ollModel = OpenAIModel(model_name=self._config["main_llm_name"], 
-                            provider=OpenAIProvider(base_url=self._config["llm_base_url"]))
+        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+                                  provider=OllamaProvider(base_url=self._config["llm_base_url"]))
         
         agent = Agent(ollModel,
                     output_type=OneDesc,
@@ -661,7 +663,7 @@ class GeneratorWorkflow(WorkflowBase):
         return oneDesc, runUsage
 
 
-    def makeProjectGemini(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, Usage] :
+    def makeProjectGemini(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, RunUsage] :
         """
         Make a project from information in scenario table using Google Gemini API
         
@@ -732,10 +734,10 @@ class GeneratorWorkflow(WorkflowBase):
             oneDesc.__dict__[attr] = oneDesc.__dict__[attr].encode("ascii", "ignore").decode("ascii")
 
         # map Google usage to Pydantic usage            
-        usage = Usage()
+        usage = RunUsage()
         usage.requests = 1
-        usage.request_tokens = completion.usage.prompt_tokens
-        usage.response_tokens = completion.usage.completion_tokens
+        usage.input_tokens = completion.usage.prompt_tokens
+        usage.output_tokens = completion.usage.completion_tokens
 
         return oneDesc, usage
 

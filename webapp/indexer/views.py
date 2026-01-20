@@ -3,36 +3,13 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.apps import apps
 
-
 from typing import List
 
-import chromadb
-from chromadb import Collection
-from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
-from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-from chromadb import QueryResult
-
-import pydantic_ai
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.usage import Usage
-
-import tomli
 import logging
 import json
 import sys
-import re
-import time
-from datetime import datetime
 from pathlib import Path
 import threading
-
-
-from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 import genai_prices
 
@@ -40,10 +17,8 @@ import genai_prices
 sys.path.append("..")
 sys.path.append("../..")
 
-from common import OneRecord, AllRecords, OneQueryResult, AllQueryResults, ConfigSingleton, OpenFile
-from common import DebugUtils, OneDesc, AllDesc, OneResultList, OneEmployer, AllEmployers
+from common import OpenFile
 from parserClasses import ParserClassFactory
-from indexer_workflow import IndexerWorkflow
 
 from .forms import IndexerForm, SettingsColumnOne, SettingsColumnTwo, SettingsColumnThree
 
@@ -290,6 +265,8 @@ def process(request):
         if inputFileBaseName in dictDocuments:
             indexerWorkflow.context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
             indexerWorkflow.context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+            indexerWorkflow.context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
+            indexerWorkflow.context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
         else:
             logger.error(f"ERROR: no definition for document {inputFileBaseName}")
             return render(request, "indexer/process.html", indexerWorkflow.context)

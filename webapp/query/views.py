@@ -1,8 +1,6 @@
 import sys
 import logging
 import json
-import re
-from pathlib import Path
 import threading
 
 from django.shortcuts import render, redirect
@@ -16,8 +14,6 @@ sys.path.append("..")
 sys.path.append("../..")
 
 from common import QUERYTYPES, TOKENIZERTYPES, COLLECTION, OpenFile
-from parserClasses import ParserClassFactory
-from query_workflow import QueryWorkflow
 from testQueries import TESTSET, TestSetCollection
 
 from .forms import QueryForm, SettingsColumnOne, SettingsColumnTwo, SettingsColumnThree

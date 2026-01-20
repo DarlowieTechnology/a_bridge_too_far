@@ -14,7 +14,7 @@
     "CD_and_DevOps Review.pdf" : {
         "pattern" : "(?P<IDENTIFIERGROUP>sr-\\d{1,3}-\\d{1,2}-\\d{1,2}) ((\\S+ ){1,30})risk rating (\\S+) |(?P<TERMINATORGROUP>3 supplemental data the section)",
         "extract" : "(?P<identifier>sr-\\d{1,3}-\\d{1,2}-\\d{1,2}) (?P<title>(?P<none>\\S+ ){1,30})risk rating (?P<risk>\\S+) ",
-        "assign" : ["identifier", "title", "none", "risk"],
+        "assign" : ["identifier", "title", "risk"],
         "templateName" : "ReportIssueCD"
     },
     "Database Review.pdf" : {

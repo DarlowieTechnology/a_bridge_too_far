@@ -176,12 +176,9 @@ def main():
     context["session_key"] = "INDEXER"
     context["statusFileName"] = "status.INDEXER.json"
     context["llmProvider"] = "Ollama"
-    context["llmVersion"] = "llama3.1:latest"
+#    context["llmVersion"] = "gpt-oss:120b-cloud"
+    context["llmVersion"] = "gemini-3-flash-preview:latest"
     context["llmBaseUrl"] = "http://localhost:11434/v1"
-#    context["llmProvider"] = "Gemini"
-#    context["llmVersion"] = "gemini-2.0-flash"
-#    context["llmVersion"] = "gemini-2.5-flash"
-#    context["llmVersion"] = "gemini-2.5-flash-lite"
 
     context["llmrequests"] = 0
     context["llmrequesttokens"] = 0
@@ -197,17 +194,17 @@ def main():
 
     # test list - only process data sources from this list
     fileList = [
-        "Architecture Review - Threat Model Report.pdf",
-        "AWS_Review.pdf",
-        "CD_and_DevOps Review.pdf",
-        "Database Review.pdf",
-        "Firewall Review.pdf",
-        "phpMyAdmin.pdf",
-        "PHP_Code_Review.pdf",
-        "Refinery-CMS.pdf",
-        "WASPT_Report.pdf",
-        "Web App and Ext Infrastructure Report.pdf",
-        "Wikimedia.pdf",
+#        "Architecture Review - Threat Model Report.pdf",
+#        "AWS_Review.pdf",
+#        "CD_and_DevOps Review.pdf",
+#        "Database Review.pdf",
+#        "Firewall Review.pdf",
+#        "phpMyAdmin.pdf",
+#        "PHP_Code_Review.pdf",
+#        "Refinery-CMS.pdf",
+#        "WASPT_Report.pdf",
+#        "Web App and Ext Infrastructure Report.pdf",
+#        "Wikimedia.pdf",
         "Web App and Infrastructure and Mobile Report.pdf"
     ]
 
@@ -257,7 +254,7 @@ def main():
             context["rawTextFromDocument"] = False
 
             # create final JSON
-            context["finalJSONfromRaw"] = False
+            context["finalJSONfromRaw"] = True
 
             # prepare BM25s corpus
             context["prepareBM25corpus"] = False
@@ -268,12 +265,11 @@ def main():
             # vectorize final JSON
             context["vectorizeFinalJSON"] = False
 
+            # raw text parsing support
             context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-            if "extract" in dictDocuments[inputFileBaseName]:
-                context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
-            if "assign" in dictDocuments[inputFileBaseName]:
-                context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
             context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+            context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
+            context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
 
             issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
             indexerWorkflow = IndexerWorkflow(context, logger)

@@ -11,9 +11,9 @@ from pathlib import Path
 from pydantic import BaseModel, ValidationError
 import pydantic_ai
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.usage import Usage
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.usage import RunUsage
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -21,9 +21,6 @@ from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 from jira import JIRA
-
-from openai import OpenAI
-from mistralai import Mistral
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
 
@@ -171,7 +168,7 @@ class IndexerWorkflow(WorkflowBase):
         return None
 
 
-    def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
+    def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, RunUsage] :
         """
         Use Ollama host and Pydantic AI Agent to extracts one ClassTemplate structured record. 
         ClassTemplate is a subclass of Pydantic BaseModel.
@@ -191,8 +188,8 @@ class IndexerWorkflow(WorkflowBase):
         
         prompt = f"{docs}"
 
-        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
-                            provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
+        ollModel =OpenAIChatModel(model_name=self.context["llmVersion"],
+                                  provider=OllamaProvider(base_url=self.context["llmBaseUrl"]))
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
@@ -209,72 +206,14 @@ class IndexerWorkflow(WorkflowBase):
         
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
             msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerError(msg)
+            self.workerSnapshot(msg)
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
-            self.workerError(msg)
-
-        # attempt regexp match only if LLM match failed
-        return self.parseFallback(docs, ClassTemplate), None
-
-
-    def parseIssueGemini(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, Usage] :
-        """
-        Use Google Gemini AI Agent to extracts one ClassTemplate structured record. ClassTemplate is based on Pydantic BaseModel.
-        
-        Args:
-            docs (str) - text with unstructured data
-            ClassTemplate (BaseModel) - description of structured data
-
-        Returns:
-            Tuple of BaseModel and Usage
-        """
-
-        api_key = self.config["gemini_key"]
-
-        openAIClient = OpenAI(
-            api_key=api_key,
-            base_url=self.config["gemini_base_url"]
-        )
-
-        try:
-            completion = openAIClient.beta.chat.completions.parse(
-                model = self.context["llmVersion"],
-                temperature=0.0,
-                messages=[
-                    {"role": "system", "content": f"JSON schema for the ClassTemplate model you must use as context for what information is expected:  {json.dumps(ClassTemplate.model_json_schema(), indent=2)}"},
-                    {"role": "user", "content": f"{docs}"},
-                ],
-                response_format=ClassTemplate,
-            )
-            oneIssue = completion.choices[0].message.parsed
-            if oneIssue:
-                for attr in oneIssue.__dict__:
-                    if oneIssue.__dict__[attr]:
-                        oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
-                        oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-                oneIssue = ClassTemplate.model_validate_json(oneIssue.model_dump_json())
-
-                # map Open AI usage to Pydantic usage            
-                usage = Usage()
-                usage.requests = 1
-                usage.request_tokens = completion.usage.prompt_tokens
-                usage.response_tokens = completion.usage.completion_tokens
-                   
-                return oneIssue, usage
-            else:
-                msg = f"Gemini API error"
-                self.workerError(msg)
-            
-        except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = "Exception: {e}"
             self.workerSnapshot(msg)
 
         # attempt regexp match only if LLM match failed
         return self.parseFallback(docs, ClassTemplate), None
+
 
     def parseAllIssues(self, inputFileName : str, dictText: dict[str,str], ClassTemplate : BaseModel) -> RecordCollection :
         """
@@ -299,9 +238,6 @@ class IndexerWorkflow(WorkflowBase):
 
             if self.context["llmProvider"] == "Ollama":
                 oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
-            if self.context["llmProvider"] == "Gemini":
-                time.sleep(self.config["gemini_time_delay"])
-                oneIssue, usageStats = self.parseIssueGemini(dictText[key], ClassTemplate)
             if not oneIssue:
                 continue
 
@@ -310,10 +246,10 @@ class IndexerWorkflow(WorkflowBase):
             endOneIssue = time.time()
             if usageStats:
                 requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-                msg = f"Issue: {key}. LLM usage: {usageStats.requests} {requestLabel}. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
+                msg = f"Issue: {key}. LLM usage: {usageStats.requests} {requestLabel}. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens. Time: {(endOneIssue - startOneIssue):9.4f} seconds."
                 self.context["llmrequests"] += usageStats.requests
-                self.context["llmrequesttokens"] += usageStats.request_tokens
-                self.context["llmresponsetokens"] += usageStats.response_tokens
+                self.context["llmrequesttokens"] += usageStats.input_tokens
+                self.context["llmresponsetokens"] += usageStats.output_tokens
             else:
                 msg = f"Issue: {key}. {(endOneIssue - startOneIssue):9.4f} seconds."
             self.workerSnapshot(msg)

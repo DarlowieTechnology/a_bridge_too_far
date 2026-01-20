@@ -170,6 +170,7 @@ class ConfigSingleton(object):
                     print(f"***ERROR: Cannot open config file {self._configName}, exception {e}")
                     sys.exit("Program terminates")
             # read ENV
+            self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
             self._conf['gemini_key'] = os.environ['gemini_key']
             self._conf['mistral_key'] = os.environ['mistral_key']
             self._conf["Jira_api_token"] = os.environ['Jira_api_token']

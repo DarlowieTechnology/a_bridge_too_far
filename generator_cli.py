@@ -134,13 +134,13 @@ def testRun(context : dict) :
     context['execsummary'] = execSummary.description
     if usageStats:
         context["llmrequests"] = usageStats.requests
-        context["llmrequesttokens"] = usageStats.request_tokens
-        context["llmresponsetokens"] = usageStats.response_tokens
+        context["llmrequesttokens"] += usageStats.input_tokens
+        context["llmresponsetokens"] += usageStats.output_tokens
 
     end = time.time()
 
     if usageStats:
-        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+        msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
     else:
         msg = f"Extracted executive summary from job description. {(end-start):9.4f} seconds."
     generatorWorkflow.workerSnapshot(msg)
@@ -167,13 +167,13 @@ def testRun(context : dict) :
     context['extracted'] = oneResultList.results_list
     if usageStats:
         context["llmrequests"] += usageStats.requests
-        context["llmrequesttokens"] += usageStats.request_tokens
-        context["llmresponsetokens"] += usageStats.response_tokens
+        context["llmrequesttokens"] += usageStats.input_tokens
+        context["llmresponsetokens"] += usageStats.output_tokens
 
     end = time.time()
 
     if usageStats:
-        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+        msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
     else:
         msg = f"Extracted {len(oneResultList.results_list)} activities from job description. {(end-start):9.4f} seconds."
     generatorWorkflow.workerSnapshot(msg)
@@ -218,12 +218,12 @@ def testRun(context : dict) :
 
             if usageStats:
                 context["llmrequests"] += usageStats.requests
-                context["llmrequesttokens"] += usageStats.request_tokens
-                context["llmresponsetokens"] += usageStats.response_tokens
+                context["llmrequesttokens"] += usageStats.input_tokens
+                context["llmresponsetokens"] += usageStats.output_tokens
 
             end = time.time()
 
-            msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.request_tokens} request tokens. {usageStats.response_tokens} response tokens."
+            msg = f"Project # {prjCount}: {oneDesc.title}. {(end-start):9.4f} seconds. {usageStats.input_tokens} request tokens. {usageStats.output_tokens} response tokens."
             generatorWorkflow.workerSnapshot(msg)
 
     endAllProjects = time.time()

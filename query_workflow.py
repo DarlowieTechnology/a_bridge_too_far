@@ -13,15 +13,13 @@ from chromadb import Collection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import pydantic_ai
 from pydantic_ai import Agent
-from pydantic_ai.settings import ModelSettings
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.models.gemini import GeminiModel
-from pydantic_ai.providers.google_gla import GoogleGLAProvider
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.usage import Usage
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.usage import RunUsage
+
 
 from jira import JIRA
 from openai import OpenAI
@@ -62,16 +60,9 @@ class QueryWorkflow(WorkflowBase):
         self._llmModel = None
 
         if self.context["llmProvider"] == "Ollama":
-            self._llmModel = OpenAIModel(model_name=self.context["llmVersion"], 
-                            provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
-        if self.context["llmProvider"] == "Gemini":
-            self._llmModel = GeminiModel(
-                model_name=self.context["llmVersion"], 
-                provider=GoogleGLAProvider(
-                    api_key = self.config["gemini_key"]
-                ),
-                settings=ModelSettings(temperature = 0.0)
-            )
+
+            self._llmModel = OpenAIChatModel(model_name=self.context["llmVersion"],
+                                  provider=OllamaProvider(base_url=self.context["llmBaseUrl"]))
         return True
 
 
@@ -180,7 +171,6 @@ class QueryWorkflow(WorkflowBase):
         """
 
         systemPrompt = f"Write a two sentence answer to the user prompt query"
-#        systemPrompt = f"Generate a hypothetical best-guess answer to user prompt query"
 
         agentHyDE = Agent(self._llmModel, system_prompt = systemPrompt)
         userPrompt = query
@@ -189,8 +179,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryHyDE"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().request_tokens
-                self.context["llmresponsetokens"] += result.usage().response_tokens
+                self.context["llmrequesttokens"] += result.usage().input_tokens
+                self.context["llmresponsetokens"] += result.usage().output_tokens
             return self.context["queryHyDE"]
         except Exception as e:
             msg = f"LLM exception on HyDE request: {e}"
@@ -218,8 +208,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryMultiple"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().request_tokens
-                self.context["llmresponsetokens"] += result.usage().response_tokens
+                self.context["llmrequesttokens"] += result.usage().input_tokens
+                self.context["llmresponsetokens"] += result.usage().output_tokens
             return self.context["queryMultiple"]
         except Exception as e:
             msg = f"LLM exception on multi query request: {e}"
@@ -251,8 +241,8 @@ class QueryWorkflow(WorkflowBase):
             self.context["queryRewrite"] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().request_tokens
-                self.context["llmresponsetokens"] += result.usage().response_tokens
+                self.context["llmrequesttokens"] += result.usage().input_tokens
+                self.context["llmresponsetokens"] += result.usage().output_tokens
             return self.context["queryRewrite"]
         except Exception as e:
             msg = f"LLM exception on rewrite query request: {e}"
@@ -278,8 +268,8 @@ class QueryWorkflow(WorkflowBase):
             self.context['querybm25sprep'] = result.output
             if result.usage():
                 self.context["llmrequests"] += result.usage().requests
-                self.context["llmrequesttokens"] += result.usage().request_tokens
-                self.context["llmresponsetokens"] += result.usage().response_tokens
+                self.context["llmrequesttokens"] += result.usage().input_tokens
+                self.context["llmresponsetokens"] += result.usage().output_tokens
             return self.context['querybm25sprep']
         except Exception as e:
             msg = f"LLM exception on prepBM25S query request: {e}"
@@ -384,199 +374,6 @@ class QueryWorkflow(WorkflowBase):
                 rank = resultIdx + 1
             )
         return oneQueryResultList
-
-
-    def agentPromptOllama(self):
-        """
-        Use Ollama host, embedded vector database, bm25s tokens to retrieve query results
-        
-        Args:
-            docs (str) - text with unstructured data
-            ClassTemplate (BaseModel) - description of structured data
-
-        Returns:
-            Tuple of BaseModel and Usage
-        
-        """
-       
-        query_tokens = self.context["query"]
-
-
-        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
-                            provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
-
-        oneResultList = self.getDBIssueMatch(query_tokens)
-        for item in oneResultList.results_list:
-            IssueTemplate = ParserClassFactory.factory(oneResultList.results_list[0].parser_typename)
-            oneIssue = IssueTemplate.model_validate_json(item.data)
-            print(f"{oneIssue.title}")
-        return
-
-
-
-
-
-
-
-        oneResultList = self.getDBIssueMatch(query)
-        IssueTemplate = ParserClassFactory.factory(oneResultList.results_list[0].parser_typename)
-        oneIssue = IssueTemplate.model_validate_json(oneResultList.results_list[0].data)
-
-        systemPrompt = f"""
-        You are an expert in PCI DSS standard.
-        Explain why the vulnerability described in user prompt makes application non-compliant with PCI DSS requirements. 
-        List relevant PCI DSS requirements.
-        Limit output to one paragraph.
-        Here is the JSON schema for the vulnerability record:
-        {json.dumps(IssueTemplate.model_json_schema(), indent=2)}            
-        """
- #       print(f"======System prompt=======\n\n{systemPrompt}")
-
-        userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
-        print(f"======User prompt=======\n\n{userPrompt}")
-
-        ollModel = OpenAIModel(model_name=self.context["llmVersion"], 
-                            provider=OpenAIProvider(base_url=self.context["llmBaseUrl"]))
-        agent = Agent(ollModel,
-                    system_prompt = systemPrompt)
-        try:
-            result = agent.run_sync(userPrompt)
-            print(f"=====OUT=====\n\n{result.output}")
-            runUsage = result.usage()
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = f"Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerError(msg)
-            return
-        
-
-    def agentPromptGemini(self):
-        """
-        Compile list of synonyms to query
-        Get RAG data for list of synonyms
-        Ask Gemini for final reply
-        """
-
-        geminiModel = GeminiModel(
-            model_name=self.context["llmVersion"], 
-            provider=GoogleGLAProvider(
-                api_key = self._config["gemini_key"]
-            ),
-            settings=ModelSettings(temperature = 0.0)
-        )
-
-
-        msg = f"Found {len(resultWithTypeList.results_list)} issue related to query list"
-        self.workerSnapshot(msg)
-
-        IssueTemplate = None
-        for item in resultWithTypeList.results_list:
-            IssueTemplate = ParserClassFactory.factory(item.parser_typename)
-            oneIssue = IssueTemplate.model_validate_json(item.data)
-#            print(oneIssue.model_dump_json(indent=2))
-
-        systemPrompt = f"""
-        You are an expert in PCI DSS standard.
-        Explain why the vulnerability described in user prompt makes 
-        application non-compliant with PCI DSS requirements. 
-        List relevant PCI DSS requirements.
-        Limit output to one paragraph.
-        Here is the JSON schema for the vulnerability record:
-        {json.dumps(IssueTemplate.model_json_schema(), indent=2)}            
-        """
-
-        agent = Agent(
-            geminiModel,
-            output_type=OneResultList,
-            system_prompt = systemPrompt,
-            retries=3,
-            output_retries=3)
-
-        userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
-
-        try:
-            result = agent.run_sync(userPrompt)
-            oneIssue = OneResultList.model_validate_json(result.output.model_dump_json())
-        except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-            return None, None
-
-        print(f"\n------Gemini Reply---------\n{oneIssue.model_dump_json(indent=2)}")
-        return
-
-
-
-
-
-
-        oneResultList = self.getDBIssueMatch(query)
-        item = oneResultList.results_list[0]
-        IssueTemplate = ParserClassFactory.factory(item.parser_typename)
-        oneIssue = IssueTemplate.model_validate_json(item.data)
-
-        msg = f"Found issue related to query" 
-        self.workerSnapshot(msg)
-#        print(f"{oneIssue.model_dump_json(indent=2)}")
-
-        oneJiraResultList = self.getDBJiraMatch(oneIssue)
-        jiraItem = oneJiraResultList.results_list[0]
-        JiraTemplate = ParserClassFactory.factory(jiraItem.parser_typename)
-        oneJiraItem = JiraTemplate.model_validate_json(jiraItem.data)
-#        print(f"{oneJiraItem.model_dump_json(indent=2)}")
-#        print(f"=========RAG Output=====\n\nIdentifier: {oneIssue.identifier}\nTitle:{oneIssue.title}\nRisk:{oneIssue.risk}\nAffects:{oneIssue.affects}")
-        msg = f"Found jira ticket related to query" 
-        self.workerSnapshot(msg)
-
-        systemPrompt = f"""
-        You are an expert in PCI DSS standard.
-        Explain why the vulnerability described in user prompt makes application non-compliant with PCI DSS requirements. 
-        List relevant PCI DSS requirements.
-        Limit output to one paragraph.
-        Here is the JSON schema for the vulnerability record:
-        {json.dumps(IssueTemplate.model_json_schema(), indent=2)}            
-        """
-
-#        print(f"======System prompt=======\n\n{systemPrompt}")
-
-        userPrompt = f"{oneIssue.model_dump_json(indent=2)}"
- 
- #       print(f"======User prompt=======\n{userPrompt}\n==============")
-
-        try:
-            completion = openAIClient.beta.chat.completions.parse(
-                model = self.context["llmVersion"],
-                temperature=0.0,
-                messages=[
-                    {"role": "system", "content": f"{systemPrompt}"},
-                    {"role": "user", "content": f"{userPrompt}"},
-                ]
-            )
-            geminiResult = completion.choices[0].message.content
-            if not geminiResult:
-                msg = f"Gemini API error"
-                self.workerError(msg)
-                return None, None
-            
-        except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-            return None, None
-
-        print(f"======Gemini Output=======\n\n{geminiResult}")
-
-        if oneJiraItem.status_name == "To Do":
-            msg = f"Item is recorded in Jira as not fixed"
-            self.workerSnapshot(msg)
-
-        # map Open AI usage to Pydantic usage            
-        usage = Usage()
-        usage.requests = 1
-        usage.request_tokens = completion.usage.prompt_tokens
-        usage.response_tokens = completion.usage.completion_tokens
-            
-        return oneIssue, usage
-
-
 
     
     def getDBJiraMatch(self, issueTemplate : BaseModel) -> ResultWithTypeList :
@@ -790,7 +587,6 @@ class QueryWorkflow(WorkflowBase):
 
         if QUERYTYPES.BM25PREP in queryTransform:
             bm25sQuery = self.prepBM25S(originalQuery)
-    #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
             msg = f"prepared for BM25s: {bm25sQuery}"
             self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
@@ -804,7 +600,6 @@ class QueryWorkflow(WorkflowBase):
 
         if QUERYTYPES.BM25PREPCOMPRESS in queryTransform:
             bm25sQuery = self.prepBM25S(originalQuery)
-    #        bm25sQuery = "['XSS', 'Cross-Site Scripting: A type of web application security vulnerability that allows an attacker to inject malicious code into a vulnerable website, which can then be executed by the user browser.']"
             msg = f"prepared for TSC: {bm25sQuery}"
             self.workerSnapshot(msg)
             if self.context['queryPreprocess']:
@@ -856,12 +651,6 @@ class QueryWorkflow(WorkflowBase):
         msgList.append(" ")
         msgList.append(msg)
         self.workerResult(msgList)
-
-
-#        if self.context["llmProvider"] == "Gemini":
-#            self.agentPromptGemini()
-#        if self.context["llmProvider"] == "Ollama":
-#            self.agentPromptOllama()
 
         self.context["stage"] = "completed"
         msg = f"Processing completed."

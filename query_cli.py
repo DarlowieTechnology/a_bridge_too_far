@@ -9,7 +9,6 @@ import threading
 
 # local
 from common import QUERYTYPES, TOKENIZERTYPES
-from resultsQueryClasses import AllQueryResults
 from query_workflow import QueryWorkflow
 from testQueries import TESTSET, TestSetCollection
 
@@ -50,12 +49,9 @@ def main():
     context = {}
     context["session_key"] = "QUERY"
     context["statusFileName"] = "status.QUERY.json"
-#    context["llmProvider"] = "Gemini"
-#    context["llmVersion"] = "gemini-2.0-flash"
-#    context["llmVersion"] = "gemini-2.5-flash"
-#    context["llmVersion"] = "gemini-2.5-flash-lite"
     context["llmProvider"] = "Ollama"
-    context["llmVersion"] = "llama3.1:latest"
+#    context["llmVersion"] = "gpt-oss:120b-cloud"
+    context["llmVersion"] = "gemini-3-flash-preview:latest"
     context["llmBaseUrl"] = "http://localhost:11434/v1"
 
 

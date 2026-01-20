@@ -24,7 +24,8 @@ class QueryConfig(AppConfig):
 
         context = {}
         context["llmProvider"] = "Ollama"
-        context["llmVersion"] = "llama3.1:latest"
+#        context["llmVersion"] = "gpt-oss:120b-cloud"
+        context["llmVersion"] = "gemini-3-flash-preview:latest"
         context["llmBaseUrl"] = "http://localhost:11434/v1"
 
         context["llmrequests"] = 0

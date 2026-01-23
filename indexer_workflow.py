@@ -188,8 +188,7 @@ class IndexerWorkflow(WorkflowBase):
         
         prompt = f"{docs}"
 
-        ollModel =OpenAIChatModel(model_name=self.context["llmVersion"],
-                                  provider=OllamaProvider(base_url=self.context["llmBaseUrl"]))
+        ollModel = self.createOpenAIChatModel()
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
@@ -233,11 +232,13 @@ class IndexerWorkflow(WorkflowBase):
             finding_dict = {}
         )
 
+        totalUsage = RunUsage()
+        totalStartTime = time.time()
+
         for key in dictText:
             startOneIssue = time.time()
 
-            if self.context["llmProvider"] == "Ollama":
-                oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
+            oneIssue, usageStats = self.parseIssueOllama(dictText[key], ClassTemplate)
             if not oneIssue:
                 continue
 
@@ -245,14 +246,16 @@ class IndexerWorkflow(WorkflowBase):
 
             endOneIssue = time.time()
             if usageStats:
-                requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-                msg = f"Record: <b>{key}</b>. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(endOneIssue - startOneIssue):9.2f} seconds."
-                self.context["llmrequests"] += usageStats.requests
-                self.context["llminputtokens"] += usageStats.input_tokens
-                self.context["llmoutputtokens"] += usageStats.output_tokens
+                msg = f"Record: <b>{key}</b>. Usage: {self.usageFormat(usageStats)}. Time: {(endOneIssue - startOneIssue):9.2f} seconds."
+                self.addUsage(usageStats)
+                totalUsage += usageStats
             else:
                 msg = f"Record: <b>{key}</b>. {(endOneIssue - startOneIssue):9.2f} seconds."
             self.workerSnapshot(msg)
+
+        totalEndTime = time.time()
+        msg = f"Total usage: {self.usageFormat(totalUsage)}. Total time {(totalEndTime - totalStartTime):9.2f} seconds."
+        self.workerSnapshot(msg)
 
         return recordCollection
 
@@ -270,9 +273,9 @@ class IndexerWorkflow(WorkflowBase):
         Returns:
             RecordCollection - all items
         """
-        jira_server = self.config["jira_url"]
-        jira_user = self.config["Jira_user"]
-        jira_api_token = self.config["Jira_api_token"]
+        jira_server = self.context["INDEXEjira_url"]
+        jira_user = self.config["Jira_user"]            # pick up from environment
+        jira_api_token = self.config["Jira_api_token"]  # pick up from environment
 
         # Connect to Jira
         try:
@@ -291,7 +294,7 @@ class IndexerWorkflow(WorkflowBase):
 
         # Fetch issues from Jira
         # default maxResults is 50, we need more than that
-        issues = jira.search_issues(jql_query, maxResults=self.config["jira_max_results"], json_result = True)
+        issues = jira.search_issues(jql_query, maxResults=self.context["INDEXEjira_max_results"], json_result = True)
         for val in issues["issues"]:
             issueTemplate = ClassTemplate(
                 identifier = val["key"],
@@ -373,12 +376,7 @@ class IndexerWorkflow(WorkflowBase):
             rejected (int) - number of records rejected from database (existing)
         """
 
-        if not self.chromaClient:
-            msg = f"Cannot find Chroma DB Persistent Client"
-            self.workerError(msg)
-            return 0, 0
-
-        if self.context["JiraExport"]:
+        if self.context["INDEXEjira_export"]:
             collectionName = COLLECTION.JIRA.value
         else:
             collectionName = COLLECTION.ISSUES.value
@@ -421,7 +419,7 @@ class IndexerWorkflow(WorkflowBase):
                 msg = f"Adding {uniqueId}"
                 self.workerSnapshot(msg)
 
-#            if self.context["JiraExport"]:
+#            if self.context["INDEXEjira_export"]:
 #                vectorSource = reportItem.model_dump_json()
 #            else:
 #                vectorSource = reportItem.title
@@ -483,6 +481,7 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         totalStart = time.time()
+        self.context["stage"] = "started"
 
         msg = f"Document: <b>{self.context['inputFileBaseName']}</b>"
         self.workerSnapshot(msg)
@@ -494,21 +493,17 @@ class IndexerWorkflow(WorkflowBase):
         self.workerSnapshot(msg)
 
         # ---------------stage Jira export
-        if "JiraExport" in self.context and self.context["JiraExport"]:
+        if "INDEXEjira_export" in self.context and self.context["INDEXEjira_export"]:
 
             startTime = totalStart
-            self.context["stage"] = "vectorizing"
 
             recordCollection = self.jiraExport(issueTemplate)
             accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-            if self.context["stage"] == "error":
-                return
 
             endTime = time.time()
             msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
             self.workerSnapshot(msg)
 
-            self.context["stage"] = "completed"
             totalEnd = time.time()
             msg = f"Processing completed. Total time {(totalEnd - totalStart):9.2f} seconds."
             self.workerSnapshot(msg)
@@ -517,9 +512,6 @@ class IndexerWorkflow(WorkflowBase):
         # ---------------stage read pdf ---------------
         if "loadDocument" in self.context and self.context["loadDocument"]:
             startTime = totalStart
-
-            self.context["stage"] = "reading document"
-            self.workerSnapshot(None)
 
             textCombined = self.loadPDF(self.context["inputFileName"])
             with open(self.context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
@@ -533,8 +525,6 @@ class IndexerWorkflow(WorkflowBase):
         # ---------------stage preprocess raw text ---------------
         if "rawTextFromDocument" in self.context and self.context["rawTextFromDocument"]:
             startTime = time.time()
-            self.context["stage"] = "pre-processing document"
-            self.workerSnapshot(None)
 
             if 'textCombined' not in locals():
                 # if this is a separate step - read extracted text file
@@ -556,8 +546,6 @@ class IndexerWorkflow(WorkflowBase):
         # ---------------stage create final JSON ---------------
         if "finalJSONfromRaw" in self.context and self.context["finalJSONfromRaw"]:
             startTime = time.time()
-            self.context["stage"] = "create final JSON"
-            self.workerSnapshot(None)
 
             if 'dictRawIssues' not in locals():
                 # if this is a separate step - read raw JSON into record collection
@@ -567,10 +555,6 @@ class IndexerWorkflow(WorkflowBase):
                 self.workerSnapshot(msg)
 
             recordCollection = self.parseAllIssues(self.context["inputFileName"], dictRawIssues, issueTemplate)
-
-            # ignore error state coming from item parser
-            #if self.context["stage"] == "error":
-            #    return
             self.writeFinalJSON(recordCollection)
 
             endTime = time.time()
@@ -583,8 +567,6 @@ class IndexerWorkflow(WorkflowBase):
         if "prepareBM25corpus" in self.context and self.context["prepareBM25corpus"]:
 
             startTime = time.time()
-            self.context["stage"] = "bm25s preparation"
-            self.workerSnapshot(None)
 
             if 'recordCollection' not in locals():
                 # if this is a separate step - read final JSON into record collection
@@ -605,8 +587,6 @@ class IndexerWorkflow(WorkflowBase):
         if "completeBM25database" in self.context and self.context["completeBM25database"]:
 
             startTime = time.time()
-            self.context["stage"] = "bm25s completion"
-            self.workerSnapshot(None)
 
             folderName = self.context["bm25IndexFolder"]
             self.bm25sProcessCorpus(corpus, folderName)
@@ -621,8 +601,6 @@ class IndexerWorkflow(WorkflowBase):
         if "vectorizeFinalJSON" in self.context and self.context["vectorizeFinalJSON"]:
 
             startTime = time.time()
-            self.context["stage"] = "vectorizing"
-            self.workerSnapshot(None)
 
             if 'recordCollection' not in locals():
                 # if this is a separate step - read final JSON into record collection
@@ -633,8 +611,6 @@ class IndexerWorkflow(WorkflowBase):
                 self.workerSnapshot(msg)
 
             accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-            if self.context["stage"] == "error":
-                return
 
             endTime = time.time()
             msg = f"Processed {recordCollection.objectCount()}, accepted {accepted} rejected {rejected}."
@@ -642,9 +618,7 @@ class IndexerWorkflow(WorkflowBase):
 
         # ---------------stage completed ---------------
 
-        self.context["stage"] = "completed"
-
         totalEnd = time.time()
-        requestLabel = 'requests' if self.context["llmrequests"] > 1 else 'request'        
-        msg = f"Processing completed. Usage: {self.context['llmrequests']} {requestLabel}, {self.context['llminputtokens']} input tokens, {self.context['llmoutputtokens']} output tokens. Total time {(totalEnd - totalStart):9.2f} seconds."
+        self.context["stage"] = "completed"
+        msg = f"Processing completed. Usage: {self.totalUsageFormat()}. Total time {(totalEnd - totalStart):9.2f} seconds."
         self.workerSnapshot(msg)

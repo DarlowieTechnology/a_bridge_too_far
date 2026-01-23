@@ -18,6 +18,7 @@ from jira import JIRA
 from pydantic import BaseModel, Field
 
 # local
+import darlowie
 from common import COLLECTION, ConfigSingleton, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
@@ -109,20 +110,6 @@ def jiraExport(indexerWorkflow, issueTemplate) -> bool:
     msg = f"Exported {exportedIssues} Jira issues."
     indexerWorkflow.workerSnapshot(msg)
 
-def testLock(context, logger) -> bool : 
-    boolResult, sessionInfoOrError = OpenFile.open(context["statusFileName"], True)
-    if boolResult:
-        try:
-            contextOld = json.loads(sessionInfoOrError)
-            if contextOld["stage"] in ["error", "completed"]:
-                logger.info("Process: Removing completed session file")
-            else:    
-                logger.info("Process: Existing async processing found - exiting")
-                return False
-        except:
-            logger.info("Process: Removing corrupt session file")
-    return True
-
 
 def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, issueTemplate: BaseModel, corpus : list[str]) -> list[str]:
     """ 
@@ -139,17 +126,13 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
     
     """
 
-#    if not testLock(context, logger) : 
-#        return
-
-    context["stage"] = "starting"
-    if context['JiraExport']:
+    if context['INDEXEjira_export']:
         msg = f"Processing Jira database"
     else:
         msg = f"Processing data source {context['inputFileName']}"
     indexerWorkflow.workerSnapshot(msg)
 
-    if context["JiraExport"]:
+    if context["INDEXEjira_export"]:
         jiraExport(indexerWorkflow, issueTemplate)
         vectorize(context, indexerWorkflow, issueTemplate)
     else:
@@ -172,24 +155,15 @@ def testRun(context : dict, indexerWorkflow : IndexerWorkflow, logger : Logger, 
 
 def main():
 
-    context = {}
-    context["session_key"] = "INDEXER"
-    context["statusFileName"] = "status.INDEXER.json"
-    context["llmProvider"] = "Ollama"
-#    context["llmVersion"] = "gpt-oss:120b-cloud"
-    context["llmVersion"] = "gemini-3-flash-preview:latest"
-    context["llmBaseUrl"] = "http://localhost:11434/v1"
+    context = darlowie.context
 
-    context["llmrequests"] = 0
-    context["llminputtokens"] = 0
-    context["llmoutputtokens"] = 0
     context['status'] = []
     context["issuePattern"] = None
     context["issueTemplate"] = None
-    context["JiraExport"] = False
-    
+    context["statusFileName"] = context["IDXCLIstatus_FileName"]
+
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger(context["session_key"])
+    logger = logging.getLogger(context["IDXCLIsession_key"])
 
 
     # test list - only process data sources from this list
@@ -212,7 +186,7 @@ def main():
     with open("webapp/indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    if context["JiraExport"]:
+    if context["INDEXEjira_export"]:
         context["inputFileName"] = "SCRUM"
         context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
         context["inputFileBaseName"] = "jira:SCRUM"
@@ -279,7 +253,6 @@ def main():
 #            thread.start()
 #            thread.join()
 
-        context["stage"] = "completed"
         msg = f"Processing completed."
         indexerWorkflow.workerSnapshot(msg)
 

@@ -4,10 +4,14 @@
 from logging import Logger
 import json
 from typing import List
+from pathlib import Path
 
 
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.usage import RunUsage
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -30,6 +34,7 @@ class WorkflowBase:
     chromaClient : ClientAPI = Field(..., description="ChromaDB Persistent Client") 
     embeddingFunction : OllamaEmbeddingFunction = Field(..., description="ChromaDB embedding Function") 
     collections : dict[str, Collection] = Field(..., description="dictionary of ChromaDB collections") 
+    usage : RunUsage = Field(..., description="LLM usage object")
 
     def __init__(self, context : dict, logger : Logger, createCollection : bool):
         """
@@ -38,6 +43,7 @@ class WorkflowBase:
         Args:
             context (dict) - context data for workflow
             logger (Logger) - created by caller (CLI or web app)
+            createCollection (bool) - if True, create vector database
         """
         self.context = context
         self.config = ConfigSingleton()
@@ -49,42 +55,19 @@ class WorkflowBase:
         if self.chromaClient:
             for coll in list(COLLECTION):
                 self.collections[coll.value] = self.openOrCreateCollection(coll.value, createCollection)
-
-
-    @staticmethod
-    def testLock(statusFileName : str, logger : Logger) -> bool : 
-        """
-        Status file is used to communicate between workflow thread and CLI, webapp.
-        Static method allows to check if status file exists without constructing workflow.
-        Args:
-            statusFileName (str) - name of status file
-            logger (Logger) - created by caller (CLI or web app)
-        """
-        boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
-        if boolResult:
-            try:
-                contextOld = json.loads(sessionInfoOrError)
-                if contextOld["stage"] in ["error", "completed"]:
-                    logger.info("Removing completed session file")
-                else:    
-                    logger.info("Existing instance of workflow found - exiting")
-                    return False
-            except:
-                logger.info("Removing corrupt session file")
-        return True
+        self.usage = RunUsage()
 
 
     def openChromaClient(self) -> ClientAPI :
         """
-        Docstring for openChromaClient
+        Opens ChromaDB client for vector database
         
-        :param self: 
         :return: ChromaDB persistent client or None
         :rtype: ClientAPI
         """
         try:
             chromaClient = chromadb.PersistentClient(
-                path=self.config.getAbsPath("rag_datapath"),
+                path=self.getAbsPath("GLOBALrag_datapath"),
                 settings=Settings(anonymized_telemetry=False),
                 tenant=DEFAULT_TENANT,
                 database=DEFAULT_DATABASE,
@@ -101,14 +84,24 @@ class WorkflowBase:
         """
         Create Ollama-specific embedding function
         
-        :param self: Description
         :return: embedding function object
         :rtype: OllamaEmbeddingFunction
         """
         return OllamaEmbeddingFunction(
-            model_name=self.config["rag_embed_llm"],
-            url=self.config["rag_embed_url"]
+            model_name=self.context["GLOBALrag_embed_llm"],
+            url=self.context["GLOBALrag_embed_url"]
         )
+
+
+    def createOpenAIChatModel(self) -> OpenAIChatModel: 
+        """
+        return OpenAIChatModel class instance
+        
+        :return: OpenAIChatModel class instance
+        :rtype: OpenAIChatModel
+        """
+        return OpenAIChatModel(model_name=self.context["GLOBALllm_Version"], 
+                               provider=OllamaProvider(base_url=self.context["GLOBALllm_base_url"]))
 
 
     def openOrCreateCollection(self, collectionName : str, createFlag : bool) -> Collection :
@@ -141,7 +134,7 @@ class WorkflowBase:
                     chromaCollection = self.chromaClient.create_collection(
                         name=collectionName,
                         embedding_function=self.embeddingFunction,
-                        metadata={ "hnsw:space": self.config["rag_hnsw_space"]  }
+                        metadata={ "hnsw:space": self.context["GLOBALrag_hnsw_space"]  }
                     )
                     msg = f"Created collection {collectionName}"
                     self.workerSnapshot(msg)
@@ -159,6 +152,51 @@ class WorkflowBase:
             raise
 
         return chromaCollection
+
+
+    def addUsage(self, newUsage : RunUsage) :
+        """
+        Add usage to existing total
+        
+        :param self: Description
+        :param newUsage: new RunUsage or None
+        :type newUsage: RunUsage
+        """
+        if newUsage:
+            self.usage += newUsage
+
+
+    def totalUsageFormat(self) -> str:
+        """
+        Return current usage formatted as string
+        
+        :return: usage as string
+        :rtype: str
+        """
+        requestLabel = 'requests' if self.usage.requests > 1 else 'request'
+        return f"{self.usage.requests} {requestLabel} {self.usage.input_tokens} input tokens {self.usage.output_tokens} output tokens"
+
+
+    def usageFormat(self, usage : RunUsage) -> str:
+        """
+        Return usage formatted as string
+        
+        :return: usage as string
+        :rtype: str
+        """
+        requestLabel = 'requests' if usage.requests > 1 else 'request'
+        return f"{usage.requests} {requestLabel} {usage.input_tokens} input tokens {usage.output_tokens} output tokens"
+
+
+    def getAbsPath(self, key) -> str:
+        """
+        absolute path value from relative path. Compatible with Django web app
+        
+        :param key: key in context dict
+        :return: absolute path
+        :rtype: str
+        """        
+        return Path(str(Path(__file__).parent.resolve()) + '/' + self.context[key]).resolve()
 
 
     def workerSnapshot(self, msg : str):
@@ -192,7 +230,6 @@ class WorkflowBase:
         if msg:
             self.logger.warning(msg)    
             self.context['status'].append(msg)
-        self.context['stage'] = 'error'
         with open(self.context['statusFileName'], "w") as jsonOut:
             formattedOut = json.dumps(self.context, indent=2)
             jsonOut.write(formattedOut)

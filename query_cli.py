@@ -8,6 +8,7 @@ import json
 import threading
 
 # local
+import darlowie
 from common import QUERYTYPES, TOKENIZERTYPES
 from query_workflow import QueryWorkflow
 from testQueries import TESTSET, TestSetCollection
@@ -46,19 +47,11 @@ def testRun(context : dict, logger: Logger, queryWorkflow : QueryWorkflow) :
 
 
 def main():
-    context = {}
-    context["session_key"] = "QUERY"
-    context["statusFileName"] = "status.QUERY.json"
-    context["llmProvider"] = "Ollama"
-#    context["llmVersion"] = "gpt-oss:120b-cloud"
-    context["llmVersion"] = "gemini-3-flash-preview:latest"
-    context["llmBaseUrl"] = "http://localhost:11434/v1"
+    context = darlowie.context
 
-
-    context["llmrequests"] = 0
-    context["llminputtokens"] = 0
-    context["llmoutputtokens"] = 0
     context['status'] = []
+    context["statusFileName"] = context["QUECLIstatus_FileName"]
+
 
 #    context['query'] = "xss issues"
     context['query'] = "credentials issues"
@@ -84,11 +77,8 @@ def main():
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger(context["session_key"])
+    logger = logging.getLogger(context["QUECLIsession_key"])
 
-    # check if workflow is already executed
-    if not QueryWorkflow.testLock("status.QUERY.json", logger) : 
-        return
 
     queryWorkflow = QueryWorkflow(context, logger) 
 

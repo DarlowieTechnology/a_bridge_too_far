@@ -47,4 +47,4 @@ class SettingsColumnTwo(forms.Form):
 
 class SettingsColumnThree(forms.Form):
     vectorizeFinalJSON = forms.BooleanField(label="Create vector database", required=False)
-    JiraExport = forms.BooleanField(label="Create Jira database", required=False)
+    DISPLAYjira_export = forms.BooleanField(label="Create Jira database", required=False)

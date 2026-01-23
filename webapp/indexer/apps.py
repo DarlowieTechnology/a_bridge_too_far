@@ -6,6 +6,7 @@ import sys
 sys.path.append("..")
 sys.path.append("../..")
 
+import darlowie
 from indexer_workflow import IndexerWorkflow
 
 class IndexerConfig(AppConfig):
@@ -19,15 +20,7 @@ class IndexerConfig(AppConfig):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         logger = logging.getLogger(__name__)
 
-        context = {}
-        context["llmProvider"] = "Ollama"
-#        context["llmVersion"] = "gpt-oss:120b-cloud"
-        context["llmVersion"] = "gemini-3-flash-preview:latest"
-        context["llmBaseUrl"] = "http://localhost:11434/v1"
-
-        context["llmrequests"] = 0
-        context["llminputtokens"] = 0
-        context["llmoutputtokens"] = 0
+        context = darlowie.context
 
         context['status'] = []
         context['results'] = []
@@ -57,6 +50,6 @@ class IndexerConfig(AppConfig):
         context["vectorizeFinalJSON"] = False
 
         # export Jira issues
-        context["JiraExport"] = False
+        context["INDEXEjira_export"] = False
 
         self.indexerWorkflow = IndexerWorkflow(context, logger)

@@ -6,6 +6,7 @@ import sys
 sys.path.append("..")
 sys.path.append("../..")
 
+import darlowie
 from common import QUERYTYPES, TOKENIZERTYPES
 from query_workflow import QueryWorkflow
 from testQueries import TESTSET, TestSetCollection
@@ -22,15 +23,7 @@ class QueryConfig(AppConfig):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         logger = logging.getLogger(__name__)
 
-        context = {}
-        context["llmProvider"] = "Ollama"
-#        context["llmVersion"] = "gpt-oss:120b-cloud"
-        context["llmVersion"] = "gemini-3-flash-preview:latest"
-        context["llmBaseUrl"] = "http://localhost:11434/v1"
-
-        context["llmrequests"] = 0
-        context["llminputtokens"] = 0
-        context["llmoutputtokens"] = 0
+        context = darlowie.context
 
         context['status'] = []
         context['results'] = []

@@ -34,7 +34,8 @@ def status(request):
     if not request.session.session_key:
         request.session.create() 
     logger = logging.getLogger("query:" + request.session.session_key)
-    statusFileName = "status.query." + request.session.session_key + ".json"
+    queryWorkflow = apps.get_app_config("query").queryWorkflow
+    statusFileName = queryWorkflow.context["statusFileName"]
     try:
         with open(statusFileName, "r") as jsonIn:
             statusContext = json.load(jsonIn)
@@ -65,10 +66,11 @@ def index(request):
         request.session.create() 
     logger = logging.getLogger("query:" + request.session.session_key)
     logger.info(f"Starting session")
-
-    context = {}
+    statusFileName = "status.indexer." + request.session.session_key + ".json"
 
     queryWorkflow = apps.get_app_config("query").queryWorkflow
+    queryWorkflow.context["statusFileName"] = statusFileName
+
     queryTransforms = queryWorkflow.context["querytransforms"]
 
     testGroupName = TestSetCollection().getCurrentTestName()
@@ -76,6 +78,8 @@ def index(request):
         testGroupName = ""
 
     queryForm = QueryForm( initial={"query": testGroupName} )
+
+    context = {}
     context["query"] = queryForm
 
     context["DatabaseInfo"] = f"Vector database for report issues: {queryWorkflow.collections[COLLECTION.ISSUES.value].count()}"
@@ -251,36 +255,17 @@ def process(request):
         request.session.create() 
     logger = logging.getLogger("query:" + request.session.session_key)
 
+
     if request.method == "POST":
         logger.info(f"Query Process POST")
         queryForm = QueryForm(request.POST)
 
         queryWorkflow = apps.get_app_config("query").queryWorkflow
+        statusFileName = queryWorkflow.context["statusFileName"]
 
-        statusFileName = "status.query." + request.session.session_key + ".json"
-        logger.info(f"Process: session file name: {statusFileName}")
-        boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
-        if boolResult:
-            try:
-                contextOld = json.loads(sessionInfoOrError)
-                if contextOld["stage"] in ["error", "completed"]:
-                    logger.info(f"Process: Removing completed session file {statusFileName}")
-                else:    
-                    logger.info(f"Process: Existing async processing found : {statusFileName}")
-                    return render(request, "query/process.html", context)
-            except:
-                logger.info(f"Process: Removing corrupt session file : {statusFileName}")
-
-        # read known data sources
-        with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
-            dictDocuments = json.load(JsonIn)
-
-        queryWorkflow.context['query'] = request.POST['query']
-        queryWorkflow.context['stage'] = "starting"
+        queryWorkflow.context['query'] = queryForm.cleaned_data["query"]
         queryWorkflow.context['status'] = []
         queryWorkflow.context['results'] = []
-
-        queryWorkflow.context['statusFileName'] = statusFileName
 
         msg = f"Starting query app"
         queryWorkflow.workerSnapshot(msg)
@@ -289,10 +274,8 @@ def process(request):
         thread.start()
 
         context = {}
-        context['query'] = request.POST['query']
-        context['stage'] = "starting"
+        context['query'] = queryForm.cleaned_data["query"]
         context['status'] = []
-
 
         return render(request, "query/process.html", context)
 

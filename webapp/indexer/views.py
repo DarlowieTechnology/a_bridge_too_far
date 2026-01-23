@@ -72,10 +72,10 @@ def index(request):
     if not request.session.session_key:
         request.session.create() 
     logger = logging.getLogger("indexer:" + request.session.session_key)
+    statusFileName = "status.indexer." + request.session.session_key + ".json"
 
     indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
-
-    context = {}
+    indexerWorkflow.context["statusFileName"] = statusFileName
 
     # read and display known data sources
     with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
@@ -85,7 +85,9 @@ def index(request):
     for fileName in dictDocuments:
         fileList.append(fileName)
 
-    indexerForm = IndexerForm( context, fileList=fileList )
+    indexerForm = IndexerForm( fileList=fileList )
+
+    context = {}
     context["indexer"] = indexerForm
 
     context["loadDocument"] = "Execute" if indexerWorkflow.context["loadDocument"] else "Skip"
@@ -104,10 +106,10 @@ def index(request):
 
     context["vectorizeFinalJSON"] = "Execute" if indexerWorkflow.context["vectorizeFinalJSON"] else "Skip"
 
-    context["JiraExport"] = "Execute" if indexerWorkflow.context["JiraExport"] else "Skip"
+    context["DISPLAYjira_export"] = "Execute" if indexerWorkflow.context["INDEXEjira_export"] else "Skip"
 
-    context["llmProvider"] = indexerWorkflow.context["llmProvider"]
-    context["llmVersion"] = indexerWorkflow.context["llmVersion"]
+    context["llmProvider"] = indexerWorkflow.context["GLOBALllm_Provider"]
+    context["llmVersion"] = indexerWorkflow.context["GLOBALllm_base_url"]
 
     return render(request, "indexer/index.html", context)
 
@@ -154,7 +156,7 @@ def settings(request):
 
         columnThreeForm = SettingsColumnThree(
                initial={"vectorizeFinalJSON": indexerWorkflow.context["vectorizeFinalJSON"],
-                        "JiraExport": indexerWorkflow.context["JiraExport"]
+                        "DISPLAYjira_export": indexerWorkflow.context["INDEXEjira_export"]
                }
         )
         context["columnThree"] = columnThreeForm
@@ -183,7 +185,7 @@ def settings(request):
             columnThreeForm = SettingsColumnThree(request.POST)
             if columnThreeForm.is_valid():
                 indexerWorkflow.context["vectorizeFinalJSON"] = columnThreeForm.cleaned_data["vectorizeFinalJSON"]
-                indexerWorkflow.context["JiraExport"] = columnThreeForm.cleaned_data["JiraExport"]
+                indexerWorkflow.context["INDEXEjira_export"] = columnThreeForm.cleaned_data["DISPLAYjira_export"]
 
         elif 'cancel' in request.POST:
             pass
@@ -199,7 +201,7 @@ def settings(request):
             indexerWorkflow.context["prepareBM25corpus"] = False
             indexerWorkflow.context["completeBM25database"] = False
             indexerWorkflow.context["vectorizeFinalJSON"] = False
-            indexerWorkflow.context["JiraExport"] = False
+            indexerWorkflow.context["INDEXEjira_export"] = False
 
         response = redirect('/indexer/')
         return response
@@ -225,37 +227,25 @@ def process(request):
     logger = logging.getLogger("indexer:" + request.session.session_key)
     indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
 
-
     statusFileName = "status.indexer." + request.session.session_key + ".json"
-    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
-    if boolResult:
-        try:
-            contextOld = json.loads(sessionInfoOrError)
-            if contextOld["stage"] in ["error", "completed"]:
-                logger.info(f"Process: Removing completed session file {statusFileName}")
-            else:    
-                logger.info(f"Process: Existing async processing found : {statusFileName}")
-                return render(request, "indexer/process.html", indexerWorkflow.context)
-        except:
-            logger.info(f"Process: Removing corrupt session file : {statusFileName}")
 
     # read known data sources
     with open("indexer/input/documents.json", "r", encoding='utf8') as JsonIn:
         dictDocuments = json.load(JsonIn)
 
-    indexerWorkflow.context['stage'] = "starting"
     indexerWorkflow.context['session_key'] = request.session.session_key
     indexerWorkflow.context['statusFileName'] = statusFileName
     indexerWorkflow.context['status'] = []
 
-    if indexerWorkflow.context["JiraExport"]:
+    if indexerWorkflow.context["INDEXEjira_export"]:
         # Jira export processing
         indexerWorkflow.context["inputFileName"] = "SCRUM"
         indexerWorkflow.context["inputFileBaseName"] = "jira:SCRUM"
         indexerWorkflow.context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
         indexerWorkflow.context["issueTemplate"] = "JiraIssueRAG"
     else:
-        indexerWorkflow.context["inputFileName"] = "indexer/input/" + request.POST['inputFile']
+        indexerForm = IndexerForm(request.POST)
+        indexerWorkflow.context["inputFileName"] = "indexer/input/" + indexerForm.cleaned_data['inputFile']
         indexerWorkflow.context["rawtextfromPDF"] = indexerWorkflow.context["inputFileName"] + ".raw.txt"
         indexerWorkflow.context["rawJSON"] = indexerWorkflow.context["inputFileName"] + ".raw.json"
         indexerWorkflow.context["finalJSON"] = indexerWorkflow.context["inputFileName"] + ".json"
@@ -305,6 +295,8 @@ def results(request):
         { "provider" : "x-ai", "model": "grok-3" },
         { "provider" : "x-ai", "model": "grok-4-0709" }
     ]
+
+    genai_prices.update_prices.wait() 
 
     context = {}
     context["totalrequests"] = request.GET["totalrequests"]

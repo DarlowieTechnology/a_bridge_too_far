@@ -5,6 +5,7 @@ import json
 from logging import Logger
 from typing import List
 from pathlib import Path
+import time
 import re
 
 
@@ -57,12 +58,8 @@ class QueryWorkflow(WorkflowBase):
         :return: True if LLM object is created
         :rtype: bool
         """        
-        self._llmModel = None
 
-        if self.context["llmProvider"] == "Ollama":
-
-            self._llmModel = OpenAIChatModel(model_name=self.context["llmVersion"],
-                                  provider=OllamaProvider(base_url=self.context["llmBaseUrl"]))
+        self._llmModel = self.createOpenAIChatModel()
         return True
 
 
@@ -170,6 +167,7 @@ class QueryWorkflow(WorkflowBase):
             Overwrite self.context['queryHyDE'] with new value.
         """
 
+        startHyDE = time.time()
         systemPrompt = f"Write a two sentence answer to the user prompt query"
 
         agentHyDE = Agent(self._llmModel, system_prompt = systemPrompt)
@@ -177,10 +175,13 @@ class QueryWorkflow(WorkflowBase):
         try:
             result = agentHyDE.run_sync(userPrompt)
             self.context["queryHyDE"] = result.output
+            self.addUsage(result.usage())
+            endHyDE = time.time()
             if result.usage():
-                self.context["llmrequests"] += result.usage().requests
-                self.context["llminputtokens"] += result.usage().input_tokens
-                self.context["llmoutputtokens"] += result.usage().output_tokens
+                msg = f"Query HyDE: Usage: {self.usageFormat(result.usage())}. Time: {(endHyDE - startHyDE):9.2f} seconds."
+            else:
+                msg = f"Query HyDE: Time: {(endHyDE - startHyDE):9.2f} seconds."
+            self.workerError(msg)
             return self.context["queryHyDE"]
         except Exception as e:
             msg = f"LLM exception on HyDE request: {e}"
@@ -201,15 +202,19 @@ class QueryWorkflow(WorkflowBase):
         Respond only with a list of questions. Format output as Python list.
         Original query is supplied in user prompt"""
 
+        startMulti = time.time()
         agentMultipleQ = Agent(self._llmModel, system_prompt = systemPrompt)
         userPrompt = query
         try:
             result = agentMultipleQ.run_sync(userPrompt)
             self.context["queryMultiple"] = result.output
+            self.addUsage(result.usage())
+            endMulti = time.time()
             if result.usage():
-                self.context["llmrequests"] += result.usage().requests
-                self.context["llminputtokens"] += result.usage().input_tokens
-                self.context["llmoutputtokens"] += result.usage().output_tokens
+                msg = f"Query Multi: Usage: {self.usageFormat(result.usage())}. Time: {(endMulti - startMulti):9.2f} seconds."
+            else:
+                msg = f"Query Multi: Time: {(endMulti - startMulti):9.2f} seconds."
+            self.workerError(msg)
             return self.context["queryMultiple"]
         except Exception as e:
             msg = f"LLM exception on multi query request: {e}"
@@ -233,16 +238,19 @@ class QueryWorkflow(WorkflowBase):
             Original query is supplied in user prompt.
             """
         
+        startRewrite = time.time()
         agentRewriteQ = Agent(self._llmModel, 
                                system_prompt = systemPrompt)
         userPrompt = query
         try:
             result = agentRewriteQ.run_sync(userPrompt)
             self.context["queryRewrite"] = result.output
+            self.addUsage(result.usage())
+            endRewrite = time.time()
             if result.usage():
-                self.context["llmrequests"] += result.usage().requests
-                self.context["llminputtokens"] += result.usage().input_tokens
-                self.context["llmoutputtokens"] += result.usage().output_tokens
+                msg = f"Query Rewrite: Usage: {self.usageFormat(result.usage())}. Time: {(endRewrite - startRewrite):9.2f} seconds."
+            else:
+                msg = f"Query Rewrite: Time: {(endRewrite - startRewrite):9.2f} seconds."
             return self.context["queryRewrite"]
         except Exception as e:
             msg = f"LLM exception on rewrite query request: {e}"
@@ -261,15 +269,18 @@ class QueryWorkflow(WorkflowBase):
         Return only the results. Format output as a list of Python strings.
         Original query is supplied in user prompt"""
 
+        startPrepBM25s = time.time()
         agentPrepBM25s = Agent(self._llmModel, system_prompt = systemPrompt)
         userPrompt = query
         try:
             result = agentPrepBM25s.run_sync(userPrompt)
+            self.addUsage(result.usage())
             self.context['querybm25sprep'] = result.output
+            endPrepBM25s = time.time()
             if result.usage():
-                self.context["llmrequests"] += result.usage().requests
-                self.context["llminputtokens"] += result.usage().input_tokens
-                self.context["llmoutputtokens"] += result.usage().output_tokens
+                msg = f"Query BM25s Prep: Usage: {self.usageFormat(result.usage())}. Time: {(endPrepBM25s - startPrepBM25s):9.2f} seconds."
+            else:
+                msg = f"Query BM25s Prep: Time: {(endPrepBM25s - startPrepBM25s):9.2f} seconds."
             return self.context['querybm25sprep']
         except Exception as e:
             msg = f"LLM exception on prepBM25S query request: {e}"
@@ -652,7 +663,6 @@ class QueryWorkflow(WorkflowBase):
         msgList.append(msg)
         self.workerResult(msgList)
 
-        self.context["stage"] = "completed"
         msg = f"Processing completed."
         self.workerSnapshot(msg)
 

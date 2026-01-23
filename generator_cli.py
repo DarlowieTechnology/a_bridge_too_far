@@ -16,7 +16,8 @@ from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 
 # local
-from common import OneRecord, ConfigSingleton, AllDesc, DebugUtils, ReportIssue, AllReportIssues, OpenFile
+import darlowie
+from common import OneRecord, ConfigSingleton, AllDesc, OpenFile
 from generator_workflow import GeneratorWorkflow
 
 def testRun(context : dict) :
@@ -32,26 +33,10 @@ def testRun(context : dict) :
     
     # redirect all logs to console
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    logger = logging.getLogger(context["session_key"])
+    logger = logging.getLogger(context["GENCLIsession_key"])
 
     generatorWorkflow = GeneratorWorkflow(context, logger)
-    statusFileName = context["statusFileName"]
     
-    # check if the async process exists
-
-    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
-    if boolResult:
-        try:
-            contextOld = json.loads(sessionInfoOrError)
-            if contextOld["stage"] in ["error", "completed"]:
-                logger.info("Process: Removing completed session file")
-            else:    
-                logger.info("Process: Existing async processing found - exiting")
-                return
-        except:
-            logger.info("Process: Removing corrupt session file")
-
-
     #-----------------stage configure
 
     start = time.time()
@@ -59,39 +44,25 @@ def testRun(context : dict) :
 
     config = ConfigSingleton()
 
-    context["stage"] = "configure"
-    generatorWorkflow.workerSnapshot(None)
-
     # read ad text
 
-    boolResult, contentJDOrError = OpenFile.open(filePath = context['adFileName'], readContent = True)
+    boolResult, contentJDOrError = OpenFile.open(filePath = context['GENERAad_FileName'], readContent = True)
     if not boolResult:
         generatorWorkflow.workerError(context, contentJDOrError)
         return
     jobAdRecord = OneRecord(
         id = "", 
-        name=context['adFileName'], 
+        name=context['GENERAad_FileName'], 
         description=contentJDOrError
     )
-    msg = f"Read in job descriptions from {context['adFileName']}"
+    msg = f"Read in job descriptions from {context['GENERAad_FileName']}"
     generatorWorkflow.workerSnapshot(msg)
 
-    try:
-        chromaClient = chromadb.PersistentClient(
-            path=config.getAbsPath("rag_datapath"),
-            settings=Settings(anonymized_telemetry=False),
-            tenant=DEFAULT_TENANT,
-            database=DEFAULT_DATABASE,
-        )
-    except Exception as e:
-        msg = f"Error: OpenAI API exception: {e}"
-        generatorWorkflow.workerError(msg)
+    chromaClient = generatorWorkflow.openChromaClient()
+    if not chromaClient:
         return
 
-    ef = OllamaEmbeddingFunction(
-        model_name=config["rag_embed_llm"],
-        url=config["rag_embed_url"]    
-    )
+    ef = generatorWorkflow.createEmbeddingFunction()
 
     collectionName = "actreal"
     try:
@@ -123,25 +94,18 @@ def testRun(context : dict) :
 
     start = time.time()
 
-    context["stage"] = "summary"
-    generatorWorkflow.workerSnapshot(None)
-
     execSummary, usageStats = generatorWorkflow.extractExecSection(jobAdRecord)
     if not execSummary:
         return
 
     context['jobtitle'] = execSummary.title
     context['execsummary'] = execSummary.description
-    if usageStats:
-        context["llmrequests"] = usageStats.requests
-        context["llmrinputtokens"] += usageStats.input_tokens
-        context["llmoutputtokens"] += usageStats.output_tokens
+    generatorWorkflow.addUsage(usageStats)
 
     end = time.time()
 
     if usageStats:
-        requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-        msg = f"Extracted executive summary. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time:{(end-start):9.2f} seconds."
+        msg = f"Extracted executive summary. Usage: {generatorWorkflow.usageFormat(usageStats)}. Time:{(end-start):9.2f} seconds."
     else:
         msg = f"Extracted executive summary. Time: {(end-start):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
@@ -149,9 +113,6 @@ def testRun(context : dict) :
     #----------------stage extract
 
     start = time.time()
-
-    context["stage"] = "extract"
-    generatorWorkflow.workerSnapshot(None)
 
     allDescriptions = AllDesc(
         ad_name = jobAdRecord.name,
@@ -166,16 +127,12 @@ def testRun(context : dict) :
         return
 
     context['extracted'] = oneResultList.results_list
-    if usageStats:
-        context["llmrequests"] += usageStats.requests
-        context["llmrinputtokens"] += usageStats.input_tokens
-        context["llmoutputtokens"] += usageStats.output_tokens
+    generatorWorkflow.addUsage(usageStats)
 
     end = time.time()
 
     if usageStats:
-        requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-        msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
+        msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {generatorWorkflow.usageFormat(usageStats)}. Time: {(end-start):9.2f} seconds."
     else:
         msg = f"Extracted {len(oneResultList.results_list)} activities. Time: {(end-start):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
@@ -183,9 +140,6 @@ def testRun(context : dict) :
     #--------------stage mapping
 
     start = time.time()
-
-    context["stage"] = "mapping"
-    generatorWorkflow.workerSnapshot(None)
 
     # ChromaDB calls do not account for LLM usage
     oneResultList = generatorWorkflow.mapToActivity(oneResultList, chromaActivity)
@@ -201,9 +155,6 @@ def testRun(context : dict) :
 
     startAllProjects = time.time()
 
-    context["stage"] = "projects"
-    generatorWorkflow.workerSnapshot(None)
-
     context['projects'] = []
     prjCount = 0
     for chromaQuery in oneResultList.results_list:
@@ -217,16 +168,14 @@ def testRun(context : dict) :
             prjCount += 1
             allDescriptions.project_list.append(oneDesc)
             context['projects'].append(oneDesc.description)
-
-            if usageStats:
-                context["llmrequests"] += usageStats.requests
-                context["llmrinputtokens"] += usageStats.input_tokens
-                context["llmoutputtokens"] += usageStats.output_tokens
+            generatorWorkflow.addUsage(usageStats)
 
             end = time.time()
 
-            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-            msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens. {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
+            if usageStats:
+                msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {generatorWorkflow.usageFormat(usageStats)}. Time: {(end-start):9.2f} seconds."
+            else:
+                msg = f"Project # {prjCount}: {oneDesc.title}. Time: {(end-start):9.2f} seconds."
             generatorWorkflow.workerSnapshot(msg)
 
     endAllProjects = time.time()
@@ -234,14 +183,12 @@ def testRun(context : dict) :
     msg = f"Created {len(context['projects'])} projects. {(endAllProjects-startAllProjects):9.2f} seconds"
     generatorWorkflow.workerSnapshot(msg)
 
-    with open(context["adJSONName"], "w") as jsonOut:
+    with open(context["GENERAad_JSONName"], "w") as jsonOut:
         jsonOut.writelines(allDescriptions.model_dump_json(indent=2))
 
     #--------------stage word
 
     start = time.time()
-    context["stage"] = "word"
-    generatorWorkflow.workerSnapshot(None)
 
     generatorWorkflow.makeWordDoc(allDescriptions)
 
@@ -253,31 +200,22 @@ def testRun(context : dict) :
 
     totalEnd = time.time()
 
-    context["stage"] = "completed"
-    requestLabel = 'requests' if context["llmrequests"] > 1 else 'request'
-    msg = f"Processing completed. Usage: {context["llmrequests"]} {requestLabel}, {context["llminputtokens"]} input tokens, {context["llmroutputtokens"]} output tokens. Total time {(totalEnd-totalStart):9.2f} seconds."
+    msg = f"Processing completed. Usage: {generatorWorkflow.totalUsageFormat()}. Total time {(totalEnd-totalStart):9.2f} seconds."
     generatorWorkflow.workerSnapshot(msg)
 
 
 def main():
 
-    context = {}
-    context["session_key"] = "GENERATOR"
-    context["statusFileName"] = "status." + context["session_key"] + ".json"
-    context["adFileName"] = "jobDescriptions/2025-10-02-0001.txt"
-    context["adJSONName"] = context["adFileName"] + ".json"
-    context["wordFileName"] = context["adFileName"] + ".resume.docx"
-    context["llmProvider"] = "Gemini"
-    context['status'] = list()
-    context["llmrequests"] = 0
-    context["llminputtokens"] = 0
-    context["llmoutputtokens"] = 0
+    context = darlowie.context
+
+    context['status'] = []
+    context["statusFileName"] = context["GENCLIstatus_FileName"]
 
 
     #testRun(context=context)
 
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    logger = logging.getLogger(context["session_key"])
+    logger = logging.getLogger(context["GENCLIsession_key"])
     generatorWorkflow = GeneratorWorkflow(context, logger)
     thread = threading.Thread( target=generatorWorkflow.threadWorker, kwargs={})
     thread.start()

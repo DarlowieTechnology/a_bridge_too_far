@@ -6,21 +6,13 @@ import json
 import time
 from datetime import datetime
 
-from pydantic import BaseModel, Field
 import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.usage import RunUsage
 
-
-
-import chromadb
 from chromadb import Collection
-from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
-from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-
-from openai import OpenAI
 
 from docx import Document
 from docx.shared import Pt
@@ -39,7 +31,7 @@ class GeneratorWorkflow(WorkflowBase):
             context (dict)
             logger (Logger) - can originate in CLI or Django app
         """
-        super().__init__(context, logger)
+        super().__init__(context, logger, createCollection=True)
 
 
     def threadWorker(self):
@@ -58,47 +50,33 @@ class GeneratorWorkflow(WorkflowBase):
         start = time.time()
         totalStart = start
 
-        self.context["stage"] = "configure"
-        self.workerSnapshot(None)
-
         # read ad text if CLI, else it is already in context["adtext"]
         if "adtext" in self.context:
             jobAdRecord = OneRecord(
                 id = "", 
-                name=self.context['adFileName'], 
+                name=self.context['GENERAad_FileName'], 
                 description=self.context["adtext"]
             )
             msg = f"Got job descriptions from HTML form"
             self.workerSnapshot(msg)
         else:
-            boolResult, contentJDOrError = OpenFile.open(filePath = self.context['adFileName'], readContent = True)
+            boolResult, contentJDOrError = OpenFile.open(filePath = self.context['GENERAad_FileName'], readContent = True)
             if not boolResult:
                 self.workerError(contentJDOrError)
                 return
             jobAdRecord = OneRecord(
                 id = "", 
-                name=self.context['adFileName'], 
+                name=self.context['GENERAad_FileName'], 
                 description=contentJDOrError
             )
-            msg = f"Read job descriptions from file {self.context['adFileName']}"
+            msg = f"Read job descriptions from file {self.context['GENERAad_FileName']}"
             self.workerSnapshot(msg)
 
-        try:
-            chromaClient = chromadb.PersistentClient(
-                path=ConfigSingleton().getAbsPath("rag_datapath"),
-                settings=Settings(anonymized_telemetry=False),
-                tenant=DEFAULT_TENANT,
-                database=DEFAULT_DATABASE,
-            )
-        except Exception as e:
-            msg = f"Error: OpenAI API exception: {e}"
-            self.workerError(msg)
+        chromaClient = self.openChromaClient()
+        if not chromaClient:
             return
         
-        ef = OllamaEmbeddingFunction(
-            model_name=self._config["rag_embed_llm"],
-            url=self._config["rag_embed_url"]    
-        )
+        ef = self.createEmbeddingFunction()
 
         collectionName = "actreal"
         try:
@@ -130,25 +108,18 @@ class GeneratorWorkflow(WorkflowBase):
 
         start = time.time()
 
-        self.context["stage"] = "summary"
-        self.workerSnapshot(None)
-
         execSummary, usageStats = self.extractExecSection(jobAdRecord)
         if not execSummary:
             return
 
         self.context['jobtitle'] = execSummary.title
         self.context['execsummary'] = execSummary.description
-        if usageStats:
-            self.context["llmrequests"] += usageStats.requests
-            self.context["llminputtokens"] += usageStats.input_tokens
-            self.context["llmoutputtokens"] += usageStats.output_tokens
+        self.addUsage(usageStats)
 
         end = time.time()
 
         if usageStats:
-            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-            msg = f"Extracted executive summary. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
+            msg = f"Extracted executive summary. Usage: {self.usageFormat(usageStats)}. Time: {(end-start):9.2f} seconds."
         else:
             msg = f"Extracted executive summary. Time: {(end-start):9.2f} seconds."
         self.workerSnapshot(msg)
@@ -156,9 +127,6 @@ class GeneratorWorkflow(WorkflowBase):
         #----------------stage extract
 
         start = time.time()
-
-        self.context["stage"] = "extract"
-        self.workerSnapshot(None)
 
         allDescriptions = AllDesc(
             ad_name = jobAdRecord.name,
@@ -173,16 +141,12 @@ class GeneratorWorkflow(WorkflowBase):
             return
 
         self.context['extracted'] = oneResultList.results_list
-        if usageStats:
-            self.context["llmrequests"] += usageStats.requests
-            self.context["llminputtokens"] += usageStats.input_tokens
-            self.context["llmoutputtokens"] += usageStats.output_tokens
+        self.addUsage(usageStats)
 
         end = time.time()
 
         if usageStats:
-            requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-            msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
+            msg = f"Extracted {len(oneResultList.results_list)} activities. Usage: {self.usageFormat(usageStats)}. Time: {(end-start):9.2f} seconds."
         else:
             msg = f"Extracted {len(oneResultList.results_list)} activities. Time: {(end-start):9.2f} seconds."
         self.workerSnapshot(msg)
@@ -191,10 +155,6 @@ class GeneratorWorkflow(WorkflowBase):
 
         start = time.time()
 
-        self.context["stage"] = "mapping"
-        self.workerSnapshot(None)
-
-        # ChromaDB calls do not account for LLM usage
         oneResultList = self.mapToActivity(oneResultList, chromaActivity)
 
         self.context['mapped'] = oneResultList.results_list
@@ -207,9 +167,6 @@ class GeneratorWorkflow(WorkflowBase):
         #----------------stage projects
 
         startAllProjects = time.time()
-
-        self.context["stage"] = "projects"
-        self.workerSnapshot(None)
 
         self.context['projects'] = []
         prjCount = 0
@@ -224,15 +181,10 @@ class GeneratorWorkflow(WorkflowBase):
                 prjCount += 1
                 allDescriptions.project_list.append(oneDesc)
                 self.context['projects'].append(oneDesc.description)
-
-                if usageStats:
-                    self.context["llmrequests"] += usageStats.requests
-                    self.context["llminputtokens"] += usageStats.input_tokens
-                    self.context["llmoutputtokens"] += usageStats.output_tokens
+                self.addUsage(usageStats)
 
                 end = time.time()
-                requestLabel = 'requests' if usageStats.requests > 1 else 'request'
-                msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {usageStats.requests} {requestLabel}, {usageStats.input_tokens} input tokens, {usageStats.output_tokens} output tokens. Time: {(end-start):9.2f} seconds."
+                msg = f"Project # {prjCount}: {oneDesc.title}. Usage: {self.usageFormat(usageStats)}. Time: {(end-start):9.2f} seconds."
                 self.workerSnapshot(msg)
 
         endAllProjects = time.time()
@@ -245,9 +197,7 @@ class GeneratorWorkflow(WorkflowBase):
 
         totalEnd = time.time()
 
-        self.context["stage"] = "completed"
-        requestLabel = 'requests' if self.context["llmrequests"] > 1 else 'request'
-        msg = f"Processing completed. Usage: {self.context["llmrequests"]} {requestLabel}. {self.context["llminputtokens"]} input tokens. {self.context["llmoutputtokens"]} output tokens. Total time {(totalEnd-totalStart):9.2f} seconds."
+        msg = f"Processing completed. Usage: {self.totalUsageFormat()}. Total time {(totalEnd-totalStart):9.2f} seconds."
         self.workerSnapshot(msg)
 
 
@@ -270,7 +220,7 @@ class GeneratorWorkflow(WorkflowBase):
             {json.dumps(OneDesc.model_json_schema(), indent=2)}
             """
 
-        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+        ollModel =OpenAIChatModel(model_name=self.context["GLOBALllm_Version"],
                                   provider=OllamaProvider(base_url=self._config["llm_base_url"]))
 
         agent = Agent(ollModel, 
@@ -302,71 +252,9 @@ class GeneratorWorkflow(WorkflowBase):
             return None, None
         return oneDesc, runUsage
 
-
-    def extractExecSectionGemini(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
-        """
-        Use Google Gemini AI Agent to extracts summary from job add text
-        
-        Args:
-            jobInfo (OneRecord) - description of job add
-
-        Returns:
-            OneDesc record and Usage or None
-        """
-
-        systemPrompt = """
-            You are an expert in cyber security, information technology and software development 
-            You will be supplied text of job advertisement.
-            Your job is to extract information from the text that matches user's request.
-            Here is the JSON schema for the OneDesc model you must use as context for what information is expected:
-            {json.dumps(OneDesc.model_json_schema(), indent=2)}
-        """
-
-        userPrompt = f"""
-        Extract the required role suitable for CV from the text below.
-        Make required role the title.
-        Fill description with generic description of the required role in past tense suitable for CV.
-        Do not add formatting.
-        Output only the result.
-        \n
-        {jobInfo.description}
-        """
-
-        api_key = self._config["gemini_key"]
-
-        openAIClient = OpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-
-        completion = openAIClient.beta.chat.completions.parse(
-            model="gemini-2.0-flash",
-            messages=[
-                {"role": "system", "content": systemPrompt},
-                {"role": "user", "content": userPrompt},
-            ],
-            response_format=OneDesc,
-        )
-
-        oneDesc = completion.choices[0].message.parsed
-        for attr in oneDesc.__dict__:
-            oneDesc.__dict__[attr] = oneDesc.__dict__[attr].replace("\n", " ")
-            oneDesc.__dict__[attr] = oneDesc.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-
-        # map Google usage to Pydantic usage            
-        usage = RunUsage()
-        usage.requests = 1
-        usage.input_tokens = completion.usage.prompt_tokens
-        usage.output_tokens = completion.usage.completion_tokens
-
-        return oneDesc, usage
-
-
+    
     def extractExecSection(self, jobInfo : OneRecord)  -> tuple[OneDesc, RunUsage] :
-        if self.context["llmProvider"] == "Ollama":
-            oneDesc, usageStats = self.extractExecSectionOllama(jobInfo)
-        if self.context["llmProvider"] == "Gemini":
-            oneDesc, usageStats = self.extractExecSectionGemini(jobInfo)
+        oneDesc, usageStats = self.extractExecSectionOllama(jobInfo)
         return oneDesc, usageStats
 
 
@@ -387,7 +275,7 @@ class GeneratorWorkflow(WorkflowBase):
             Your job is to extract information from the text that matches user's request.
             """
 
-        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+        ollModel =OpenAIChatModel(model_name=self.context["GLOBALllm_Version"],
                                   provider=OllamaProvider(base_url=self._config["llm_base_url"]))
 
         agent = Agent(ollModel, 
@@ -453,69 +341,6 @@ class GeneratorWorkflow(WorkflowBase):
         return oneResultList, runUsage
 
 
-    def extractInfoFromJobAdGemini(self, jobInfo : OneRecord)  -> tuple[OneResultList, RunUsage] :
-        """
-        Extract information from job add text using Google Gemini API
-        
-        Args:
-            jobInfo (OneRecord) - description of job add
-
-        Returns:
-            OneResultList and Usage or None
-        """
-
-        systemPrompt = f"""
-            You are an expert in cyber security, information technology and software development 
-            You will be supplied text of job advertisement.
-            Your job is to extract information from the text that matches user's request.
-            Here is the JSON schema for the OneResultList model you must use as context for what information is expected:
-            \n
-            {json.dumps(OneResultList.model_json_schema(), indent=2)}
-            """
-
-        userPrompt = f"""Extract the list of 
-        activities, technologies, methodologies, software services, and software products from the text below.
-        Combine all items in common list of strings.
-        Do not separate by category.
-        Avoid single word items.
-        Output only lower-case characters.
-        Output only the result.
-        \n
-        {jobInfo.description}
-        """
-        api_key = self._config["gemini_key"]
-
-        openAIClient = OpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-
-        completion = openAIClient.beta.chat.completions.parse(
-            model="gemini-2.0-flash",
-            messages=[
-                {"role": "system", "content": systemPrompt},
-                {"role": "user", "content": userPrompt},
-            ],
-            response_format=OneResultList,
-        )
-
-        oneResultList = completion.choices[0].message.parsed
-        values = []
-        for value in oneResultList.results_list:
-            value = value.replace("\n", " ")
-            value = value.encode("ascii", "ignore").decode("ascii")
-            values.append(value)
-        oneResultList.results_list = values
-
-        # map Google usage to Pydantic usage            
-        usage = RunUsage()
-        usage.requests = 1
-        usage.request_tokens = completion.usage.prompt_tokens
-        usage.response_tokens = completion.usage.completion_tokens
-
-        return oneResultList, usage
-
-
     def extractInfoFromJobAd(self, jobInfo : OneRecord)  -> tuple[OneResultList, RunUsage] :
         """
         Extract information from job add text
@@ -526,10 +351,7 @@ class GeneratorWorkflow(WorkflowBase):
         Returns:
             OneResultList and Usage or None
         """
-        if self.context["llmProvider"] == "Ollama":
-            oneResultList, usageStats = self.extractInfoFromJobAdOllama(jobInfo)
-        if self.context["llmProvider"] == "Gemini":
-            oneResultList, usageStats = self.extractInfoFromJobAdGemini(jobInfo)
+        oneResultList, usageStats = self.extractInfoFromJobAdOllama(jobInfo)
         return oneResultList, usageStats
 
 
@@ -569,7 +391,7 @@ class GeneratorWorkflow(WorkflowBase):
         totals = set()
 
         queryResult = chromaDBCollection.query(query_texts=[queryString], n_results=1)
-        cutDist = self._config["rag_distmatch"]
+        cutDist = self.context["GENERArag_activity_cutoff"]
         resultIdx = -1
         for distFloat in queryResult["distances"][0] :
             resultIdx += 1
@@ -583,7 +405,7 @@ class GeneratorWorkflow(WorkflowBase):
             totals.add(docText)
 
         if not len(totals) :
-            self._logger.info(f"Query {queryString} did not get matches less than {self._config['rag_distmatch']}")
+            self._logger.info(f"Query {queryString} did not get matches less than {cutDist}")
             return OneResultList(results_list = [])
 
         return OneResultList(results_list=list(totals))
@@ -608,9 +430,10 @@ class GeneratorWorkflow(WorkflowBase):
         numberChosen = 0
         distList = []
         combinedDoco = ""
+        distCutoff = self.context['GENERArag_scenario_cutoff']
         for distFloat in queryResult["distances"][0] :
             idx += 1
-            if (distFloat > self._config['rag_scenario']) : 
+            if (distFloat > distCutoff) : 
                 break
 
             distList.append(distFloat)
@@ -624,7 +447,7 @@ class GeneratorWorkflow(WorkflowBase):
             numberChosen = numberChosen + 1
 
         if not numberChosen :
-            msg = f"ERROR: cannot find ChromaDB records under distance {self._config['rag_scenario']}"
+            msg = f"ERROR: cannot find ChromaDB records under distance {distCutoff}"
             self.workerError(msg)
             return None, None
         
@@ -640,7 +463,7 @@ class GeneratorWorkflow(WorkflowBase):
         prompt = f"{combinedDoco}"
         # self._logger.info(f"-------prompt---------\n{prompt}\n-------------\n")
 
-        ollModel =OpenAIChatModel(model_name=self._config["main_llm_name"],
+        ollModel =OpenAIChatModel(model_name=self.context["GLOBALllm_Version"],
                                   provider=OllamaProvider(base_url=self._config["llm_base_url"]))
         
         agent = Agent(ollModel,
@@ -666,85 +489,6 @@ class GeneratorWorkflow(WorkflowBase):
         return oneDesc, runUsage
 
 
-    def makeProjectGemini(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, RunUsage] :
-        """
-        Make a project from information in scenario table using Google Gemini API
-        
-        Args:
-            chromaQuery (str) - query to match in scenario table
-            chromaScenario (Collection) - scenario table
-
-        Returns:
-            OneDesc and Usage or None
-        """
-
-        queryResult = chromaScenario.query(query_texts=[chromaQuery], n_results=3)
-
-        idx = -1
-        numberChosen = 0
-        distList = []
-        combinedDoco = ""
-        for distFloat in queryResult["distances"][0] :
-            idx += 1
-            if (distFloat > self._config['rag_scenario']) : 
-                break
-
-            distList.append(distFloat)
-            docText = ""
-            if (queryResult["documents"]) :
-                docText = queryResult["documents"][0][idx]
-            metaInf = ""
-            if (queryResult["metadatas"]) :
-                metaInf = queryResult["metadatas"][0][idx]["docName"]
-            combinedDoco = combinedDoco + "\n" + docText
-            numberChosen = numberChosen + 1
-
-        if not numberChosen :
-            msg = f"ERROR: cannot find ChromaDB records under distance {self._config['rag_scenario']}"
-            self.workerError(msg)
-            return None, None
-        
-        systemPrompt = f"""
-            You are an expert technical writer. 
-            Create title and description of the project based on information supplied. 
-            Create a full paragraph for description.
-            Do not format text. Remove line feeds and carriage returns.
-            Output only the result.
-            Here is the JSON schema for the OneDesc model you must use as context for what information is expected:
-            {json.dumps(OneDesc.model_json_schema(), indent=2)}
-            """
-        userPrompt = f"{combinedDoco}"
-
-        api_key = self._config["gemini_key"]
-
-        openAIClient = OpenAI(
-            api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-
-        completion = openAIClient.beta.chat.completions.parse(
-            model="gemini-2.0-flash",
-            messages=[
-                {"role": "system", "content": systemPrompt},
-                {"role": "user", "content": userPrompt},
-            ],
-            response_format=OneDesc,
-        )
-
-        oneDesc = completion.choices[0].message.parsed
-        for attr in oneDesc.__dict__:
-            oneDesc.__dict__[attr] = oneDesc.__dict__[attr].replace("\n", " ")
-            oneDesc.__dict__[attr] = oneDesc.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-
-        # map Google usage to Pydantic usage            
-        usage = RunUsage()
-        usage.requests = 1
-        usage.input_tokens = completion.usage.prompt_tokens
-        usage.output_tokens = completion.usage.completion_tokens
-
-        return oneDesc, usage
-
-
     def makeProject(self, chromaQuery : str, chromaScenario : Collection)  -> tuple[OneDesc, RunUsage] :
         """
         Make a project from information in scenario table
@@ -756,12 +500,7 @@ class GeneratorWorkflow(WorkflowBase):
         Returns:
             OneDesc and Usage or None
         """
-        if self.context["llmProvider"] == "Ollama":
-            oneResultList, usageStats = self.makeProjectOllama(chromaQuery, chromaScenario)
-        if self.context["llmProvider"] == "Gemini":
-            # fit Rate Per Minute quota for free account
-            time.sleep(10)
-            oneResultList, usageStats = self.makeProjectGemini(chromaQuery, chromaScenario)
+        oneResultList, usageStats = self.makeProjectOllama(chromaQuery, chromaScenario)
         return oneResultList, usageStats
 
 

@@ -1,34 +1,12 @@
 from django.shortcuts import render
 from django.http import JsonResponse
+from django.apps import apps
 
-from typing import List
 
-import chromadb
-from chromadb import Collection
-from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
-from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-from chromadb import QueryResult
-
-import pydantic_ai
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.usage import Usage
-
-import tomli
 import logging
 import json
 import sys
-import time
-from datetime import datetime
-from pathlib import Path
 import threading
-
-
-from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 import genai_prices
 
@@ -56,8 +34,8 @@ def status(request):
     if not request.session.session_key:
         request.session.create() 
     logger = logging.getLogger(request.session.session_key)
-
-    statusFileName = "status." + request.session.session_key + ".json"
+    generatorWorkflow = apps.get_app_config("generator").generatorWorkflow
+    statusFileName = generatorWorkflow.context["statusFileName"]
     try:
         with open(statusFileName, "r") as jsonIn:
             statusContext = json.load(jsonIn)
@@ -67,8 +45,6 @@ def status(request):
         statusContext['status'] = errorMsg
         return JsonResponse(statusContext)
     
-    msg = f"Status: Opened {statusFileName}"
-    logger.info(msg)
     return JsonResponse(statusContext)
 
 
@@ -85,8 +61,13 @@ def index(request):
     """
     if not request.session.session_key:
         request.session.create() 
-    logger = logging.getLogger(request.session.session_key)
-    logger.info(f"Starting session")
+    logger = logging.getLogger("generator:" + request.session.session_key)
+    generatorWorkflow = apps.get_app_config("generator").generatorWorkflow
+    statusFileName = "status.indexer." + request.session.session_key + ".json"
+
+    generatorWorkflow = apps.get_app_config("generator").generatorWorkflow
+    generatorWorkflow.context["statusFileName"] = statusFileName
+
 
     return render(request, "generator/index.html", None)
 
@@ -108,18 +89,8 @@ def process(request):
         request.session.create() 
 
     logger = logging.getLogger("generator:" + request.session.session_key)
-    logger.info(f"Process: Serving POST")
-
-    statusFileName = "status.generator." + request.session.session_key + ".json"
-    boolResult, sessionInfoOrError = OpenFile.open(statusFileName, True)
-    if boolResult:
-        contextOld = json.loads(sessionInfoOrError)
-        logger.info("Process: Existing async processing found")
-        if contextOld["stage"] in ["error", "completed"]:
-            logger.info("Process: Removing completed session file")
-            pass
-        else:    
-            return render(request, "generator/process.html", context)
+    generatorWorkflow = apps.get_app_config("generator").generatorWorkflow
+    statusFileName = generatorWorkflow.context["statusFileName"]
 
     context = {}
     context["session_key"] = request.session.session_key
@@ -127,20 +98,6 @@ def process(request):
 
     # pass ad text from the web app form
     context["adtext"] = request.POST['adtext']
-
-    context["adFileName"] = str(request.session.session_key) + ".txt"
-    context["adJSONName"] = context["adFileName"] + ".json"
-    context["wordFileName"] = context["adFileName"] + ".resume.docx"
-
-    context["llmProvider"] = "Gemini"
-    context['status'] = list()
-    context["llmrequests"] = 0
-    context["llminputtokens"] = 0
-    context["llmoutputtokens"] = 0
-
-    generatorWorkflow = GeneratorWorkflow(context, logger)
-    msg = f"Starting generator"
-    generatorWorkflow.workerSnapshot(msg)
 
     thread = threading.Thread( target=generatorWorkflow.threadWorker, kwargs={})
     thread.start()

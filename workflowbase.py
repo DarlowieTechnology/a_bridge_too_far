@@ -18,6 +18,10 @@ from chromadb import Collection, ClientAPI
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
+from langchain_community.document_loaders.pdf import PyPDFLoader
+
+from anyascii import anyascii
+
 
 # local
 from common import COLLECTION, ConfigSingleton, OpenFile
@@ -186,6 +190,34 @@ class WorkflowBase:
         """
         requestLabel = 'requests' if usage.requests > 1 else 'request'
         return f"{usage.requests} {requestLabel} {usage.input_tokens} input tokens {usage.output_tokens} output tokens"
+
+
+    def loadPDF(self, inputFile : str) -> str :
+        """
+        Load text from PDF
+        
+        :param inputFile: PDF file name
+        :type inputFile: str
+        :return: Text from PDF
+        :rtype: str
+        """
+        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
+        docs = loader.load()
+
+        textCombined = ""
+        for page in docs:
+            pageContent = page.page_content
+            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+                pageContent = pageContent.strip()
+            if "convertToLower" in self.context and self.context["convertToLower"]:
+                pageContent = pageContent.lower()
+            if "convertToASCII" in self.context and self.context["convertToASCII"]:
+                pageContent = anyascii(pageContent)
+            if "singleSpaces" in self.context and self.context["singleSpaces"]:
+                pageContent = " ".join(pageContent.split())
+            textCombined += " "
+            textCombined += pageContent
+        return textCombined
 
 
     def getAbsPath(self, key) -> str:

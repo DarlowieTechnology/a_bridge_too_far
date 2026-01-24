@@ -21,5 +21,6 @@ urlpatterns = [
     path("generator/", include("generator.urls")),
     path("indexer/", include("indexer.urls")),
     path("query/", include("query.urls")),
+    path("llmcosts/", include("llmcosts.urls")),
     path('admin/', admin.site.urls),
 ]

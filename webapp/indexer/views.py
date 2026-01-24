@@ -48,7 +48,12 @@ def status(request):
         logger.info(errorMsg)
         statusContext['status'] = errorMsg
         return JsonResponse(statusContext)
-    
+
+    indexerWorkflow = apps.get_app_config("indexer").indexerWorkflow
+    statusContext["llmrequests"] = indexerWorkflow.usage.requests
+    statusContext["llminputtokens"] = indexerWorkflow.usage.input_tokens
+    statusContext["llmoutputtokens"] = indexerWorkflow.usage.output_tokens
+
     msg = f"Status: Opened {statusFileName}"
     logger.info(msg)
     return JsonResponse(statusContext)
@@ -244,8 +249,7 @@ def process(request):
         indexerWorkflow.context["finalJSON"] = "webapp/indexer/input/SCRUM.json"
         indexerWorkflow.context["issueTemplate"] = "JiraIssueRAG"
     else:
-        indexerForm = IndexerForm(request.POST)
-        indexerWorkflow.context["inputFileName"] = "indexer/input/" + indexerForm.cleaned_data['inputFile']
+        indexerWorkflow.context["inputFileName"] = "indexer/input/" + request.POST['inputFile']
         indexerWorkflow.context["rawtextfromPDF"] = indexerWorkflow.context["inputFileName"] + ".raw.txt"
         indexerWorkflow.context["rawJSON"] = indexerWorkflow.context["inputFileName"] + ".raw.json"
         indexerWorkflow.context["finalJSON"] = indexerWorkflow.context["inputFileName"] + ".json"
@@ -268,57 +272,4 @@ def process(request):
     thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate, corpus))
     thread.start()
     return render(request, "indexer/process.html", indexerWorkflow.context)
-
-
-# use this to display genAI pricing
-#   
-def results(request):
-    """
-    Target of HTTP GET from indexer/process.html.
-    Displays API costs.
-    
-    Args:
-        request
-
-    Returns:
-        render indexer/results.html
-
-    """
-
-    providers = [
-        { "provider" : "anthropic", "model": "claude-3-5-haiku-latest"  },
-        { "provider" : "azure", "model": "gpt-4" },
-        { "provider" : "deepseek", "model": "deepseek-chat" },
-        { "provider" : "google", "model": "gemini-pro-1.5" },
-        { "provider" : "openai", "model": "gpt-4" },
-        { "provider" : "openrouter", "model": "gpt-4" },
-        { "provider" : "x-ai", "model": "grok-3" },
-        { "provider" : "x-ai", "model": "grok-4-0709" }
-    ]
-
-    genai_prices.update_prices.wait() 
-
-    context = {}
-    context["totalrequests"] = request.GET["totalrequests"]
-    context["totalinputtokens"] = request.GET["totalinputtokens"]
-    context["totaloutputtokens"] = request.GET["totaloutputtokens"]
-
-    context["llminfo"] = []
-    for providerInfo in providers:
-        price_data = genai_prices.calc_price(
-            genai_prices.Usage(input_tokens=int(context["totalinputtokens"]), output_tokens=int(context["totaloutputtokens"])),
-            model_ref= providerInfo["model"],
-            provider_id = providerInfo["provider"]
-        )
-        item = {}
-        item["provider"] = providerInfo["provider"]
-        item["model"] = providerInfo["model"]
-        item["costusd"] = f"{price_data.total_price:.4f}"
-        audValue = float(price_data.total_price) * 1.53
-        item["costaud"] = f"{audValue:.4f}"
-
-        context["llminfo"].append(item)
-
-    return render(request, "indexer/results.html", context)
-
 

@@ -8,8 +8,6 @@ urlpatterns = [
     path("", views.index, name="index"),
     # ex: /indexer/status/
     path("status/", views.status, name="status"),
-    # ex: /indexer/results/
-    path("results/", views.results, name="results"),
     # ex: /indexer/process/
     path("process/", views.process, name="process"),
     # ex: /indexer/settings/

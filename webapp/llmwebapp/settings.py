@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "indexer.apps.IndexerConfig",
     "generator.apps.GeneratorConfig",
     "query.apps.QueryConfig",
+    "llmcosts.apps.LlmcostsConfig",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

@@ -12,6 +12,10 @@
 #   - prefix QUERY  - specific to Query app
 #   - prefix QUECLI - specific to Query CLI version
 #   - prefix QUEWEB - specific to Query web version
+#   - prefix DISCOV - specific to Discovery app
+#   - prefix DISCLI - specific to Discovery CLI version
+#   - prefix DISWEB - specific to Discovery web version
+
 
 context = {
 
@@ -44,7 +48,6 @@ context = {
     "INDEXEjira_max_results" : 1000,  # maxumum number of Jira records to export
     "INDEXEjira_export": False,  # Perform Jira export
     
-
     # Indexer CLI settings
 
     "IDXCLIsession_key": "INDEXER",   # session name for Indexer CLI
@@ -53,6 +56,11 @@ context = {
     # Query CLI settings
 
     "QUECLIsession_key": "QUERY",   # session name  for Query CLI
-    "QUECLIstatus_FileName": "status.QUERY.json"  # status file name for Query CLI
+    "QUECLIstatus_FileName": "status.QUERY.json",  # status file name for Query CLI
+
+    # Discovery CLI settings
+
+    "DISCLIsession_key": "DISCOVERY",   # session name  for Discovery CLI
+    "DISCLIstatus_FileName": "status.DISCOVERY.json"  # status file name for Discovery CLI
 
 }

@@ -46,40 +46,6 @@ class IndexerWorkflow(WorkflowBase):
         super().__init__(context=context, logger=logger, createCollection=True)
 
 
-    def loadPDF(self, inputFile : str) -> str :
-        """
-        Use PyDPF to load PDF and extract all text
-        convert all characters to ASCII
-        merge all pages and remove extra whitespace 
-        
-        Args:
-            inputFile (str) - PDF file name
-
-        Returns:
-            str - combined text 
-        """
-
-        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
-        docs = loader.load()
-
-        textCombined = ""
-        for page in docs:
-            pageContent = page.page_content
-            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
-                pageContent = pageContent.strip()
-            if "convertToLower" in self.context and self.context["convertToLower"]:
-                pageContent = pageContent.lower()
-            if "convertToASCII" in self.context and self.context["convertToASCII"]:
-                pageContent = anyascii(pageContent)
-            if "singleSpaces" in self.context and self.context["singleSpaces"]:
-                pageContent = " ".join(pageContent.split())
-            textCombined += " "
-            textCombined += pageContent
-        return textCombined
-
-
-
-
     def preprocessReportRawText(self, rawText : str) -> dict[str, str] :
         """
         Split raw text into pages using separator.

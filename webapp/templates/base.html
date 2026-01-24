@@ -14,7 +14,7 @@
             }
             .custom-hr {
                 border: none;
-                height: 2px;
+                height: 1px;
                 background-color: red;
             }
             .bold-text {
@@ -22,7 +22,7 @@
             }
             th, td {
                 border: 1px solid;
-                text-align:left;
+                text-align:center;
             }
             .column {
                 float: left;
@@ -32,6 +32,17 @@
                 content: "";
                 display: table;
                 clear: both;
+            }
+            .result-table {
+                width: 80%;
+                margin: auto;
+                border-collapse: collapse; /* Removes double borders */
+            }
+            tr:nth-child(even) {
+                background-color: #F5F5DC; /* Beige for alternating rows */
+            }
+            tr:hover {
+                background-color: #FFE4B5; /* Highlight row on hover */
             }
         </style>
 

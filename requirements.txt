@@ -47,6 +47,7 @@ cyclopts
 cymem
 dataclasses
 dataclasses-json
+datamodel-code-generator
 defusedxml
 Deprecated
 diskcache
@@ -119,6 +120,7 @@ jsonpointer
 jsonschema
 jsonschema-path
 jsonschema-specifications
+json_schema_to_pydantic
 keyboard
 keyring
 kiwisolver

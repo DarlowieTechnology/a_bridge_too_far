@@ -1,94 +1,95 @@
 {
-  "report" : "AWS_Review.pdf",
+  "report": "AWS_Review.pdf",
   "finding_dict": {
-"sr-109-001" : {
-  "identifier": "sr-109-001",
-  "title": "Iam roles assigned with excessive permissions",
-  "risk": "high",
-  "status": "open",
-  "description": "An analysis of the configured roles that were then assigned to running ec2 instances indicated that some of them would receive excessive permissions that could allow arbitrary commands to be launched across all the instances, read arbitrary s3 objects, etc. As an example, the following role was present in the aws configuration reviewed during this assessment: [role name] The following is a screenshot for this role listing the inline policies: Figure 1: sample role with inline policies attached. The IAMFullAccess inline policy was defined as follows: {  \"version\": \"2020-10-17\",  \"statement\": [   {    \"effect\": \"allow\",    \"action\": \"iam:*\",    \"resource\": \"*\"   }  ] } The above policy gave administrative permissions to perform all actions in iam, including managing passwords, access keys, mfa devices and user certificates. This issue was rated as high risk in consideration of the security impact of unrestricted access to the IAM service.",
-  "recommendation": "Create managed security policies following the least privileges security principle (i.e. including only the minimal set of API commands necessary for operations and listing the resources that would be affected by these commands) and attach these to the roles in use.",
-  "affects": "[\"aws account 123456789012 \", \"1/aws identity and access management (iam)https://aws.amazon.com/iam/\", \"2/aws identity and access management documentationhttps://aws.amazon.com/documentation/iam/\", \"3/aws documentation-iam best practices: use aws defined policies to assign permissions whenever possiblehttps://docs.aws.amazon.com/ iam/latest/userguide/best-practices.html#bp-use-aws-defined-policies\", \"4/aws documentation -iam best practices: grant least privilege https://docs.aws.amazon.com/iam/latest/userguide/best-practices.html#grant-least-privilege\"]"
-},
-"sr-109-002" : {
-  "identifier": "sr-109-002",
-  "title": "overly permissive network configuration",
-  "risk": "high",
-  "status": "open",
-  "description": "examination of the high level architecture diagram and configured firewall rules indicated that the network configuration was excessively permissive and a number of resources were publicly available. the following high level figure illustrates the external addresses that were allowed a degree of access into the account: figure 2: global view of the aws account the following figure illustrates the high level database connectivity within the account: figure 3: high level view of the database connectivity the following figure illustrates the high level configuration of virtual private networks (vpcs) within the account: figure 4: high level view of the vpc configuration after review of the above, the following observations can be made: u a large number of resources were publicly accessible. this presents an opportunity for abuse, especially in the case of sensitive or corporate resources. u a permissive network configuration was observed, which allowed connections between resources in different subnets and vpcs. this poses a significant risk in the event that a host is compromised, as it would potentially enable attackers to move laterally within the aws account. u the aws account held all of clientname's assets, including corporate and production environments. this is considered contrary to security best practice. recommendation: unless necessary for normal business operation, ensure that the network is only accessible from internal addresses, or if not possible, consider creating a whitelist of external addresses which can access the network. doing so will limit the resources that are accessible to an attacker. this could deny the individual access to information that may have been helpful in developing an attack, and it may deny a potential avenue into a achieving a foothold on the network. clientname should also limit the access privileges and general interconnectivity of the sublets, vpcs, and aws account in line with the principle of least privilege. these privileges should be reduced to only what is necessary for normal operation of the business to as to limit an attacker's options in the event of a compromise.",
-  "recommendation": "unless necessary for normal business operation, ensure that the network is only accessible from internal addresses, or if not possible, consider creating a whitelist of external addresses which can access the network. doing so will limit the resources that are accessible to an attacker. this could deny the individual access to information that may have been helpful in developing an attack, and it may deny a potential avenue into a achieving a foothold on the network. clientname should also limit the access privileges and general interconnectivity of the sublets, vpcs, and aws account in line with the principle of least privilege. these privileges should be reduced to only what is necessary for normal operation of the business to as to limit an attacker's options in the event of a compromise.",
-  "affects": "aws account 123456789012"
-},
-"sr-109-003" : {
-  "identifier": "sr-109-003",
-  "title": "unauthorised access to s3 buckets",
-  "risk": "buckets ",
-  "status": "medium",
-  "description": "an s3 bucket was found to be configured with excessive permissions that could allow unauthorised access to the stored objects. this bucket included access to logs of the portal web application. the following screenshot from the management console shows how full permissions to access the objects stored in the 'bucketname' bucket were granted to any authenticated aws user: figure 5: s3 bucket access the \"any authenticated aws user\" is a special group that will include any user having access to aws and not only the users associated with the clientname account. to demonstrate this problem, the following command was executed using api keys belonging to an test organization account: $ aws --profile testorg s3 ls --recursive s3://[bucketname] ... 2021-01-25 09:45:04 765520 logs-01-25-2021.log 2021-01-26 11:22:01 801528 logs-01-26-2021.log ... according to the permissions visible above, objects could have been downloaded and also deleted or otherwise edited. additionally, new objects could be uploaded. the following table includes all the s3 buckets affected by this issue and the type of permissions allowed to anonymous and any other aws user (i.e. including aws users not belonging to clientname): s3 bucket user type list upload/delete view edit 'bucketname' any aws user yes yes yes yes technical details about this issue were transmitted to clientname during testing and some actions were performed to mitigate the risk associated with this issue.",
-  "recommendation": "edit the permissions associated to the affected s3 buckets ensuring that no permissions are granted to the anonymous or 'any authenticated aws user' group",
-  "affects": "aws account 123456789012"
-},
-"sr-109-004" : {
-  "identifier": "sr-109-004",
-  "title": "user without mfa enabled",
-  "risk": "medium",
-  "status": "open",
-  "description": "multiple accounts were identified which had password authentication enabled but did not have multi-factor authentication (mfa) enabled, contrary to security best practice.",
-  "recommendation": "implement mfa for the users with password authentication enabled.",
-  "affects": "[aws account 123456789012, 8aws identity and access management (iam) https://aws.amazon.com/iam/, 9 aws identity and access management documentationhttps://aws.amazon.com/documentation/iam/, 10 aws documentation -using multi-factor authentication (mfa) in aws https://docs.aws.amazon.com/iam/latest/userguide/id_credentials_mfa.html, 11 cis amazon web services foundationshttps://d0.awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdf]"
-},
-"sr-109-005" : {
-  "identifier": "sr-109-005",
-  "title": "iam password policy",
-  "risk": "medium",
-  "status": "open",
-  "description": "no password policy was enabled in the iam settings. this could result in the creation of weak user passwords. the following screenshot illustrates the password policy settings that were observed: figure 6: password policy not enforced",
-  "recommendation": "ensure a strong password policy is in place. specifically ensure that the following password policy is enforced:12, 13, 14, 15 u passwords should use mixed case u passwords should include at least one number u passwords should include at least one symbol u passwords have a minimum length of 14 characters u passwords cannot be reused",
-  "affects": "aws account 123456789012 https://aws.amazon.com/iam/ https://aws.amazon.com/documentation/iam/ https://docs.aws.amazon.com/iam/latest/userguide/credentials-managingpasswords.html https://www.cisecurity.org/benchmark/amazon_web_services/"
-},
-"sr-109-006" : {
-  "identifier": "sr-109-006",
-  "title": "Automated Backups not Enabled for RDS Instances",
-  "risk": "Low",
-  "status": "Open",
-  "description": "Automated backups had not been enabled for a number of relational database service (RDS) instances. This feature facilitates the creation of periodic RDS instance snapshots, which in turn ensure that data restoration is possible in the event of an incident affecting the source database. The following screenshot from the management console shows that the production-data and development-db RDS instances had automated backups disabled: Figure 7: RDS Instance with Automated Backups Disabled.",
-  "recommendation": "Ensure that all RDS database instances that host sensitive data have automated backups enabled for point-in-time recovery.",
-  "affects": "AWS account 123456789012, Amazon Relational Database Service (RDS) https://aws.amazon.com/rds/, Amazon Relational Database Service documentation https://aws.amazon.com/documentation/rds/, AWS Documentation - Backing up and restoring Amazon RDS DB instances https://docs.aws.amazon.com/amazonrds/latest/userguide/chap_commonTasks.backuprestore.html"
-},
-"sr-109-007" : {
-  "identifier": "sr-109-007 single availability zone rds instance",
-  "title": "RDS Instances Without Multi-Availability Zone Enabled",
-  "risk": "low",
-  "status": "open",
-  "description": "A number of relational database service (rds) instances were configured without the multi-availability zone (multi-az) enabled. Without this, should an availability zone specific database failure occur, then Amazon RDS cannot automatically fail over to the standby availability zone so that database operations can resume quickly without administrative intervention. The following database instances (based on the Aurora engine) were configured with Multi-AZ disabled: U Preproduction-data U Test-data U Development-db The following screenshot shows that multi-AZ was disabled for one of the instances listed above: Figure 8: RDS Availability Zone.",
-  "recommendation": "Consideration should be given to modifying the configuration of the database instances to enable Multi-AZ. This is especially important if the applications using the databases require high availability.",
-  "affects": "AWS account 123456789012"
-},
-"sr-109-008" : {
-  "identifier": "sr-109-008",
-  "title": "unused security groups",
-  "risk": "low",
-  "status": "open",
-  "description": "a number of security groups were defined which were unused and may not be required. this being the case, their existence in the configuration increases the risk that they may be inappropriately assigned. the following security groups were found to be unused: u securitygroupname1 (security group idsg-123456789) u securitygroupname2 (security group idsg-123456789) u securitygroupname3 (security group idsg-123456789)",
-  "recommendation": "the unused security groups should be reviewed and removed if no longer required.",
-  "affects": "aws account 123456789012, amazon virtual private cloud https://aws.amazon.com/vpc/, amazon virtual private cloud documentation https://aws.amazon.com/documentation/vpc/, cis amazon web services foundations https://d0.awsstatic.com/whitepapers/compliance/aws_cis_foundations_benchmark.pdf"
-},
-"sr-109-009" : {
-  "identifier": "sr-109-009",
-  "title": "subnets using default network ACLs",
-  "risk": "low",
-  "status": "open",
-  "description": "a number of subnets were identified to be using the default network access control list (nacl), allowing all incoming and outgoing network traffic. in this configuration, the affected nacls do not provide the secondary layer of security defence that they are supposed to. the following network acls were affected by this issue in the us-east-1 region: u <nacl name> (nacl idacl-123456789) u <nacl name> (nacl idacl-123456789) u <nacl name> (nacl idacl-123456789) the following screenshot was taken from the aws management console and shows the inbound rules available for the first of the nacls listed above: figure 9: default network acl in use the outbound rules were similar, allowing all outgoing traffic. it should be noted that default nacls were also available across the remaining aws regions/vpc. recommendation: network acls should be considered as the secondary layer of security defence against unwanted traffic. consequently, consideration should be given to implementing nacls that only allow the necessary inbound and outbound traffic to the associated vpc subnets.",
-  "recommendation": "network acls should be considered as the secondary layer of security defence against unwanted traffic. consequently, consideration should be given to implementing nacls that only allow the necessary inbound and outbound traffic to the associated vpc subnets.",
-  "affects": "aws account 123456789012 25 amazon virtual private cloud https://aws.amazon.com/vpc/ 26amazon virtual private cloud documentation https://aws.amazon.com/documentation/vpc/ 27 aws documentation-vpc security https://docs.aws.amazon.com/amazonvpc/latest/userguide/vpc_security.html 28 aws documentation-network acls https://docs.aws.amazon.com/amazonvpc/latest/userguide/vpc_acls.html7 29 aws documentation -recommended network acl rules for your vpc https://docs.aws.amazon.com/amazonvpc/latest/userguide/vpc_appendix_nacls.html"
-},
-"sr-109-010" : {
-  "identifier": "sr-109-010",
-  "title": "CloudFormation Stack without termination protection",
-  "risk": "low",
-  "status": "open",
-  "description": "The termination protection setting available for the CloudFormation service was not found to be enabled for one stack. When this feature is enabled for a stack, deletion attempts will fail and the stack (including its current status), will remain unchanged. Security best practice for CloudFormation management recommends enabling this feature for production environments. The following command was run for the stack name stack: $ aws cloudformation describe-stacks --region eu-west-1 --stack-name [stackname] -- query 'stacks[*].enableterminationprotection' [ false ] As can be seen above, the describe-stacks command returned false, indicating that the termination protection safety feature was not enabled for the selected stack. It should be noted that CloudFormation stack policies may also be used to prevent stack resources from being un-intentionally updated or deleted during a stack update process. However, stack policies cannot protect stacks from being terminated, as IAM users who have the permission to delete a stack may still delete it. Recommendation: Ensure that Amazon CloudFormation stacks have termination protection enabled in order to protect them from being accidentally deleted.",
-  "recommendation": "Ensure that Amazon CloudFormation stacks have termination protection enabled in order to protect them from being accidentally deleted.",
-  "affects": "30: https://aws.amazon.com/cloudformation/, 31: https://aws.amazon.com/documentation/cloudformation/, 32: https://docs.aws.amazon.com/awscloudformation/latest/userguide/using-cfn-protect-stacks.html"
-}}
+    "sr-109-001": {
+      "identifier": "sr-109-001",
+      "title": "iam roles assigned with excessive permissions",
+      "risk_rating": "high",
+      "status": "open",
+      "description": "an analysis of the configured roles that were then assigned to running ec2 instances indicated that some of them would receive excessive permissions that could allow arbitrary commands to be launched across all the instances, read arbitrary s3 objects, etc. as an example, the following role was present in the aws configuration reviewed during this assessment: [role name] the following is a screenshot for this role listing the inline policies: figure 1: sample role with inline policies attached the \"iamfullaccess\" inline policy was defined as follows: { \"version\": \"2020-10-17\", \"statement\": [ { \"effect\": \"allow\", \"action\": \"iam:*\", \"resource\": \"*\" } ] } the above policy gave administrative permissions to perform all actions in iam, including managing passwords, access keys, mfa devices and user certificates. this issue was rated as high risk in consideration of the security impact of unrestricted access to the iam service.",
+      "recommendation": "create managed security policies following the least privileges security principle (i.e. including only the minimal set of api commands necessary for operations and listing the resources that would be affected by these commands) and attach these to the roles in use.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-002": {
+      "identifier": "sr-109-002",
+      "title": "overly permissive network configuration",
+      "risk_rating": "high",
+      "status": "open",
+      "description": "examination of the high level architecture diagram and configured firewall rules indicated that the network configuration was excessively permissive and a number of resources were publicly available. after review of the above, the following observations can be made: a large number of resources were publicly accessible. this presents an opportunity for abuse, especially in the case of sensitive or corporate resources. a permissive network configuration was observed, which allowed connections between resources in different sublets and vpcs. this poses a significant risk in the event that a host is compromised, as it would potentially enable attackers to move laterally within the aws account. the aws account held all of clientname's assets, including corporate and production environments. this is considered contrary to security best practice.",
+      "recommendation": "unless necessary for normal business operation, ensure that the network is only accessible from internal addresses, or if not possible, consider creating a whitelist of external addresses which can access the network. clientname should also limit the access privileges and general interconnectivity of the sublets, vpcs, and aws account in line with the principle of least privilege.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-003": {
+      "identifier": "sr-109-003",
+      "title": "unauthorised access to s3 buckets",
+      "risk_rating": "medium",
+      "status": "open",
+      "description": "an s3 bucket was found to be configured with excessive permissions that could allow unauthorised access to the stored objects. this bucket included access to logs of the portal web application. the \"any authenticated aws user\" is a special group that will include any user having access to aws and not only the users associated with the clientname account. according to the permissions visible above, objects could have been downloaded and also deleted or otherwise edited. additionally, new objects could be uploaded.",
+      "recommendation": "edit the permissions associated to the affected s3 buckets ensuring that no permissions are granted to the anonymous or \"any authenticated aws user\" group.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-004": {
+      "identifier": "sr-109-004",
+      "title": "user without mfa enabled",
+      "risk_rating": "medium",
+      "status": "open",
+      "description": "multiple accounts were identified which had password authentication enabled but did not have multi-factor authentication (mfa) enabled, contrary to security best practice. if mfa is not enabled, attackers could be able to access the aws web console with just a username and password combination.",
+      "recommendation": "implement mfa for the users with password authentication enabled.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-005": {
+      "identifier": "sr-109-005",
+      "title": "iam password policy",
+      "risk_rating": "medium",
+      "status": "open",
+      "description": "no password policy was enabled in the iam settings. this could result in the creation of weak user passwords.",
+      "recommendation": "ensure a strong password policy is in place. specifically ensure that the following password policy is enforced: passwords should use mixed case; passwords should include at least one number; passwords should include at least one symbol; passwords have a minimum length of 14 characters; passwords cannot be reused.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-006": {
+      "identifier": "sr-109-006",
+      "title": "automated backups not enabled for rds instances",
+      "risk_rating": "low",
+      "status": "open",
+      "description": "automated backups had not been enabled for a number of relational database service (rds) instances. this feature facilitates the creation of periodic rds instance snapshots, which in turn ensure that data restoration is possible in the event of an incident affecting the source database.",
+      "recommendation": "ensure that all rds database instances that host sensitive data have automated backups enabled for point-in-time recovery.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-007": {
+      "identifier": "sr-109-007",
+      "title": "single availability zone rds instance",
+      "risk_rating": "low",
+      "status": "open",
+      "description": "a number of relational database service (rds) instances were configured without the multi-availability zone (multi-az) enabled. without this, should an availability zone specific database failure occur, then amazon rds cannot automatically fail over to the standby availability zone so that database operations can resume quickly without administrative intervention.",
+      "recommendation": "consideration should be given to modifying the configuration of the database instances to enable multi-az. this is especially important if the applications using the databases require high availability.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-008": {
+      "identifier": "sr-109-008",
+      "title": "unused security groups",
+      "risk_rating": "low",
+      "status": "open",
+      "description": "a number of security groups were defined which were unused and may not be required. this being the case, their existence in the configuration increases the risk that they may be inappropriately assigned.",
+      "recommendation": "the unused security groups should be reviewed and removed if no longer required.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-009": {
+      "identifier": "sr-109-009",
+      "title": "subnets using default network acls",
+      "risk_rating": "low",
+      "status": "open",
+      "description": "a number of subnets were identified to be using the default network access control list (nacl), allowing all incoming and outgoing network traffic. in this configuration, the affected nacls do not provide the secondary layer of security defence that they are supposed to.",
+      "recommendation": "network acls should be considered as the secondary layer of security defence against unwanted traffic. consequently, consideration should be given to implementing nacls that only allow the necessary inbound and outbound traffic to the associated vpc subnets.",
+      "affects": "aws account 123456789012"
+    },
+    "sr-109-010": {
+      "identifier": "sr-109-010",
+      "title": "cloudformation stack without termination protection",
+      "risk_rating": "low",
+      "status": "open",
+      "description": "the termination protection setting available for the cloudformation service was not found to be enabled for one stack. when this feature is enabled for a stack, deletion attempts will fail and the stack (including its current status), will remain unchanged. security best practice for cloudformation management recommends enabling this feature for production environments.",
+      "recommendation": "ensure that amazon cloudformation stacks have termination protection enabled in order to protect them from being accidentally deleted.",
+      "affects": "aws account 123456789012"
+    }
+  }
 }

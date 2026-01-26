@@ -1,0 +1,8 @@
+[
+  "Introduction to workflow optimization using LLMs, emphasizing that private enterprise data is a key market differentiator and establishing a proof-of-concept using cybersecurity reports.",
+  "A comparison of machine learning implementation strategies, specifically weighing the portability and data-structuring benefits of Retrieval-Augmented Generation (RAG) against the high-precision but high-cost nature of LLM tuning.",
+  "An overview of RAG as a foundational entry point for LLM workflows, used to convert unstructured data into structured formats and establish data quality and authorization protocols.",
+  "Integration of Pydantic agents in agentic AI, highlighting their role as a type-safe, portable foundation for wrapping iterative LLM calls across different providers.",
+  "A technical architecture summary featuring a hybrid model that utilizes cloud-based LLM APIs alongside local vector databases for dual-use web and command-line applications.",
+  "A case study of the 'A Bridge Too Far' project, detailing a Python-based implementation using Django and ChromaDB to perform semantic searches on security vulnerabilities like XSS."
+]

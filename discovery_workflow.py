@@ -46,6 +46,47 @@ class DiscoveryWorkflow(WorkflowBase):
         super().__init__(context=context, logger=logger, createCollection=True)
 
 
+    def makeSummaryOllama(self, docs : str) -> tuple[str, RunUsage] :
+        """
+        make summary of text
+        
+        :param docs: text to make summary of
+        :type docs: str
+        :return: Tuple of summary and LLM usage
+        :rtype: tuple[str, RunUsage]
+        """
+
+        systemPrompt = f"""
+        You are an expert in English text analysis.
+        The prompt contains English text. 
+        Create short summary of the text.
+        Separate topics you find into different summaries.
+        Include all major topics you find in the text.
+        Format output as Python list.
+        """
+
+        prompt = f"{docs}"
+
+        ollModel = self.createOpenAIChatModel()
+
+        agent = Agent(ollModel,
+                      output_type=List,
+                      system_prompt = systemPrompt)
+        try:
+            result = agent.run_sync(prompt)
+            runUsage = result.usage()
+            return result.output, runUsage
+       
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
+        return None, None
+
+
+
     def parseAttemptRecordListOllama(self, docs : str) -> tuple[List, RunUsage] :
         """
         Use Ollama host and Pydantic AI Agent to attempt extraction of repeated templates
@@ -54,7 +95,7 @@ class DiscoveryWorkflow(WorkflowBase):
             docs (str) - text with unstructured data
 
         Returns:
-            LLM RunUsage
+            Tuple of record list and LLM usage
         """
 
         systemPrompt = f"""
@@ -134,9 +175,8 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         systemPrompt = f"""
-        You are an expert in English text analysis.
-        The prompt contains English text that starts with identifier and contains fields including risk rating, status, description, recommendation.
-        Output JSON record where keys are names of fields.
+        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
+        {json.dumps(Model.model_json_schema(), indent=2)}
         Name identifier field key 'identifier'
         Ensure the output is valid JSON as it will be parsed using `json.loads()` in Python.
         Do not format output.

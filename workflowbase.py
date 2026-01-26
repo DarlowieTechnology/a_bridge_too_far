@@ -178,7 +178,7 @@ class WorkflowBase:
         :rtype: str
         """
         requestLabel = 'requests' if self.usage.requests > 1 else 'request'
-        return f"{self.usage.requests} {requestLabel} {self.usage.input_tokens} input tokens {self.usage.output_tokens} output tokens"
+        return f"<b>{self.usage.requests}</b> {requestLabel}, <b>{self.usage.input_tokens}>/b> input tokens, <b>{self.usage.output_tokens}</b> output tokens"
 
 
     def usageFormat(self, usage : RunUsage) -> str:
@@ -189,7 +189,7 @@ class WorkflowBase:
         :rtype: str
         """
         requestLabel = 'requests' if usage.requests > 1 else 'request'
-        return f"{usage.requests} {requestLabel} {usage.input_tokens} input tokens {usage.output_tokens} output tokens"
+        return f"<b>{usage.requests}</b> {requestLabel}, <b>{usage.input_tokens}</b>, input tokens <b>{usage.output_tokens}</b> output tokens"
 
 
     def loadPDF(self, inputFile : str) -> str :

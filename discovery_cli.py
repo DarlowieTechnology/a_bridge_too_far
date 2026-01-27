@@ -4,6 +4,7 @@ from logging import Logger
 import time
 import json
 from pathlib import Path
+import mimetypes
 
 from pydantic_ai.usage import RunUsage
 
@@ -14,6 +15,16 @@ import json_schema_to_pydantic
 import darlowie
 from common import COLLECTION, RecordCollection
 from discovery_workflow import DiscoveryWorkflow
+
+acceptedMimeTypes = [
+    "text/css",
+    "text/csv",
+    "text/html",
+    "application/json",
+    "text/markdown",
+    "application/pdf",
+    "text/plain"
+]
 
 
 def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
@@ -31,18 +42,37 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     msg = f"Input file {discoveryWorkflow.context['inputFileName']}"
     discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------read PDF ---------------
+    # make data path for the document if does not exist
+    Path(discoveryWorkflow.context["dataFolder"]).mkdir(parents=True, exist_ok=True)
+
+    # ---------------loadDocument ---------------
 
     if "loadDocument" in discoveryWorkflow.context and discoveryWorkflow.context["loadDocument"]:
         startTime = time.time()
-        textCombined = discoveryWorkflow.loadPDF(discoveryWorkflow.context['inputFileName'])
-        with open(discoveryWorkflow.context["rawtextfromPDF"], "w" , encoding="utf-8", errors="ignore") as rawOut:
+
+        mime_type, encoding = mimetypes.guess_type(discoveryWorkflow.context['inputFileName'])
+        if mime_type in acceptedMimeTypes:
+            discoveryWorkflow.context['mime_type'] = mime_type
+            discoveryWorkflow.context['encoding'] = encoding
+        else:
+            msg = f" File type not supported: {mime_type}"
+            discoveryWorkflow.workerSnapshot(msg)
+            return
+
+        if discoveryWorkflow.context['mime_type'] == "application/pdf":
+            textCombined = discoveryWorkflow.loadPDF(discoveryWorkflow.context['inputFileName'])
+        if discoveryWorkflow.context['mime_type'] in ["text/css", "text/csv", "text/html", "application/json", "text/markdown", "text/plain"]:
+            with open(discoveryWorkflow.context["inputFileName"], "r" , encoding="utf-8", errors="ignore") as txtIn:
+                textCombined = txtIn.read()
+
+        with open(discoveryWorkflow.context["rawtext"], "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
+
         endTime = time.time()
         msg = f"Read <b>{len(textCombined)} bytes</b> from file <b>{discoveryWorkflow.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------make summary -----------------
+    # ---------------makeSummary -----------------
 
     if "makeSummary" in discoveryWorkflow.context and discoveryWorkflow.context["makeSummary"]:
         startTime = time.time()
@@ -50,7 +80,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         discoveryWorkflow.workerSnapshot(msg)
         if 'textCombined' not in locals():
             # if this is a separate step - read text into string
-            with open(discoveryWorkflow.context['rawtextfromPDF'], "r", encoding='utf8', errors='ignore') as txtIn:
+            with open(discoveryWorkflow.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
                 textCombined = txtIn.read()
 
         summaryList, runUsage = discoveryWorkflow.makeSummaryOllama(textCombined)
@@ -62,7 +92,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Completed makeSummary phase. Usage: {discoveryWorkflow.usageFormat(runUsage)} Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------attribute categories ---------
+    # ---------------attributeCategories ---------
 
     if "attributeCategories" in discoveryWorkflow.context and discoveryWorkflow.context["attributeCategories"]:
         startTime = time.time()
@@ -81,7 +111,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Completed attributeCategories phase. Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------parse attempt -----------------
+    # ---------------parseAttempt -----------------
 
     if "parseAttempt" in discoveryWorkflow.context and discoveryWorkflow.context["parseAttempt"]:
         startTime = time.time()
@@ -89,7 +119,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         discoveryWorkflow.workerSnapshot(msg)
         if 'textCombined' not in locals():
             # if this is a separate step - read text into string
-            with open(discoveryWorkflow.context['rawtextfromPDF'], "r", encoding='utf8', errors='ignore') as txtIn:
+            with open(discoveryWorkflow.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
                 textCombined = txtIn.read()
         listRawIssues, runUsage = discoveryWorkflow.parseAttemptRecordListOllama(textCombined)
         discoveryWorkflow.addUsage(runUsage)
@@ -99,7 +129,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Completed parseAttempt phase. Found <b>{len(listRawIssues)}</b> potential records. Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------discover schema -----------------
+    # ---------------discoverSchema -----------------
 
     if "discoverSchema" in discoveryWorkflow.context and discoveryWorkflow.context["discoverSchema"]:
         startTime = time.time()
@@ -120,8 +150,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         schemaDict = json.loads(schemaDict)
 
         # rename schema to be unique
-        PDFBaseName = str(Path(discoveryWorkflow.context['inputFileName']).name)
-        schemaDict['title'] = PDFBaseName + " " + schemaDict['title']
+        schemaDict['title'] = discoveryWorkflow.context["inputFileBaseName"] + " " + schemaDict['title']
 
         # verify that Pydantic model can be created from schema
         schemaVerified = False
@@ -152,7 +181,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Completed discoverSchema phase: Usage: {discoveryWorkflow.usageFormat(runUsage)}. Time: {(endTime - startTime):.2f} seconds."
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------make final JSON -----------------
+    # ---------------finalJSONfromRaw -----------------
 
     if "finalJSONfromRaw" in discoveryWorkflow.context and discoveryWorkflow.context["finalJSONfromRaw"]:
         startTime = time.time()
@@ -197,7 +226,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Completed finalJSONfromRaw phase. Usage: {discoveryWorkflow.usageFormat(usageForPhase)}. {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------stage completed ---------------
+    # ---------------completed ---------------
     totalEnd = time.time()
     discoveryWorkflow.context["stage"] = "completed"
     msg = f"Workflow completed. Total usage: {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
@@ -215,20 +244,22 @@ def main():
     logger = logging.getLogger(context["DISCLIsession_key"])
 
 
-    context["inputFileName"] = "documents/Project Presentation v1.pdf"
-    context["rawtextfromPDF"] = context["inputFileName"] + ".raw.txt"
-    context["rawJSON"] = context["inputFileName"] + ".raw.json"
-    context["schemaJSON"] = context["inputFileName"] + ".schema.json"
-    context["finalJSON"] = context["inputFileName"] + ".json"
-    context["summaryJSON"] = context["inputFileName"] + ".summary.json"
+    context["inputFileName"] = "documents/medresearch-099.txt"
     context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
+
+    context["dataFolder"] = context["inputFileName"] + "-data"
+    context["rawtext"] = context["dataFolder"] + "/raw.txt"
+    context["rawJSON"] = context["dataFolder"] + "/raw.json"
+    context["schemaJSON"] = context["dataFolder"] + "/schema.json"
+    context["finalJSON"] = context["dataFolder"] + "/final.json"
+    context["summaryJSON"] = context["dataFolder"] + "/summary.json"
 
     context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
-    context["loadDocument"] = False
+    context["loadDocument"] = True
     context["makeSummary"] = False
-    context["attributeCategories"] = True
+    context["attributeCategories"] = False
     context["parseAttempt"] = False
     context["discoverSchema"] = False
     context["finalJSONfromRaw"] = False

@@ -204,3 +204,6 @@ __marimo__/
 
 # TOML file
 default.toml
+
+# data
+documents

@@ -73,6 +73,27 @@ class RecordCollection(BaseModel):
         return len(self.finding_dict)
 
 
+class SectionInfo(BaseModel):
+    """
+    represents one section of the document
+    """
+    docName: str = Field(..., description="document name")
+    section: str = Field(..., description="section")
+
+
+class MatchingSections(BaseModel):
+    """
+    represents a known topic and sections of the document that matches it
+    """
+    topic: str = Field(..., description="document name")
+    section_list: List[SectionInfo] = Field(default=None, description="list of sections")
+
+class AllTopicMatches(BaseModel):
+    """
+    represents all section matches for all topics
+    """
+    topic_dict: Dict[str, MatchingSections] = Field(default=None, description="dict of section matches for topic")
+
 
 class OneRecord(BaseModel):
     """represents one record in structured storage"""

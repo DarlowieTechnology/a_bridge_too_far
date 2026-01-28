@@ -9,11 +9,11 @@ import mimetypes
 from pydantic_ai.usage import RunUsage
 
 import json_schema_to_pydantic
-
+from anyascii import anyascii
 
 # local
 import darlowie
-from common import COLLECTION, RecordCollection
+from common import COLLECTION, RecordCollection, MatchingSections, SectionInfo, AllTopicMatches
 from discovery_workflow import DiscoveryWorkflow
 
 acceptedMimeTypes = [
@@ -24,6 +24,13 @@ acceptedMimeTypes = [
     "text/markdown",
     "application/pdf",
     "text/plain"
+]
+
+knownTopics = [
+    "penetration test results",
+    "medical research notes",
+    "pipe systems engineering",
+    "civil engineering"
 ]
 
 
@@ -72,44 +79,66 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msg = f"Read <b>{len(textCombined)} bytes</b> from file <b>{discoveryWorkflow.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------makeSummary -----------------
+    # ---------------parseSections ---------------
 
-    if "makeSummary" in discoveryWorkflow.context and discoveryWorkflow.context["makeSummary"]:
+    if "parseSections" in discoveryWorkflow.context and discoveryWorkflow.context["parseSections"]:
         startTime = time.time()
-        msg = f"Starting makeSummary phase"
+        msg = f"Starting parseSections phase"
         discoveryWorkflow.workerSnapshot(msg)
         if 'textCombined' not in locals():
             # if this is a separate step - read text into string
             with open(discoveryWorkflow.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
                 textCombined = txtIn.read()
 
-        summaryList, runUsage = discoveryWorkflow.makeSummaryOllama(textCombined)
+        sectionListRaw, runUsage = discoveryWorkflow.parseSectionsOllama(textCombined)
         discoveryWorkflow.addUsage(runUsage)
 
-        with open(discoveryWorkflow.context["summaryJSON"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
-            summaryJSONOut.writelines(json.dumps(summaryList, indent=2))
+        sectionList = []
+        for pageContent in sectionListRaw:
+            pageContent = pageContent.strip()
+            pageContent = pageContent.lower()
+            pageContent = " ".join(pageContent.split())
+            pageContent = anyascii(pageContent)
+            sectionList.append(pageContent)
+
+        with open(discoveryWorkflow.context["sectionListRaw"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
+            summaryJSONOut.writelines(json.dumps(sectionList, indent=2))
         endTime = time.time()
-        msg = f"Completed makeSummary phase. Usage: {discoveryWorkflow.usageFormat(runUsage)} Time: {(endTime - startTime):.2f} seconds"
+        msg = f"Completed parseSections phase. Usage: {discoveryWorkflow.usageFormat(runUsage)} Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
 
-    # ---------------attributeCategories ---------
 
-    if "attributeCategories" in discoveryWorkflow.context and discoveryWorkflow.context["attributeCategories"]:
+    # ---------------matchSections -----------------
+
+    if "matchSections" in discoveryWorkflow.context and discoveryWorkflow.context["matchSections"]:
         startTime = time.time()
-        msg = f"Starting attributeCategories phase"
+        msg = f"Starting matchSections phase"
         discoveryWorkflow.workerSnapshot(msg)
-
-        if 'summaryList' not in locals():
+        if 'sectionList' not in locals():
             # if this is a separate step - read text into string
-            with open(discoveryWorkflow.context['summaryJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                summaryList = json.load(JsonIn)
+            with open(discoveryWorkflow.context['sectionListRaw'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                sectionList = json.load(JsonIn)
 
-#        listRawIssues, runUsage = discoveryWorkflow.parseAttemptRecordListOllama(textCombined)
-#        discoveryWorkflow.addUsage(runUsage)
+        allTopicMatches = AllTopicMatches(topic_dict = {})
+        for topic in knownTopics:
+            matchingSections = MatchingSections(topic = topic, section_list = [])
+            allTopicMatches.topic_dict[topic] = matchingSections
+
+        for section in sectionList:
+            matchList, runUsage = discoveryWorkflow.matchSectionOllama(section, knownTopics)
+            discoveryWorkflow.addUsage(runUsage)
+            for topic in matchList:
+                sectionInfo = SectionInfo(docName = discoveryWorkflow.context['inputFileName'], section = section)
+                matchingSections = allTopicMatches.topic_dict[topic]
+                matchingSections.section_list.append(sectionInfo)
+
+        with open(discoveryWorkflow.context["matchJSON"], "w", encoding="utf-8", errors="ignore") as jsonOut:
+            jsonOut.writelines(allTopicMatches.model_dump_json(indent=2))
 
         endTime = time.time()
-        msg = f"Completed attributeCategories phase. Time: {(endTime - startTime):.2f} seconds"
+        msg = f"Completed matchSections phase. Usage: {discoveryWorkflow.usageFormat(runUsage)} Time: {(endTime - startTime):.2f} seconds"
         discoveryWorkflow.workerSnapshot(msg)
+
 
     # ---------------parseAttempt -----------------
 
@@ -244,32 +273,33 @@ def main():
     logger = logging.getLogger(context["DISCLIsession_key"])
 
 
-    context["inputFileName"] = "documents/medresearch-099.txt"
+    context["inputFileName"] = "documents/Refinery-CMS.pdf"
     context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
 
     context["dataFolder"] = context["inputFileName"] + "-data"
     context["rawtext"] = context["dataFolder"] + "/raw.txt"
+    context["sectionListRaw"] = context["dataFolder"] + "/raw.sections.txt"
     context["rawJSON"] = context["dataFolder"] + "/raw.json"
     context["schemaJSON"] = context["dataFolder"] + "/schema.json"
     context["finalJSON"] = context["dataFolder"] + "/final.json"
-    context["summaryJSON"] = context["dataFolder"] + "/summary.json"
+    context["matchJSON"] = context["dataFolder"] + "/match.json"
 
     context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
-    context["loadDocument"] = True
-    context["makeSummary"] = False
-    context["attributeCategories"] = False
+    context["loadDocument"] = False
+    context["parseSections"] = False
+    context["matchSections"] = True
     context["parseAttempt"] = False
     context["discoverSchema"] = False
     context["finalJSONfromRaw"] = False
 
 
     # text extraction configuration from PDF
-    context["stripWhiteSpace"] = True
-    context["convertToLower"] = True
-    context["convertToASCII"] = True
-    context["singleSpaces"] = True
+    context["stripWhiteSpace"] = False
+    context["convertToLower"] = False
+    context["convertToASCII"] = False
+    context["singleSpaces"] = False
 
     discoverWorkflow = DiscoveryWorkflow(context, logger)
     testRun(discoverWorkflow)

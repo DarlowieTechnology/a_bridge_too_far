@@ -46,26 +46,68 @@ class DiscoveryWorkflow(WorkflowBase):
         super().__init__(context=context, logger=logger, createCollection=True)
 
 
-    def makeSummaryOllama(self, docs : str) -> tuple[str, RunUsage] :
+
+    def parseSectionsOllama(self, docs : str) -> tuple[str, RunUsage] :
         """
-        make summary of text
+        split text into section according to formatting
         
-        :param docs: text to make summary of
+        :param docs: text to split into sections
         :type docs: str
-        :return: Tuple of summary and LLM usage
+        :return: Tuple of section list and LLM usage
         :rtype: tuple[str, RunUsage]
         """
 
         systemPrompt = f"""
         You are an expert in English text analysis.
         The prompt contains English text. 
-        Create short summary of the text.
-        Separate topics you find into different summaries.
-        Include all major topics you find in the text.
+        Split text into sections. If table of content exists use it as a guide.
+        If table of content does not exist, split the text in semantically complete chunks.
+        Output all the text in the section.
+        Do not escape whitespace characters.
         Format output as Python list.
         """
 
         prompt = f"{docs}"
+
+        ollModel = self.createOpenAIChatModel()
+
+        agent = Agent(ollModel,
+                      output_type=List,
+                      system_prompt = systemPrompt)
+        try:
+            result = agent.run_sync(prompt)
+            runUsage = result.usage()
+            return result.output, runUsage
+       
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
+        return None, None
+
+
+    def matchSectionOllama(self, doc : str, topics: List[str]) -> tuple[bool, RunUsage] :
+        """
+        match section against known topic
+        
+        :param docs: section to match
+        :type doc: str
+        :param topics: topics to match
+        :type topics: list of str
+        :return: Tuple of result and LLM usage
+        :rtype: tuple[bool, RunUsage]
+        """
+
+        systemPrompt = f"""
+        You are an expert in English text analysis.
+        The prompt contains English text. 
+        Output selection of topics from the list below that semantically match the text:
+        {topics}
+        """
+
+        prompt = f"{doc}"
 
         ollModel = self.createOpenAIChatModel()
 

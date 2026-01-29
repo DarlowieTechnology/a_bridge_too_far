@@ -5,6 +5,7 @@ import time
 import json
 from pathlib import Path
 import mimetypes
+from  uuid import UUID, uuid4
 
 from pydantic_ai.usage import RunUsage
 
@@ -128,7 +129,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
             matchList, runUsage = discoveryWorkflow.matchSectionOllama(section, knownTopics)
             discoveryWorkflow.addUsage(runUsage)
             for topic in matchList:
-                sectionInfo = SectionInfo(docName = discoveryWorkflow.context['inputFileName'], section = section)
+                sectionInfo = SectionInfo(uuid = uuid4(), docName = discoveryWorkflow.context['inputFileName'], section = section)
                 matchingSections = allTopicMatches.topic_dict[topic]
                 matchingSections.section_list.append(sectionInfo)
 
@@ -140,120 +141,132 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         discoveryWorkflow.workerSnapshot(msg)
 
 
+    # ------------vectorize----------------------
+    if "vectorize" in discoveryWorkflow.context and discoveryWorkflow.context["vectorize"]:
+
+        startTime = time.time()
+        msg = f"Starting vectorize phase"
+        discoveryWorkflow.workerSnapshot(msg)
+        if 'allTopicMatches' not in locals():
+            # if this is a separate step - read text into string
+            with open(discoveryWorkflow.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                allTopicMatchesStr = json.load(JsonIn)
+                allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+        accepted, rejected = discoveryWorkflow.vectorize(allTopicMatches)
+        msg = f"Processed sections, accepted {accepted}  rejected {rejected}."
+        discoveryWorkflow.workerSnapshot(msg)
+
+
     # ---------------parseAttempt -----------------
 
+    # ---do nothing for now
+
     if "parseAttempt" in discoveryWorkflow.context and discoveryWorkflow.context["parseAttempt"]:
-        startTime = time.time()
-        msg = f"Starting parseAttempt phase"
-        discoveryWorkflow.workerSnapshot(msg)
-        if 'textCombined' not in locals():
+        pass
+#        startTime = time.time()
+#        msg = f"Starting parseAttempt phase"
+#        discoveryWorkflow.workerSnapshot(msg)
+#        if 'textCombined' not in locals():
             # if this is a separate step - read text into string
-            with open(discoveryWorkflow.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
-                textCombined = txtIn.read()
-        listRawIssues, runUsage = discoveryWorkflow.parseAttemptRecordListOllama(textCombined)
-        discoveryWorkflow.addUsage(runUsage)
-        with open(discoveryWorkflow.context["rawJSON"], "w" , encoding="utf-8", errors="ignore") as rawJSONOut:
-            rawJSONOut.writelines(json.dumps(listRawIssues, indent=2))
-        endTime = time.time()
-        msg = f"Completed parseAttempt phase. Found <b>{len(listRawIssues)}</b> potential records. Time: {(endTime - startTime):.2f} seconds"
-        discoveryWorkflow.workerSnapshot(msg)
+#            with open(discoveryWorkflow.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
+#                textCombined = txtIn.read()
+#        listRawIssues, runUsage = discoveryWorkflow.parseAttemptRecordListOllama(textCombined)
+#        discoveryWorkflow.addUsage(runUsage)
+#        with open(discoveryWorkflow.context["rawJSON"], "w" , encoding="utf-8", errors="ignore") as rawJSONOut:
+#            rawJSONOut.writelines(json.dumps(listRawIssues, indent=2))
+#        endTime = time.time()
+#        msg = f"Completed parseAttempt phase. Found <b>{len(listRawIssues)}</b> potential records. Time: {(endTime - startTime):.2f} seconds"
+#        discoveryWorkflow.workerSnapshot(msg)
 
     # ---------------discoverSchema -----------------
 
+    # ---do nothing for now
+
     if "discoverSchema" in discoveryWorkflow.context and discoveryWorkflow.context["discoverSchema"]:
-        startTime = time.time()
-        msg = f"Starting discoverSchema phase"
-        discoveryWorkflow.workerSnapshot(msg)
+        pass
+#        startTime = time.time()
+#        msg = f"Starting discoverSchema phase"
+#        discoveryWorkflow.workerSnapshot(msg)
 
-        if 'listRawIssues' not in locals():
+#        if 'listRawIssues' not in locals():
             # if this is a separate step - read raw JSON into list
-            with open(discoveryWorkflow.context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
-                listRawIssues = json.load(jsonIn)
-            msg = f"Read {len(listRawIssues)} raw records from file {discoveryWorkflow.context['inputFileBaseName']}."
-            discoveryWorkflow.workerSnapshot(msg)
-
-        schemaDict, runUsage = discoveryWorkflow.discoverRecordSchemaOllama(listRawIssues)
-        if not schemaDict:
-            return
-        
-        schemaDict = json.loads(schemaDict)
-
+#            with open(discoveryWorkflow.context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
+#                listRawIssues = json.load(jsonIn)
+#           msg = f"Read {len(listRawIssues)} raw records from file {discoveryWorkflow.context['inputFileBaseName']}."
+#            discoveryWorkflow.workerSnapshot(msg)
+#        schemaDict, runUsage = discoveryWorkflow.discoverRecordSchemaOllama(listRawIssues)
+#        if not schemaDict:
+#            return
+#        schemaDict = json.loads(schemaDict)
         # rename schema to be unique
-        schemaDict['title'] = discoveryWorkflow.context["inputFileBaseName"] + " " + schemaDict['title']
-
+#        schemaDict['title'] = discoveryWorkflow.context["inputFileBaseName"] + " " + schemaDict['title']
         # verify that Pydantic model can be created from schema
-        schemaVerified = False
-        try:
-            PydanticModel = json_schema_to_pydantic.create_model(schemaDict)
-            schemaVerified = True
-        except json_schema_to_pydantic.SchemaError as e:
-            msg = f"Exception SchemaError: {e}"
-            discoveryWorkflow.workerSnapshot(msg)
-        except json_schema_to_pydantic.TypeError as e:
-            msg = f"Exception TypeError: {e}"
-            discoveryWorkflow.workerSnapshot(msg)
-        except json_schema_to_pydantic.CombinerError as e:
-            msg = f"Exception CombinerError: {e}"
-            discoveryWorkflow.workerSnapshot(msg)
-        except json_schema_to_pydantic.ReferenceError as e:
-            msg = f"Exception CombinerError: {e}"
-            discoveryWorkflow.workerSnapshot(msg)
-        if not schemaVerified:
-            return
-
-        # store verified JSON schema
-        with open(discoveryWorkflow.context["schemaJSON"], "w", encoding='utf8', errors='ignore') as modelOut:
-            modelOut.writelines(json.dumps(schemaDict, indent=2))
-
-        discoveryWorkflow.addUsage(runUsage)
-        endTime = time.time()
-        msg = f"Completed discoverSchema phase: Usage: {discoveryWorkflow.usageFormat(runUsage)}. Time: {(endTime - startTime):.2f} seconds."
-        discoveryWorkflow.workerSnapshot(msg)
+#        schemaVerified = False
+#        try:
+#            PydanticModel = json_schema_to_pydantic.create_model(schemaDict)
+#            schemaVerified = True
+#        except json_schema_to_pydantic.SchemaError as e:
+#            msg = f"Exception SchemaError: {e}"
+#            discoveryWorkflow.workerSnapshot(msg)
+#        except json_schema_to_pydantic.TypeError as e:
+#            msg = f"Exception TypeError: {e}"
+#            discoveryWorkflow.workerSnapshot(msg)
+#        except json_schema_to_pydantic.CombinerError as e:
+#            msg = f"Exception CombinerError: {e}"
+#            discoveryWorkflow.workerSnapshot(msg)
+#        except json_schema_to_pydantic.ReferenceError as e:
+#            msg = f"Exception CombinerError: {e}"
+#            discoveryWorkflow.workerSnapshot(msg)
+#        if not schemaVerified:
+#            return
+        # save verified JSON schema
+#        with open(discoveryWorkflow.context["schemaJSON"], "w", encoding='utf8', errors='ignore') as modelOut:
+#            modelOut.writelines(json.dumps(schemaDict, indent=2))
+#        discoveryWorkflow.addUsage(runUsage)
+#        endTime = time.time()
+#        msg = f"Completed discoverSchema phase: Usage: {discoveryWorkflow.usageFormat(runUsage)}. Time: {(endTime - startTime):.2f} seconds."
+#        discoveryWorkflow.workerSnapshot(msg)
 
     # ---------------finalJSONfromRaw -----------------
 
     if "finalJSONfromRaw" in discoveryWorkflow.context and discoveryWorkflow.context["finalJSONfromRaw"]:
-        startTime = time.time()
-        msg = f"Starting finalJSONfromRaw phase"
-        discoveryWorkflow.workerSnapshot(msg)
-        if 'listRawIssues' not in locals():
+        pass
+#        startTime = time.time()
+#        msg = f"Starting finalJSONfromRaw phase"
+#        discoveryWorkflow.workerSnapshot(msg)
+#        if 'listRawIssues' not in locals():
             # if this is a separate step - read raw JSON into list
-            with open(discoveryWorkflow.context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
-                listRawIssues = json.load(jsonIn)
-            msg = f"Read {len(listRawIssues)} raw records from file {discoveryWorkflow.context['inputFileBaseName']}."
-            discoveryWorkflow.workerSnapshot(msg)
-
-        if 'PydanticModel' not in locals():
-            with open(discoveryWorkflow.context["schemaJSON"], "r", encoding='utf8', errors='ignore') as modelIn:
-                schemaDict = json.load(modelIn)
-            PydanticModel = json_schema_to_pydantic.create_model(schemaDict)
-
-        recordCollection = RecordCollection(
-            report = str(Path(discoveryWorkflow.context['inputFileName']).name),
-            finding_dict = {}
-        )
-        usageForPhase = RunUsage()
-
-        for item in listRawIssues:
-            startOneIssue = time.time()
-            oneRecord, runUsage = discoveryWorkflow.parseOneRecordOllama(item, PydanticModel)
-            key = oneRecord.identifier
-            recordCollection[key] = oneRecord
-            endOneIssue = time.time()
-            if runUsage:
-                discoveryWorkflow.addUsage(runUsage)
-                usageForPhase += runUsage
-                msg = f"Record: <b>{key}</b>. Usage: {discoveryWorkflow.usageFormat(runUsage)}. Time: {(endOneIssue - startOneIssue):.2f} seconds."
-            else:
-                msg = f"Record: <b>{key}</b>. {(endOneIssue - startOneIssue):.2f} seconds."
-            discoveryWorkflow.workerSnapshot(msg)
-
-        with open(discoveryWorkflow.context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
-            jsonOut.writelines(recordCollection.model_dump_json(indent=2))
-
-        endTime = time.time()
-        msg = f"Completed finalJSONfromRaw phase. Usage: {discoveryWorkflow.usageFormat(usageForPhase)}. {(endTime - startTime):.2f} seconds"
-        discoveryWorkflow.workerSnapshot(msg)
+#            with open(discoveryWorkflow.context['rawJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
+#                listRawIssues = json.load(jsonIn)
+#            msg = f"Read {len(listRawIssues)} raw records from file {discoveryWorkflow.context['inputFileBaseName']}."
+#            discoveryWorkflow.workerSnapshot(msg)
+#        if 'PydanticModel' not in locals():
+#            with open(discoveryWorkflow.context["schemaJSON"], "r", encoding='utf8', errors='ignore') as modelIn:
+#                schemaDict = json.load(modelIn)
+#            PydanticModel = json_schema_to_pydantic.create_model(schemaDict)
+#        recordCollection = RecordCollection(
+#            report = str(Path(discoveryWorkflow.context['inputFileName']).name),
+#            finding_dict = {}
+#        )
+#        usageForPhase = RunUsage()
+#        for item in listRawIssues:
+#            startOneIssue = time.time()
+#            oneRecord, runUsage = discoveryWorkflow.parseOneRecordOllama(item, PydanticModel)
+#            key = oneRecord.identifier
+#            recordCollection[key] = oneRecord
+#            endOneIssue = time.time()
+#            if runUsage:
+#                discoveryWorkflow.addUsage(runUsage)
+#                usageForPhase += runUsage
+#                msg = f"Record: <b>{key}</b>. Usage: {discoveryWorkflow.usageFormat(runUsage)}. Time: {(endOneIssue - startOneIssue):.2f} seconds."
+#            else:
+#                msg = f"Record: <b>{key}</b>. {(endOneIssue - startOneIssue):.2f} seconds."
+#            discoveryWorkflow.workerSnapshot(msg)
+#        with open(discoveryWorkflow.context["finalJSON"], "w", encoding='utf8', errors='ignore') as jsonOut:
+#            jsonOut.writelines(recordCollection.model_dump_json(indent=2))
+#        endTime = time.time()
+#        msg = f"Completed finalJSONfromRaw phase. Usage: {discoveryWorkflow.usageFormat(usageForPhase)}. {(endTime - startTime):.2f} seconds"
+#        discoveryWorkflow.workerSnapshot(msg)
 
     # ---------------completed ---------------
     totalEnd = time.time()
@@ -279,20 +292,21 @@ def main():
     context["dataFolder"] = context["inputFileName"] + "-data"
     context["rawtext"] = context["dataFolder"] + "/raw.txt"
     context["sectionListRaw"] = context["dataFolder"] + "/raw.sections.txt"
-    context["rawJSON"] = context["dataFolder"] + "/raw.json"
-    context["schemaJSON"] = context["dataFolder"] + "/schema.json"
-    context["finalJSON"] = context["dataFolder"] + "/final.json"
     context["matchJSON"] = context["dataFolder"] + "/match.json"
+#    context["rawJSON"] = context["dataFolder"] + "/raw.json"
+#    context["schemaJSON"] = context["dataFolder"] + "/schema.json"
+#    context["finalJSON"] = context["dataFolder"] + "/final.json"
 
     context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
     context["loadDocument"] = False
     context["parseSections"] = False
-    context["matchSections"] = True
-    context["parseAttempt"] = False
-    context["discoverSchema"] = False
-    context["finalJSONfromRaw"] = False
+    context["matchSections"] = False
+    context["vectorize"] = True
+    context["parseAttempt"] = False   # do nothing for now
+    context["discoverSchema"] = False   # do nothing for now
+    context["finalJSONfromRaw"] = False   # do nothing for now
 
 
     # text extraction configuration from PDF

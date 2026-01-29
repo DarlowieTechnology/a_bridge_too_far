@@ -32,7 +32,7 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, RecordCollection
+from common import COLLECTION, RecordCollection, AllTopicMatches, SectionInfo
 from workflowbase import WorkflowBase 
 
 class DiscoveryWorkflow(WorkflowBase):
@@ -90,7 +90,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def matchSectionOllama(self, doc : str, topics: List[str]) -> tuple[bool, RunUsage] :
         """
-        match section against known topic
+        match section against known topics
         
         :param docs: section to match
         :type doc: str
@@ -100,33 +100,35 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: tuple[bool, RunUsage]
         """
 
-        systemPrompt = f"""
-        You are an expert in English text analysis.
-        The prompt contains English text. 
-        Output selection of topics from the list below that semantically match the text:
-        {topics}
-        """
-
         prompt = f"{doc}"
-
         ollModel = self.createOpenAIChatModel()
+        runTotalUsage = RunUsage()
+        retList = []
 
-        agent = Agent(ollModel,
-                      output_type=List,
-                      system_prompt = systemPrompt)
-        try:
-            result = agent.run_sync(prompt)
-            runUsage = result.usage()
-            return result.output, runUsage
-       
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None, None
+        for topic in topics:
 
+            systemPrompt = f"""
+            You are an expert in English text analysis.
+            The user prompt contains English text. 
+            Output True or False if topic below semantically match the text in user prompt:
+            {topic}
+            """
+            agent = Agent(ollModel,
+                        output_type=bool,
+                        system_prompt = systemPrompt)
+            try:
+                result = agent.run_sync(prompt)
+                runTotalUsage += result.usage()
+                if result.output:
+                    retList.append(topic)
+            except pydantic_ai.exceptions.UnexpectedModelBehavior:
+                msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+                self.workerSnapshot(msg)
+            except ValidationError as e:
+                msg = f"Exception: ValidationError {e}"
+                self.workerSnapshot(msg)
+
+        return retList, runTotalUsage
 
 
     def parseAttemptRecordListOllama(self, docs : str) -> tuple[List, RunUsage] :
@@ -252,4 +254,77 @@ class DiscoveryWorkflow(WorkflowBase):
             self.workerSnapshot(msg)
         return None, None
     
+
+    def vectorize(self, allTopicMatches : AllTopicMatches)  -> tuple[int, int]:
+        """
+        Add all sections to vector database.
+        
+        :param allTopicMatches: sections to add
+        :type allTopicMatches: AllTopicMatches
+        :return: tuple of accepted and rejected sections
+        :rtype: tuple[int, int]
+        """
+
+        for topic in allTopicMatches.topic_dict.keys():
+            matchingSections = allTopicMatches.topic_dict[topic]
+            if len(matchingSections.section_list):
+                collectionName = topic.replace(" ", "")
+                chromaCollection = self.openOrCreateCollection(collectionName = collectionName, createFlag = True)        
+                if not chromaCollection:
+                    return 0, 0
+
+                ids : list[str] = []
+                docs : list[str] = []
+                docMetadata : list[str] = []
+                embeddings = []
+                accepted = 0
+                rejected = 0
+
+                for sectionInfo in matchingSections.section_list:
+                    sectionInfo = SectionInfo.model_validate(sectionInfo)
+
+                    recordHash = hash(sectionInfo.section)
+                    uniqueId = str(sectionInfo.uuid)
+                    queryResult = chromaCollection.get(ids=[uniqueId])
+                    if (len(queryResult["ids"])) :
+
+                        existingRecordJSON = json.loads(queryResult["documents"][0])
+                        existingRecord = SectionInfo.model_validate(existingRecordJSON)
+                        existingHash = hash(existingRecord.section)
+
+                        if recordHash == existingHash:
+                            rejected += 1
+        #                    msg = f"Skip {uniqueId}"
+        #                    self.workerSnapshot(msg)
+                            continue
+                        else:
+                            accepted += 1
+                            msg = f"Replacing {uniqueId}"
+                            self.workerSnapshot(msg)
+                            chromaCollection.delete(ids=[uniqueId])
+                    else:
+                        accepted += 1
+                        msg = f"Adding {uniqueId}"
+                        self.workerSnapshot(msg)
+
+                    vectorSource = sectionInfo.model_dump_json()
+
+                    ids.append(uniqueId)
+                    docs.append(vectorSource)
+                    metadataDict = {}
+                    metadataDict["recordType"] = type(sectionInfo).__name__
+                    metadataDict["document"] = sectionInfo.docName
+                    docMetadata.append( metadataDict )
+                    embeddings.append(self.embeddingFunction([vectorSource])[0])
+
+                if len(ids):
+                    chromaCollection.add(
+                        embeddings=embeddings,
+                        documents=docs,
+                        ids=ids,
+                        metadatas=docMetadata
+                    )
+        return accepted, rejected
+
+
 

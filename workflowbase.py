@@ -188,8 +188,11 @@ class WorkflowBase:
         :return: usage as string
         :rtype: str
         """
-        requestLabel = 'requests' if usage.requests > 1 else 'request'
-        return f"<b>{usage.requests}</b> {requestLabel}, <b>{usage.input_tokens}</b>, input tokens <b>{usage.output_tokens}</b> output tokens"
+        if usage:
+            requestLabel = 'requests' if usage.requests > 1 else 'request'
+            return f"<b>{usage.requests}</b> {requestLabel}, <b>{usage.input_tokens}</b>, input tokens <b>{usage.output_tokens}</b> output tokens"
+        else:
+            return f""
 
 
     def loadPDF(self, inputFile : str) -> str :

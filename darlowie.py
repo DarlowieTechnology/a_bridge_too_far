@@ -27,6 +27,7 @@ context = {
     "GLOBALrag_hnsw_space": "cosine",  # For Hierarchical Navigable Small World (HNSW) search algorithm choose cosine similarity metric
     "GLOBALllm_Provider": "Ollama",   # LLM service provider
     "GLOBALllm_Version": "gemini-3-flash-preview:latest",  # LLM name
+#    "GLOBALllm_Version": "llama3.1:latest",  # LLM name
     "GLOBALllm_base_url": "http://localhost:11434/v1", # OpenAI API endpoint
 
     # Generator app settings

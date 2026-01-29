@@ -13,6 +13,7 @@ from logging import Logger
 import inspect
 import tomli
 import threading
+from  uuid import UUID, uuid4
 
 from datetime import datetime
 from pathlib import Path
@@ -77,8 +78,9 @@ class SectionInfo(BaseModel):
     """
     represents one section of the document
     """
+    uuid: UUID = Field(..., description="uuid of the section")
     docName: str = Field(..., description="document name")
-    section: str = Field(..., description="section")
+    section: str = Field(..., description="section data")
 
 
 class MatchingSections(BaseModel):

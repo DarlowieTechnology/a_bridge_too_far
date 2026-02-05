@@ -82,6 +82,9 @@ class SectionInfo(BaseModel):
     docName: str = Field(..., description="document name")
     section: str = Field(..., description="section data")
 
+    def __str__(self):
+        return f"{str(Path(self.docName).name)}: {self.section[:80]}"
+
 
 class MatchingSections(BaseModel):
     """

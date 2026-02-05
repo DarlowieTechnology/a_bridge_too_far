@@ -26,8 +26,8 @@ context = {
     "GLOBALrag_embed_url": "http://localhost:11434/api/embeddings", # URL for embedding API, used to create OllamaEmbeddingFunction
     "GLOBALrag_hnsw_space": "cosine",  # For Hierarchical Navigable Small World (HNSW) search algorithm choose cosine similarity metric
     "GLOBALllm_Provider": "Ollama",   # LLM service provider
-    "GLOBALllm_Version": "gemini-3-flash-preview:latest",  # LLM name
-#    "GLOBALllm_Version": "llama3.1:latest",  # LLM name
+#    "GLOBALllm_Version": "gemini-3-flash-preview:latest",  # LLM name
+    "GLOBALllm_Version": "gpt-oss:120b-cloud",  # LLM name
     "GLOBALllm_base_url": "http://localhost:11434/v1", # OpenAI API endpoint
 
     # Generator app settings
@@ -46,7 +46,7 @@ context = {
     # Indexer app settings
 
     "INDEXEjira_url": "https://darlowie-security.atlassian.net",   # Jira Cloud API
-    "INDEXEjira_max_results" : 1000,  # maxumum number of Jira records to export
+    "INDEXEjira_max_results" : 1000,  # maximum number of Jira records to export
     "INDEXEjira_export": False,  # Perform Jira export
     
     # Indexer CLI settings

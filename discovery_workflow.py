@@ -7,6 +7,8 @@ import json
 import re
 import time
 from pathlib import Path
+import mimetypes
+from  uuid import UUID, uuid4
 
 from pydantic import BaseModel, ValidationError
 import pydantic_ai
@@ -32,10 +34,26 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, RecordCollection, AllTopicMatches, SectionInfo
+from common import COLLECTION, RecordCollection, MatchingSections, AllTopicMatches, SectionInfo, OpenFile
 from workflowbase import WorkflowBase 
 
 class DiscoveryWorkflow(WorkflowBase):
+
+    acceptedMimeTypes = [
+        "text/css",
+        "text/csv",
+        "text/html",
+        "application/json",
+        "text/markdown",
+        "application/pdf",
+        "text/plain"
+    ]
+
+    knownTopics = [
+        "medical research notes",
+        "pipe engineering",
+        "penetration test results"
+    ]
 
     def __init__(self, context : dict, logger : Logger):
         """
@@ -65,6 +83,7 @@ class DiscoveryWorkflow(WorkflowBase):
         Output all the text in the section.
         Do not escape whitespace characters.
         Format output as Python list.
+        If you cannot split the text, output Python list with one entry.
         """
 
         prompt = f"{docs}"
@@ -88,47 +107,42 @@ class DiscoveryWorkflow(WorkflowBase):
         return None, None
 
 
-    def matchSectionOllama(self, doc : str, topics: List[str]) -> tuple[bool, RunUsage] :
+    def matchSectionOllama(self, doc : str, topic: str) -> tuple[bool, RunUsage] :
         """
         match section against known topics
         
         :param docs: section to match
         :type doc: str
-        :param topics: topics to match
-        :type topics: list of str
+        :param topic: topic to match
+        :type topic: str
         :return: Tuple of result and LLM usage
         :rtype: tuple[bool, RunUsage]
         """
 
         prompt = f"{doc}"
         ollModel = self.createOpenAIChatModel()
-        runTotalUsage = RunUsage()
-        retList = []
 
-        for topic in topics:
+        systemPrompt = f"""
+        You are an expert in English text analysis.
+        The user prompt contains English text. 
+        Output True or False if text semantically matches topic below:
+        {topic}
+        """
 
-            systemPrompt = f"""
-            You are an expert in English text analysis.
-            The user prompt contains English text. 
-            Output True or False if topic below semantically match the text in user prompt:
-            {topic}
-            """
-            agent = Agent(ollModel,
-                        output_type=bool,
-                        system_prompt = systemPrompt)
-            try:
-                result = agent.run_sync(prompt)
-                runTotalUsage += result.usage()
-                if result.output:
-                    retList.append(topic)
-            except pydantic_ai.exceptions.UnexpectedModelBehavior:
-                msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-                self.workerSnapshot(msg)
-            except ValidationError as e:
-                msg = f"Exception: ValidationError {e}"
-                self.workerSnapshot(msg)
+        agent = Agent(ollModel,
+                    output_type=bool,
+                    system_prompt = systemPrompt)
+        try:
+            result = agent.run_sync(prompt)
+            return result.output, result.usage()
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
 
-        return retList, runTotalUsage
+        return False, RunUsage()
 
 
     def parseAttemptRecordListOllama(self, docs : str) -> tuple[List, RunUsage] :
@@ -265,10 +279,17 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: tuple[int, int]
         """
 
+
+        accepted = 0
+        rejected = 0
+
         for topic in allTopicMatches.topic_dict.keys():
             matchingSections = allTopicMatches.topic_dict[topic]
             if len(matchingSections.section_list):
-                collectionName = topic.replace(" ", "")
+
+                # ChromaDB does not accept table names with spaces
+                collectionName = topic.replace(" ", "_")
+
                 chromaCollection = self.openOrCreateCollection(collectionName = collectionName, createFlag = True)        
                 if not chromaCollection:
                     return 0, 0
@@ -277,8 +298,6 @@ class DiscoveryWorkflow(WorkflowBase):
                 docs : list[str] = []
                 docMetadata : list[str] = []
                 embeddings = []
-                accepted = 0
-                rejected = 0
 
                 for sectionInfo in matchingSections.section_list:
                     sectionInfo = SectionInfo.model_validate(sectionInfo)
@@ -324,7 +343,199 @@ class DiscoveryWorkflow(WorkflowBase):
                         ids=ids,
                         metadatas=docMetadata
                     )
+
         return accepted, rejected
 
 
+    def formFileList(self) -> List[str]:
+
+        completeFileList = []
+        for globName in self.context["fileExtensions"]:
+            result, fileListOrError = OpenFile.readListOfFileNames(self.context["documentFolder"], globName)
+            if result:
+                print(type(fileListOrError))
+                completeFileList = completeFileList + fileListOrError
+        return completeFileList
+
+
+    def processOneFile(self, inputFileName : str) -> tuple[List[int], AllTopicMatches]:
+        msg = f"Input file {inputFileName}"
+        self.workerSnapshot(msg)
+
+        # count results array
+        counts = [0] * 4
+
+        self.context["inputFileName"] = str(inputFileName)
+        self.context["inputFileBaseName"] = str(Path(self.context["inputFileName"]).name)
+        self.context["dataFolder"] = self.context["inputFileName"] + "-data"
+        self.context["rawtext"] = self.context["dataFolder"] + "/raw.txt"
+        self.context["sectionListRaw"] = self.context["dataFolder"] + "/raw.sections.txt"
+        self.context["matchJSON"] = self.context["dataFolder"] + "/match.json"
+        self.context["verifyInfo"] = self.context["dataFolder"] + "/verify.json"
+
+        # make data path for the document if does not exist
+        Path(self.context["dataFolder"]).mkdir(parents=True, exist_ok=True)
+
+        # ---------------loadDocument ---------------
+
+        if "loadDocument" in self.context and self.context["loadDocument"]:
+            startTime = time.time()
+
+            mime_type, encoding = mimetypes.guess_type(self.context['inputFileName'])
+            if mime_type in self.acceptedMimeTypes:
+                self.context['mime_type'] = mime_type
+                self.context['encoding'] = encoding
+            else:
+                msg = f" File type not supported: {mime_type}"
+                self.workerSnapshot(msg)
+                return
+
+            if self.context['mime_type'] == "application/pdf":
+                textCombined = self.loadPDF(self.context['inputFileName'])
+            if self.context['mime_type'] in ["text/css", "text/csv", "text/html", "application/json", "text/markdown", "text/plain"]:
+                with open(self.context["inputFileName"], "r" , encoding="utf-8", errors="ignore") as txtIn:
+                    textCombined = txtIn.read()
+
+            with open(self.context["rawtext"], "w" , encoding="utf-8", errors="ignore") as rawOut:
+                rawOut.write(textCombined)
+
+            endTime = time.time()
+            msg = f"loadDocument: Read <b>{len(textCombined)} bytes</b> from file <b>{self.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+        # ---------------parseSections ---------------
+
+        if "parseSections" in self.context and self.context["parseSections"]:
+            startTime = time.time()
+            if 'textCombined' not in locals():
+                # if this is a separate step - read text into string
+                with open(self.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
+                    textCombined = txtIn.read()
+
+            sectionListRaw, runUsageParse = self.parseSectionsOllama(textCombined)
+            self.addUsage(runUsageParse)
+
+            sectionList = []
+            for pageContent in sectionListRaw:
+                pageContent = pageContent.strip()
+                pageContent = pageContent.lower()
+                pageContent = " ".join(pageContent.split())
+                pageContent = anyascii(pageContent)
+                sectionList.append(pageContent)
+
+            with open(self.context["sectionListRaw"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
+                summaryJSONOut.writelines(json.dumps(sectionList, indent=2))
+            endTime = time.time()
+            msg = f"parseSections: usage: {self.usageFormat(runUsageParse)} Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+
+        # ---------------matchSections -----------------
+
+        if "matchSections" in self.context and self.context["matchSections"]:
+            startTime = time.time()
+            if 'sectionList' not in locals():
+                # if this is a separate step - read text into string
+                with open(self.context['sectionListRaw'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                    sectionList = json.load(JsonIn)
+
+            allTopicMatches = AllTopicMatches(topic_dict = {})
+            for topic in self.knownTopics:
+                matchingSections = MatchingSections(topic = topic, section_list = [])
+                allTopicMatches.topic_dict[topic] = matchingSections
+
+            runTotalUsage = RunUsage()
+            for section in sectionList:
+                for topic in self.knownTopics:
+                    matchResult, runSingleUsage = self.matchSectionOllama(section, topic)
+                    runTotalUsage += runSingleUsage
+                    if matchResult:
+                        sectionInfo = SectionInfo(uuid = uuid4(), docName = self.context['inputFileName'], section = section)
+                        matchingSections = allTopicMatches.topic_dict[topic]
+                        matchingSections.section_list.append(sectionInfo)
+                    time.sleep(5)
+
+            with open(self.context["matchJSON"], "w", encoding="utf-8", errors="ignore") as jsonOut:
+                jsonOut.writelines(allTopicMatches.model_dump_json(indent=2))
+
+            self.addUsage(runTotalUsage)
+            endTime = time.time()
+            msg = f"matchSections: usage: {self.usageFormat(runTotalUsage)} Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+
+        # ------------vectorize----------------------
+
+        if "vectorize" in self.context and self.context["vectorize"]:
+
+            startTime = time.time()
+            if 'allTopicMatches' not in locals():
+                # if this is a separate step - read text into string
+                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                    allTopicMatchesStr = json.load(JsonIn)
+                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+            accepted, rejected = self.vectorize(allTopicMatches)
+            endTime = time.time()
+            msg = f"vectorize: accepted {accepted}  rejected {rejected}. Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+
+        # ------------verify----------------------
+
+        if "verify" in self.context and self.context["verify"]:
+
+            startTime = time.time()
+            totalScore = 0
+
+            with open(self.context['verifyInfo'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                verifyInfo = json.load(JsonIn)
+            if 'allTopicMatches' not in locals():
+                # if this is a separate step - read text into string
+                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                    allTopicMatchesStr = json.load(JsonIn)
+                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+
+            for item in verifyInfo:
+                expectedTopic = item["name"]
+                expected = item["value"]
+                totalScore += expected
+                if expectedTopic in allTopicMatches.topic_dict.keys():
+                    matchingSections = allTopicMatches.topic_dict[expectedTopic]
+                    number = len(matchingSections.section_list)
+                    if expected >= number:
+                        counts[0] += number
+                        counts[1] += (expected - number)
+                    if expected < number:
+                        counts[0] += expected
+                        counts[2] = number - expected
+                else:
+                    if expected > 0:
+                        counts[1] += expected
+
+            scoreForFile = counts[0] - counts[1] - counts[2] * 0.5
+            counts[3] = totalScore
+            if scoreForFile < 0:
+                scoreForFile = 0
+            if totalScore > 0:
+                scorePerCent = (scoreForFile/totalScore) * 100
+            else:
+                scorePerCent = 0
+            endTime = time.time()
+            msg = f"verify:  {counts[0]}|{counts[1]}|{counts[2]}  score : {scorePerCent:.2f}%.  Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+        # -------------- return data ---------------
+
+        # return all matches
+        if 'allTopicMatches' not in locals():
+            fileExists, strContent = OpenFile.open(filePath = self.context['matchJSON'], readContent = False)
+            if fileExists:
+                # return matches if they were previously created
+                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                    allTopicMatchesStr = json.load(JsonIn)
+                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+            else:
+                allTopicMatches = AllTopicMatches(topic_dict = {})
+
+        return counts, allTopicMatches
 

@@ -59,26 +59,14 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     ]
 
     fileList = [
-#        "documents/medresearch-000.txt",
-#        "documents/medresearch-001.txt",
-#        "documents/medresearch-002.txt",
-#        "documents/medresearch-003.txt",
-#        "documents/medresearch-004.txt",
-#        "documents/medresearch-005.txt",
-#        "documents/medresearch-006.txt",
-#        "documents/medresearch-007.txt",
-#        "documents/medresearch-008.txt",
-#        "documents/medresearch-009.txt",
-        "documents/medresearch-010.txt",
-        "documents/medresearch-011.txt",
-        "documents/medresearch-012.txt",
-        "documents/medresearch-013.txt",
-        "documents/medresearch-014.txt",
-        "documents/medresearch-015.txt",
-        "documents/medresearch-016.txt",
-        "documents/medresearch-017.txt",
-        "documents/medresearch-018.txt",
-        "documents/medresearch-019.txt"
+#        "documents/1904.10509v1.pdf",
+#        "documents/1912.02292v1.pdf",
+#        "documents/1912.06680v1.pdf",
+#        "documents/2005.00341v1.pdf",
+#        "documents/2005.14165v4.pdf",
+        "documents/2009.03393v1.pdf"
+#        "documents/2102.12092v2.pdf",
+#       "documents/2103.00020v1.pdf",
     ]
 
     msg = f"Discovered {len(fileList)} files for processing"
@@ -117,7 +105,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     totalEnd = time.time()
     discoveryWorkflow.context["stage"] = "completed"
-    msg = f"Workflow completed. Total usage: {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
+    msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
 
 
@@ -137,8 +125,8 @@ def main():
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
     context["loadDocument"] = True
-    context["parseSections"] = True
-    context["matchSections"] = True
+    context["parseChunks"] = True
+    context["matchChunks"] = True
     context["vectorize"] = True
     context["verify"] = False
 

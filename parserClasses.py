@@ -1,6 +1,7 @@
 from typing import Optional
 from typing import List
 from typing import Any
+import hashlib
 
 
 from pydantic import BaseModel, Field
@@ -66,7 +67,10 @@ class ReportFinding(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.title, self.risk, self.impact, self.exploitability, self.identifier))
+        hashFunc = hashlib.sha256()
+        strVal = self.title + self.risk + self.impact + self.exploitability + self.identifier
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -119,7 +123,10 @@ class ReportFindingWithStatus(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.title, self.risk, self.impact, self.exploitability, self.identifier, self.status))
+        hashFunc = hashlib.sha256()
+        strVal = self.title + self.risk + self.impact + self.exploitability + self.identifier + self.status
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -163,7 +170,10 @@ class ReportIssue(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.identifier, self.title, self.risk))
+        hashFunc = hashlib.sha256()
+        strVal = self.identifier + self.title + self.risk
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -208,7 +218,10 @@ class ReportIssueCD(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.identifier, self.title, self.risk, self.description))
+        hashFunc = hashlib.sha256()
+        strVal = self.identifier + self.title + self.risk + self.description
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -247,7 +260,10 @@ class IssueDescription(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.identifier, self.title, self.risk))
+        hashFunc = hashlib.sha256()
+        strVal = self.identifier + self.title + self.risk
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -297,7 +313,10 @@ class ISECIssue(BaseModel):
         return not self.__eq__(other)
     
     def __hash__(self):
-        return hash((self.title, self.vulnClass, self.severity, self.difficulty, self.identifier))
+        hashFunc = hashlib.sha256()
+        strVal = self.title + self.vulnClass + self.severity + self.difficulty + self.identifier
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # bm25s tokenization - identifier and title
     def bm25s(self):
@@ -325,9 +344,10 @@ class JiraIssueRAG(BaseModel):
     worklog: list[str] = Field(..., description="List of worklogs for issue")
 
     def __hash__(self):
-        return hash((self.identifier, self.project_key, self.project_name, self.status_category_key, 
-                    self.priority_name, self.issue_updated, self.status_name,
-                    self.summary, self.progress, "|".join(self.worklog)))
+        hashFunc = hashlib.sha256()
+        strVal = self.identifier + self.project_key + self.project_name + self.status_category_key + self.priority_name + self.issue_updated + self.status_name + self.summary + self.progress + "|".join(self.worklog)
+        hashFunc.update(strVal.encode('utf-8'))
+        return hashFunc.hexdigest()
 
     # join all fields for bm25s tokenization
     def bm25s(self):

@@ -34,6 +34,7 @@ from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 from jira import JIRA
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # import Stemmer
 # import bm25s
@@ -73,6 +74,23 @@ class DiscoveryWorkflow(WorkflowBase):
 
 
 
+    def chunkText(self, docs : str) -> List[str] :
+        """
+        split text into chunks - this is a fallback for semantic document parsing
+        
+        :param docs: document
+        :type docs: str
+        :return: chunk list
+        :rtype: List[str]
+        """
+
+        chunkSize = self.context["GLOBALchunk_size"]
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=0)
+        texts = text_splitter.split_text(docs)
+        return texts
+
+
     def agentOpenAIChatLMStudio(self, systemPrompt, prompt) -> AgentRunResult:
         """
         Pydantic Agent call LLM using OpenAI chat API and LM Studio
@@ -85,7 +103,6 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: AgentRunResult
         """
 
-#        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL, api_key=self.config["LMSTUDIO_API_KEY"])
         OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
         OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
         model = OpenAIChatModel(model_name=self.lmStudioLLM, 
@@ -131,8 +148,9 @@ class DiscoveryWorkflow(WorkflowBase):
             return result
        
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior - fallback to chunking"
             self.workerSnapshot(msg)
+            return self.chunkText(docs), None
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
             self.workerSnapshot(msg)
@@ -284,11 +302,11 @@ If you cannot split the text, output Python list with one entry."""
         return None, None
 
 
-    def matchSectionOllama(self, doc : str, topic: str) -> tuple[bool, RunUsage] :
+    def matchChunks(self, doc : str, topic: str) -> tuple[bool, RunUsage] :
         """
-        match section against known topics
+        match chunks against known topics
         
-        :param docs: section to match
+        :param docs: chunk to match
         :type doc: str
         :param topic: topic to match
         :type topic: str
@@ -448,14 +466,13 @@ If you cannot split the text, output Python list with one entry."""
 
     def vectorize(self, allTopicMatches : AllTopicMatches)  -> tuple[int, int]:
         """
-        Add all sections to vector database.
+        Add all chunks to vector database.
         
-        :param allTopicMatches: sections to add
+        :param allTopicMatches: chunks to add
         :type allTopicMatches: AllTopicMatches
-        :return: tuple of accepted and rejected sections
+        :return: tuple of accepted and rejected chunks
         :rtype: tuple[int, int]
         """
-
 
         accepted = 0
         rejected = 0
@@ -525,6 +542,12 @@ If you cannot split the text, output Python list with one entry."""
 
 
     def formFileList(self) -> List[str]:
+        """
+        Return list of files for processing
+        
+        :return: list of files
+        :rtype: List[str]
+        """
 
         completeFileList = []
         for globName in self.context["fileExtensions"]:
@@ -536,6 +559,14 @@ If you cannot split the text, output Python list with one entry."""
 
 
     def processOneFile(self, inputFileName : str) -> tuple[List[int], AllTopicMatches]:
+        """
+        Process one file in workflow
+        
+        :param inputFileName: name of file
+        :type inputFileName: str
+        :return: Tuple of score result list and matched chunks
+        :rtype: tuple[List[int], AllTopicMatches]
+        """
         msg = f"Input file {inputFileName}"
         self.workerSnapshot(msg)
 
@@ -546,7 +577,7 @@ If you cannot split the text, output Python list with one entry."""
         self.context["inputFileBaseName"] = str(Path(self.context["inputFileName"]).name)
         self.context["dataFolder"] = self.context["inputFileName"] + "-data"
         self.context["rawtext"] = self.context["dataFolder"] + "/raw.txt"
-        self.context["sectionListRaw"] = self.context["dataFolder"] + "/raw.sections.txt"
+        self.context["chunksListRaw"] = self.context["dataFolder"] + "/raw.chunks.txt"
         self.context["matchJSON"] = self.context["dataFolder"] + "/match.json"
         self.context["verifyInfo"] = self.context["dataFolder"] + "/verify.json"
 
@@ -580,9 +611,9 @@ If you cannot split the text, output Python list with one entry."""
             msg = f"loadDocument: Read <b>{len(textCombined)} bytes</b> from file <b>{self.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
 
-        # ---------------parseSections ---------------
+        # ---------------parseChunks ---------------
 
-        if "parseSections" in self.context and self.context["parseSections"]:
+        if "parseChunks" in self.context and self.context["parseChunks"]:
             startTime = time.time()
             if 'textCombined' not in locals():
                 # if this is a separate step - read text into string
@@ -592,29 +623,29 @@ If you cannot split the text, output Python list with one entry."""
             sectionListRaw, runUsageParse = self.parseSections(textCombined)
             self.addUsage(runUsageParse)
 
-            sectionList = []
-            for pageContent in sectionListRaw:
+            chunksList = []
+            for pageContent in chunksListRaw:
                 pageContent = pageContent.strip()
                 pageContent = pageContent.lower()
                 pageContent = " ".join(pageContent.split())
                 pageContent = anyascii(pageContent)
-                sectionList.append(pageContent)
+                chunksList.append(pageContent)
 
-            with open(self.context["sectionListRaw"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
-                summaryJSONOut.writelines(json.dumps(sectionList, indent=2))
+            with open(self.context["chunksListRaw"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
+                summaryJSONOut.writelines(json.dumps(chunksList, indent=2))
             endTime = time.time()
-            msg = f"parseSections: usage: {self.usageFormat(runUsageParse)} Time: {(endTime - startTime):.2f} seconds"
+            msg = f"parseChunks: {self.usageFormat(runUsageParse)} Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
 
 
-        # ---------------matchSections -----------------
+        # ---------------matchChunks -----------------
 
-        if "matchSections" in self.context and self.context["matchSections"]:
+        if "matchChunks" in self.context and self.context["matchChunks"]:
             startTime = time.time()
-            if 'sectionList' not in locals():
-                # if this is a separate step - read text into string
-                with open(self.context['sectionListRaw'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                    sectionList = json.load(JsonIn)
+            if 'chunksList' not in locals():
+                # if this is a separate step - read list of chunks
+                with open(self.context['chunksListRaw'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                    chunksList = json.load(JsonIn)
 
             allTopicMatches = AllTopicMatches(topic_dict = {})
             for topic in self.knownTopics:
@@ -622,9 +653,9 @@ If you cannot split the text, output Python list with one entry."""
                 allTopicMatches.topic_dict[topic] = matchingSections
 
             runTotalUsage = RunUsage()
-            for section in sectionList:
+            for section in chunksList:
                 for topic in self.knownTopics:
-                    matchResult, runSingleUsage = self.matchSectionOllama(section, topic)
+                    matchResult, runSingleUsage = self.matchChunks(section, topic)
                     runTotalUsage += runSingleUsage
                     if matchResult:
                         sectionInfo = SectionInfo(uuid = uuid4(), docName = self.context['inputFileName'], section = section)
@@ -637,8 +668,9 @@ If you cannot split the text, output Python list with one entry."""
 
             self.addUsage(runTotalUsage)
             endTime = time.time()
-            msg = f"matchSections: usage: {self.usageFormat(runTotalUsage)} Time: {(endTime - startTime):.2f} seconds"
+            msg = f"matchChunks: {self.usageFormat(runTotalUsage)} Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
+
 
 
         # ------------vectorize----------------------

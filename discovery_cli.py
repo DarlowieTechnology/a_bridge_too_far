@@ -120,7 +120,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     totalEnd = time.time()
     discoveryWorkflow.context["stage"] = "completed"
-    msg = f"Workflow completed. Total usage: {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
+    msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
 
 

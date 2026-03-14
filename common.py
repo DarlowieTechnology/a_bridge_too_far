@@ -84,6 +84,20 @@ class TOKENIZERTYPES(IntFlag) :
     STEMMER = auto()
 
 
+class OneDiscoveryBM25File(BaseModel):
+    """
+    represents file metadata for bm25 index
+    """
+    hash: str = Field(..., description="hex hash of chunk collection file")
+    date: datetime = Field(..., description="last processing datetime")
+
+class DiscoveryBM25FileList(BaseModel):
+    """
+    represents all files metadata for bm25 index
+    """
+    file_dict: Dict[str, OneDiscoveryBM25File] = Field(default=None, description="dict of file metadata, key by file name")
+
+
 class RecordCollection(BaseModel):
     """
     represents all findings in a report document

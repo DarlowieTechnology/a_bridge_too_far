@@ -26,8 +26,8 @@ context = {
 
     # Generator app settings
 
-    "GENERArag_activity_cutoff": 0.3,       # cut off distance for activity table match
-    "GENERArag_scenario_cutoff": 0.35,      # cut off distance for scenario table match
+    "GENERArag_activity_cutoff" : 0.3,       # cut off distance for activity table match
+    "GENERArag_scenario_cutoff" : 0.35,      # cut off distance for scenario table match
     "GENERAad_FileName": "jobDescriptions/2025-10-02-0001.txt", # file name of original text
     "GENERAad_JSONName": "jobDescriptions/2025-10-02-0001.txt.json", # file name of JSON results
     "GENERAword_FileName": "jobDescriptions/2025-10-02-0001.txt.resume.docx", # file name of Word results
@@ -52,6 +52,11 @@ context = {
 
     "QUECLIsession_key": "QUERY",   # session name  for Query CLI
     "QUECLIstatus_FileName": "status.QUERY.json",  # status file name for Query CLI
+
+    # Discovery app settings
+
+    "DISCOVdocumentFolder" : "documents/",  # folder for documents
+    "DISCOVbm25IndexFolder" : "__combined.bm25/",  # folder for combined BM25 index
 
     # Discovery CLI settings
 

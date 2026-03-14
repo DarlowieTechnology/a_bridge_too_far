@@ -4,7 +4,7 @@
 from typing import List, Dict
 from logging import Logger
 import json
-import re
+import sys
 import time
 from pathlib import Path
 import mimetypes
@@ -12,10 +12,19 @@ from  uuid import UUID, uuid4
 
 from pydantic import BaseModel, ValidationError
 import pydantic_ai
-from pydantic_ai import Agent
+from pydantic_ai import Agent, AgentRunResult
+
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models.openai import OpenAIResponsesModel, OpenAIResponsesModelSettings
+from pydantic_ai.models.google import GoogleModel
+
 from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.providers.google import GoogleProvider
+
 from pydantic_ai.usage import RunUsage
+
+from openai import OpenAI, AsyncOpenAI, ChatCompletion
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -26,34 +35,33 @@ from jira import JIRA
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
 
-import Stemmer
-import bm25s
+# import Stemmer
+# import bm25s
 
 from anyascii import anyascii
 
+acceptedMimeTypes = [
+    "text/css",
+    "text/csv",
+    "text/html",
+    "application/json",
+    "text/markdown",
+    "application/pdf",
+    "text/plain"
+]
 
+knownTopics = [
+    "medical research notes",
+    "pipe engineering",
+    "penetration test results"
+]
 
 # local
 from common import COLLECTION, RecordCollection, MatchingSections, AllTopicMatches, SectionInfo, OpenFile
 from workflowbase import WorkflowBase 
 
+
 class DiscoveryWorkflow(WorkflowBase):
-
-    acceptedMimeTypes = [
-        "text/css",
-        "text/csv",
-        "text/html",
-        "application/json",
-        "text/markdown",
-        "application/pdf",
-        "text/plain"
-    ]
-
-    knownTopics = [
-        "medical research notes",
-        "pipe engineering",
-        "penetration test results"
-    ]
 
     def __init__(self, context : dict, logger : Logger):
         """
@@ -65,38 +73,62 @@ class DiscoveryWorkflow(WorkflowBase):
 
 
 
-    def parseSectionsOllama(self, docs : str) -> tuple[str, RunUsage] :
+    def agentOpenAIChatLMStudio(self, systemPrompt, prompt) -> AgentRunResult:
         """
-        split text into section according to formatting
+        Pydantic Agent call LLM using OpenAI chat API and LM Studio
         
-        :param docs: text to split into sections
-        :type docs: str
-        :return: Tuple of section list and LLM usage
-        :rtype: tuple[str, RunUsage]
+        :param systemPrompt: system prompt
+        :type systemPrompt: str
+        :param prompt: user prompt
+        :type prompt: str
+        :return: Agenr run result object
+        :rtype: AgentRunResult
         """
 
-        systemPrompt = f"""
-        You are an expert in English text analysis.
-        The prompt contains English text. 
-        Split text into sections. If table of content exists use it as a guide.
-        If table of content does not exist, split the text in semantically complete chunks.
-        Output all the text in the section.
-        Do not escape whitespace characters.
-        Format output as Python list.
-        If you cannot split the text, output Python list with one entry.
-        """
-
-        prompt = f"{docs}"
-
-        ollModel = self.createOpenAIChatModel()
-
-        agent = Agent(ollModel,
+#        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL, api_key=self.config["LMSTUDIO_API_KEY"])
+        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+        OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
+        model = OpenAIChatModel(model_name=self.lmStudioLLM, 
+                            provider=OpenAIprovider)
+        agent = Agent(model=model,
                       output_type=List,
-                      system_prompt = systemPrompt)
+                      system_prompt = systemPrompt,
+                      retries=3)
         try:
             result = agent.run_sync(prompt)
-            runUsage = result.usage()
-            return result.output, runUsage
+            return result
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
+        return None
+
+
+    def agentOpenAIResponses(self, systemPrompt, prompt) -> AgentRunResult :
+        """
+        Pydantic Agent call LLM using OpenAI responses API and LM Studio
+        
+        :param systemPrompt: system prompt
+        :type systemPrompt: str
+        :param prompt: user prompt
+        :type prompt: str
+        :return: Agenr run result object
+        :rtype: AgentRunResult
+        """
+
+        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+        OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
+        model = OpenAIResponsesModel(model_name=self.lmStudioLLM, 
+                            provider=OpenAIprovider)
+        agent = Agent(model=model,
+                      output_type=List,
+                      system_prompt = systemPrompt,
+                      retries=3)
+        try:
+            result = agent.run_sync(prompt)
+            return result
        
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
             msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
@@ -104,6 +136,151 @@ class DiscoveryWorkflow(WorkflowBase):
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
             self.workerSnapshot(msg)
+        return None
+
+
+    def agentOpenAIChatOllama(self, systemPrompt, prompt) -> AgentRunResult :
+        """
+        Pydantic Agent call LLM using OpenAI chat API and Ollama
+        
+        :param systemPrompt: system prompt
+        :type systemPrompt: str
+        :param prompt: user prompt
+        :type prompt: str
+        :return: Agenr run result object
+        :rtype: AgentRunResult
+        """
+
+        ollamaProvider=OllamaProvider(base_url=self.globalURL)
+
+        model = OpenAIChatModel(model_name=self.ollamaLLM, 
+                                provider=ollamaProvider)
+        agent = Agent(model=model,
+                      output_type=List,
+                      system_prompt = systemPrompt,
+                      retries=3)
+        try:
+            result = agent.run_sync(prompt)
+            return result
+       
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
+        return None
+
+
+    def agentOpenGemini(self, systemPrompt, prompt) -> AgentRunResult :
+        """
+        Pydantic Agent call LLM using Google API
+        
+        :param systemPrompt: system prompt
+        :type systemPrompt: str
+        :param prompt: user prompt
+        :type prompt: str
+        :return: Agenr run result object
+        :rtype: AgentRunResult
+        """
+
+        provider = GoogleProvider(api_key=self.config["gemini_key"])
+        model =  GoogleModel(self.geminiLLM , provider=provider)
+        agent = Agent(model=model,
+                      output_type=List,
+                      system_prompt = systemPrompt,
+                      retries=3)
+        try:
+            result = agent.run_sync(prompt)
+            return result
+       
+        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+            self.workerSnapshot(msg)
+        except ValidationError as e:
+            msg = f"Exception: ValidationError {e}"
+            self.workerSnapshot(msg)
+        return None
+
+
+
+    def parseAgentResult(self, result : AgentRunResult) -> tuple[List, RunUsage] :
+        """
+        Parse result from Pydantic Agent call
+        
+        :param result: text to split into sections
+        :type result: AgentRunResult
+        :return: Tuple of section list and LLM usage
+        :rtype: tuple[List, RunUsage]
+        """
+
+        outList = []
+
+
+        if isinstance(result.output, list) and len(result.output) == 1: 
+            if isinstance(result.output[0], list):       # List[0] is a List
+                for item in result.output[0]:
+                    outList.append(item)
+            else:
+                if isinstance(result.output[0], str):        # List[0] is a str
+                    listItems = result.output[0].split('\n')
+                    for item in listItems:
+                        outList.append(item)
+                else:
+                    msg = f"Error: LLM result.output[0] of unknown type: {type(result.output[0])}"
+                    self.workerError(msg)
+        else:
+            if isinstance(result.output, list) and len(result.output) > 1:  # List[]
+
+                for item in result.output:
+                    outList.append(item)
+            else:
+                msg = f"Error: LLM result.output of unknown type: {type(result.output)}"
+                self.workerError(msg)
+        return outList, result.usage()
+
+
+    def parseSections(self, docs : str) -> tuple[List, RunUsage] :
+        """
+        split text into section according to formatting
+        
+        :param docs: text to split into sections
+        :type docs: str
+        :return: Tuple of section list and LLM usage
+        :rtype: tuple[List, RunUsage]
+        """
+
+        systemPrompt = f"""The prompt contains English text. \
+Split text into sections.\
+If table of content exists use it as a guide.\
+If table of content does not exist, split the text in semantically complete chunks.\
+Output all the text in the section.\
+Do not escape whitespace characters.\
+Format output as Python list of sections.\
+If you cannot split the text, output Python list with one entry."""
+        prompt = f"{docs}"
+
+        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
+
+            result = self.agentOpenAIChatOllama(systemPrompt, prompt)
+            return self.parseAgentResult(result)
+            
+        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
+
+            if (self.lmStudioLLM == LMSTUDIOLLM.GPTOSS120B.value) or (self.lmStudioLLM == LMSTUDIOLLM.GPTOSS20B.value):
+
+                result = self.agentOpenAIResponses(systemPrompt, prompt)
+                return self.parseAgentResult(result)
+
+            if (self.lmStudioLLM == LMSTUDIOLLM.LLAMA2.value) or (self.lmStudioLLM == LMSTUDIOLLM.LLAMA33.value):
+                result = self.agentOpenAIChatLMStudio(systemPrompt, prompt)
+                return self.parseAgentResult(result)
+
+        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+            result = self.agentOpenGemini(systemPrompt, prompt)
+            return self.parseAgentResult(result)
+
+
         return None, None
 
 
@@ -412,7 +589,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 with open(self.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
                     textCombined = txtIn.read()
 
-            sectionListRaw, runUsageParse = self.parseSectionsOllama(textCombined)
+            sectionListRaw, runUsageParse = self.parseSections(textCombined)
             self.addUsage(runUsageParse)
 
             sectionList = []

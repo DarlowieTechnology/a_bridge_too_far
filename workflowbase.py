@@ -1,17 +1,28 @@
 #
 # base class for workflows
 #
+import sys
 from logging import Logger
 import json
 from typing import List
+from typing_extensions import Self
 from pathlib import Path
+import tomli
 
 
-from pydantic import BaseModel, Field
-from pydantic.dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models.google import GoogleModel
+
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.providers.ollama import OllamaProvider
+from pydantic_ai.providers.google import GoogleProvider
+
+from pydantic_ai import Embedder
+from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 from pydantic_ai.usage import RunUsage
+
+from openai import AsyncOpenAI
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -24,23 +35,45 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, ConfigSingleton, OpenFile
+from common import PROVIDERS, COLLECTION, OpenFile
 
 
-class WorkflowBase:
+class WorkflowBase(BaseModel):
     """
-    Base class for indexer and query workflows
+    Base class for workflows
     """
 
-    context : dict = Field(..., description="Context dictionary") 
-    config : ConfigSingleton = Field(..., description="Configuration class") 
-    logger : Logger = Field(..., description="Application logger") 
-    chromaClient : ClientAPI = Field(..., description="ChromaDB Persistent Client") 
-    embeddingFunction : OllamaEmbeddingFunction = Field(..., description="ChromaDB embedding Function") 
-    collections : dict[str, Collection] = Field(..., description="dictionary of ChromaDB collections") 
-    usage : RunUsage = Field(..., description="LLM usage object")
+    context : dict = Field(..., description="Context dictionary", exclude=True) 
+    logger : Logger = Field(..., description="Application logger", exclude=True) 
+    globalProvider : str = Field(..., description="Global provider of LLM service", exclude=True) 
+    embeddingLLM : str = Field(..., description="Embedding LLM", exclude=True) 
+    embeddingURL : str = Field(..., description="Embedding LLM", exclude=True) 
+    generalLLM : str = Field(..., strict=True, description="LM Studio LLM", exclude=True) 
+    globalURL : str = Field(..., description="Global LLM service base URL", exclude=True) 
+    chromaClient : ClientAPI = Field(..., description="ChromaDB Persistent Client", exclude=True) 
+    embeddingFunction : Embedder = Field(..., description="ChromaDB embedding Function", exclude=True) 
+    collections : dict[str, Collection] = Field(..., description="dictionary of ChromaDB collections", exclude=True) 
+    usage : RunUsage = Field(..., description="LLM usage object", exclude=True)
 
-    def __init__(self, context : dict, logger : Logger, createCollection : bool):
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    @model_validator(mode='after')
+    def verify_configuration(self) -> Self:
+        if self.globalProvider not in PROVIDERS.keys():
+            raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
+        providerInfo = PROVIDERS[self.globalProvider]
+        if providerInfo["embed"] != self.embeddingURL:
+            raise ValueError(f'Unknown Embedding URL: {self.embeddingURL}')
+        if providerInfo["url"] != self.globalURL:
+            raise ValueError(f'Unknown LLM API URL: {self.globalURL}')
+        if self.generalLLM not in providerInfo["llm"]:
+            raise ValueError(f'Unknown LLM: {self.generalLLM}')
+        return self
+
+
+    def __init__(self, **kwargs):
+#    def __init__(self, context : dict, logger : Logger, createCollection : bool):
         """
         Constructor for the base workflow object
 
@@ -49,8 +82,31 @@ class WorkflowBase:
             logger (Logger) - created by caller (CLI or web app)
             createCollection (bool) - if True, create vector database
         """
+
+        super().__init__(**kwargs)
+#        super().__init__(context=context, logger=logger, globalProvider = "", embeddingLLM ="", generalLLM = "", embeddingURL = "", globalURL = "" )
+
+        configName = 'default.toml'
+        conf_dict = {}
+        try:
+            with open(configName, mode="rb") as fp:
+                conf_dict = tomli.load(fp)
+        except Exception as e:
+            try:
+                configName = "../" + configName
+                with open(configName, mode="rb") as fp:
+                    conf_dict = tomli.load(fp)
+            except Exception as e:
+                print(f"***ERROR: Cannot open config file {configName}, exception {e}")
+                sys.exit("Program terminates")
+
+        self.globalProvider = conf_dict["GLOBALllm_Provider"]
+        self.embeddingLLM = conf_dict["GLOBALllm_Embed"]
+        self.embeddingURL = conf_dict["GLOBALembedding_URL"]
+        self.generalLLM = conf_dict["GLOBALllm_Version"]
+        self.globalURL = conf_dict["GLOBALllm_Version"]
+
         self.context = context
-        self.config = ConfigSingleton()
         self.logger = logger
 
         self.embeddingFunction  = self.createEmbeddingFunction()
@@ -60,6 +116,8 @@ class WorkflowBase:
             for coll in list(COLLECTION):
                 self.collections[coll.value] = self.openOrCreateCollection(coll.value, createCollection)
         self.usage = RunUsage()
+
+
 
 
     def openChromaClient(self) -> ClientAPI :
@@ -84,28 +142,69 @@ class WorkflowBase:
         return chromaClient
 
 
-    def createEmbeddingFunction(self) -> OllamaEmbeddingFunction :
+    def createEmbeddingFunction(self) :
         """
-        Create Ollama-specific embedding function
+        Create embedding function
         
         :return: embedding function object
-        :rtype: OllamaEmbeddingFunction
         """
-        return OllamaEmbeddingFunction(
-            model_name=self.context["GLOBALrag_embed_llm"],
-            url=self.context["GLOBALrag_embed_url"]
-        )
 
+        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
+            
+            return OllamaEmbeddingFunction(
+                model_name=self.ollamaEmbed,
+                url=self.globalURL + "/api/embeddings"
+            )
+
+        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
+
+            model = OpenAIEmbeddingModel(
+                self.lmStudioEmbed,
+                provider=OpenAIProvider(
+                    base_url=self.globalURL,
+                    api_key=self.config["LMSTUDIO_API_KEY"]
+                ),
+            )
+            return Embedder(model)
+
+        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+
+            model = OpenAIEmbeddingModel(
+                self.geminiEmbed,
+                provider=OpenAIProvider(
+                    base_url=self.globalURL,
+                    api_key=self.config["gemini_key"]
+                ),
+            )
+            return Embedder(model)
+
+        return None
+    
 
     def createOpenAIChatModel(self) -> OpenAIChatModel: 
         """
-        return OpenAIChatModel class instance
+        return OpenAIChatModel class instance or None
         
         :return: OpenAIChatModel class instance
         :rtype: OpenAIChatModel
         """
-        return OpenAIChatModel(model_name=self.context["GLOBALllm_Version"], 
-                               provider=OllamaProvider(base_url=self.context["GLOBALllm_base_url"]))
+
+        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
+            return OpenAIChatModel(model_name=self.ollamaLLM, 
+                                   provider=OllamaProvider(base_url=self.globalURL))
+
+        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
+
+            client = AsyncOpenAI(base_url=self.globalURL)
+            return OpenAIChatModel(model_name=self.lmStudioLLM, 
+                                   provider=OpenAIProvider(openai_client=client))
+        
+        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+
+            provider = GoogleProvider(api_key=self.config["gemini_key"])
+            return GoogleModel(self.geminiLLM , provider=provider)
+
+        return None
 
 
     def openOrCreateCollection(self, collectionName : str, createFlag : bool) -> Collection :
@@ -127,8 +226,9 @@ class WorkflowBase:
 
         try:
             chromaCollection = self.chromaClient.get_collection(
-                name=collectionName,
-                embedding_function=self.embeddingFunction
+#                name=collectionName,
+#                embedding_function=self.embeddingFunction
+                name=collectionName
             )
 #            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
 #            self.workerSnapshot(msg)

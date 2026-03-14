@@ -22,13 +22,7 @@ context = {
     # Global settings
 
     "GLOBALrag_datapath": "chromadb",    # Path to folder with vector database, used to create ChromaClient
-    "GLOBALrag_embed_llm": "nomic-embed-text",   # Embedding LLM for RAG applications, used to create OllamaEmbeddingFunction
-    "GLOBALrag_embed_url": "http://localhost:11434/api/embeddings", # URL for embedding API, used to create OllamaEmbeddingFunction
     "GLOBALrag_hnsw_space": "cosine",  # For Hierarchical Navigable Small World (HNSW) search algorithm choose cosine similarity metric
-    "GLOBALllm_Provider": "Ollama",   # LLM service provider
-#    "GLOBALllm_Version": "gemini-3-flash-preview:latest",  # LLM name
-    "GLOBALllm_Version": "gpt-oss:120b-cloud",  # LLM name
-    "GLOBALllm_base_url": "http://localhost:11434/v1", # OpenAI API endpoint
 
     # Generator app settings
 

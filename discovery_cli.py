@@ -9,8 +9,6 @@ from  uuid import UUID, uuid4
 from typing import List
 
 from pydantic_ai.usage import RunUsage
-
-import json_schema_to_pydantic
 from anyascii import anyascii
 
 # local
@@ -58,7 +56,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         "documents/engineering-019.txt"
     ]
 
-    fileList = [
+    fileListMedical = [
 #        "documents/medresearch-000.txt",
 #        "documents/medresearch-001.txt",
 #        "documents/medresearch-002.txt",
@@ -69,15 +67,20 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 #        "documents/medresearch-007.txt",
 #        "documents/medresearch-008.txt",
 #        "documents/medresearch-009.txt",
-        "documents/medresearch-010.txt",
-        "documents/medresearch-011.txt",
-        "documents/medresearch-012.txt",
-        "documents/medresearch-013.txt",
-        "documents/medresearch-014.txt",
-        "documents/medresearch-015.txt",
-        "documents/medresearch-016.txt",
-        "documents/medresearch-017.txt",
-        "documents/medresearch-018.txt",
+#        "documents/medresearch-010.txt",
+#        "documents/medresearch-011.txt",
+#        "documents/medresearch-012.txt",
+#        "documents/medresearch-013.txt",
+#        "documents/medresearch-014.txt",
+#        "documents/medresearch-015.txt",
+#        "documents/medresearch-016.txt",
+#        "documents/medresearch-017.txt",
+#        "documents/medresearch-018.txt",
+        "documents/medresearch-019.txt"
+    ]
+
+    fileList = [
+#        "documents/2009.03393v1.pdf"
         "documents/medresearch-019.txt"
     ]
 
@@ -126,7 +129,7 @@ def main():
 
     context = darlowie.context
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logger = logging.getLogger(context["DISCLIsession_key"])
 
 
@@ -136,10 +139,10 @@ def main():
     context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
-    context["loadDocument"] = True
+    context["loadDocument"] = False
     context["parseSections"] = True
-    context["matchSections"] = True
-    context["vectorize"] = True
+    context["matchSections"] = False
+    context["vectorize"] = False
     context["verify"] = False
 
     # text extraction configuration from PDF
@@ -149,6 +152,7 @@ def main():
     context["singleSpaces"] = False
 
     discoverWorkflow = DiscoveryWorkflow(context, logger)
+
     testRun(discoverWorkflow)
 
 

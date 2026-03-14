@@ -114,7 +114,7 @@ def index(request):
     context["DISPLAYjira_export"] = "Execute" if indexerWorkflow.context["INDEXEjira_export"] else "Skip"
 
     context["llmProvider"] = indexerWorkflow.context["GLOBALllm_Provider"]
-    context["llmVersion"] = indexerWorkflow.context["GLOBALllm_base_url"]
+#    context["llmVersion"] = indexerWorkflow.context["GLOBALllm_base_url"]
 
     return render(request, "indexer/index.html", context)
 

@@ -24,8 +24,40 @@ from pydantic import BaseModel, Field, ConfigDict
 sys.path.append("..")
 sys.path.append("../..")
 
+PROVIDERS = {
+    "ollama" : {
+        "llm" : [
+            "gpt-oss:20b",
+            "glm-4.6:cloud"
+        ],
+        "url" : "http://localhost:11434/v1",
+        "embed" : "http://localhost:11434/api/embeddings"
+    },
+    "lmstudio" : {
+        "llm" : [
+            "llama-3.3-70b-instruct",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b"
+        ],
+        "url" : "http://localhost:1234/v1",
+        "embed" : "http://localhost:1234/v1/embeddings"
+    },
+    "gemini" : {
+        "llm" : [
+            "gemini-3.1-flash-lite-preview",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite"
+        ],
+        "url" : "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "embed" : "https://generativelanguage.googleapis.com/v1beta/openai/"
+    }
+}
+
+
 @unique
-class COLLECTION(Enum) :
+class COLLECTION(str, Enum) :
     ISSUES = "reportissues"
     JIRA = "jiraissues"
 
@@ -201,7 +233,9 @@ class ConfigSingleton(object):
             self._conf['mistral_key'] = os.environ['mistral_key']
             self._conf["Jira_api_token"] = os.environ['Jira_api_token']
             self._conf["Jira_user"] = os.environ['Jira_user']
-            self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']            
+            self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+            self._conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
+            
 
     def __new__(cls):
         """ overwrite of __new__ to enforce one instance via class attribute 'instance' """

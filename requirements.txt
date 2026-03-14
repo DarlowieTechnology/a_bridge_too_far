@@ -153,7 +153,6 @@ mcp
 mdurl
 mistralai
 mmh3
-mod_wsgi
 more-itertools
 mpmath
 msoffcrypto-tool
@@ -240,7 +239,6 @@ PyPika
 pyproject_hooks
 pyreadline3
 pysast
-PyStemmer
 python-dateutil
 python-docx
 python-dotenv
@@ -287,12 +285,12 @@ sqlparse
 srsly
 sse-starlette
 starlette
+stemmer
 stevedore
 sympy
 temporalio
 tenacity
 termcolor
-thinc
 threadpoolctl
 tiktoken
 timm

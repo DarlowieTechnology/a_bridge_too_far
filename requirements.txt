@@ -229,6 +229,7 @@ pydantic-graph
 pydantic-settings
 pydantic_core
 pydocket
+pyenv-win
 Pygments
 PyJWT
 pypandoc

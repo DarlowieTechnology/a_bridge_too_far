@@ -13,7 +13,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import COLLECTION, RecordCollection, MatchingSections, SectionInfo, AllTopicMatches
+from common import COLLECTION, ConfigCollection, RecordCollection, MatchingSections, SectionInfo, AllTopicMatches
 from discovery_workflow import DiscoveryWorkflow
 
 
@@ -29,7 +29,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         None    
     """
     totalStart = time.time()
-    discoveryWorkflow.context["stage"] = "started"
+    discoveryWorkflow.stage = "started"
 
 
 #    fileList = discoveryWorkflow.formFileList()
@@ -119,7 +119,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     print(f"totalCounts: {totalCounts}    score:{scorePerCent:.2f} %")
 
     totalEnd = time.time()
-    discoveryWorkflow.context["stage"] = "completed"
+    discoveryWorkflow.stage = "completed"
     msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
 
@@ -127,11 +127,9 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
 def main():
 
-    context = darlowie.context
-
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    logger = logging.getLogger(context["DISCLIsession_key"])
 
+    context = darlowie.context
 
     context["documentFolder"] = "documents"
     context["fileExtensions"] = ["*.txt", "*.pdf"]
@@ -140,10 +138,11 @@ def main():
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
     context["loadDocument"] = False
-    context["parseSections"] = True
+    context["parseChunks"] = True
     context["matchSections"] = False
     context["vectorize"] = False
     context["verify"] = False
+    context["returnResults"] = False    
 
     # text extraction configuration from PDF
     context["stripWhiteSpace"] = False
@@ -151,7 +150,10 @@ def main():
     context["convertToASCII"] = False
     context["singleSpaces"] = False
 
-    discoverWorkflow = DiscoveryWorkflow(context, logger)
+    configCollection = ConfigCollection(context)
+
+    discoverWorkflow = DiscoveryWorkflow()
+    discoverWorkflow.configure(configCollection)
 
     testRun(discoverWorkflow)
 

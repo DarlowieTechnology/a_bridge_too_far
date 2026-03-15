@@ -1,0 +1,25 @@
+EP,,,OrtGenAI
+Device,,,GPU
+Scenario,,,Phi 3.5 Mini Instruct
+Date,,,2026-03-07 4:41 PM
+Tested By MLCommons,,,Yes
+Config Category,,,base
+System Info,,,CPU: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz(x64);RAM: 64 GB;GPU: NVIDIA Quadro T1000;VRAM: 4 GB;OS: Microsoft Windows 11 Pro
+Overall
+,,TTFT (seconds),19.02
+,,TPS,25.0
+Content Generation
+,,TTFT (seconds),3.03
+,,TPS,34.1
+Creative Writing
+,,TTFT (seconds),11.93
+,,TPS,32.0
+"Summarization, Light"
+,,TTFT (seconds),21.04
+,,TPS,20.4
+"Summarization, Moderate"
+,,TTFT (seconds),42.90
+,,TPS,19.5
+Code Analysis
+,,TTFT (seconds),76.22
+,,TPS,22.5

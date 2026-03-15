@@ -10,7 +10,7 @@ from pathlib import Path
 import mimetypes
 from  uuid import UUID, uuid4
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import pydantic_ai
 from pydantic_ai import Agent, AgentRunResult
 
@@ -41,6 +41,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from anyascii import anyascii
 
+# local
+from common import GLOBALPROVIDER, COLLECTION, RecordCollection, ConfigCollection, MatchingSections, AllTopicMatches, SectionInfo, OpenFile
+from workflowbase import WorkflowBase 
+
+
 acceptedMimeTypes = [
     "text/css",
     "text/csv",
@@ -57,21 +62,58 @@ knownTopics = [
     "penetration test results"
 ]
 
-# local
-from common import COLLECTION, RecordCollection, MatchingSections, AllTopicMatches, SectionInfo, OpenFile
-from workflowbase import WorkflowBase 
 
 
 class DiscoveryWorkflow(WorkflowBase):
 
-    def __init__(self, context : dict, logger : Logger):
-        """
-        Args:
-            context (dict)
-            logger (Logger) - can originate in CLI or Django app
-        """
-        super().__init__(context=context, logger=logger, createCollection=True)
+    context : dict[str, str] = Field(default = {}, description="Context dict") 
 
+
+    def configure(self, configCollection : ConfigCollection) :
+
+        # call base class configuration first
+        super().configure(configCollection)
+
+        self.context["loadDocument"] = configCollection["loadDocument"]
+        self.context["parseChunks"] = configCollection["parseChunks"]
+        self.context["matchSections"] = configCollection["matchSections"]
+        self.context["vectorize"] = configCollection["vectorize"]
+        self.context["verify"] = configCollection["verify"]
+
+        # text extraction configuration from PDF
+        self.context["stripWhiteSpace"] = configCollection["stripWhiteSpace"]
+        self.context["convertToLower"] = configCollection["convertToLower"]
+        self.context["convertToASCII"] = configCollection["convertToASCII"]
+        self.context["singleSpaces"] = configCollection["singleSpaces"]
+
+
+
+    def loadPDF(self, inputFile : str) -> str :
+        """
+        Load text from PDF
+        
+        :param inputFile: PDF file name
+        :type inputFile: str
+        :return: Text from PDF
+        :rtype: str
+        """
+        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
+        docs = loader.load()
+
+        textCombined = ""
+        for page in docs:
+            pageContent = page.page_content
+            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+                pageContent = pageContent.strip()
+            if "convertToLower" in self.context and self.context["convertToLower"]:
+                pageContent = pageContent.lower()
+            if "convertToASCII" in self.context and self.context["convertToASCII"]:
+                pageContent = anyascii(pageContent)
+            if "singleSpaces" in self.context and self.context["singleSpaces"]:
+                pageContent = " ".join(pageContent.split())
+            textCombined += " "
+            textCombined += pageContent
+        return textCombined
 
 
     def chunkText(self, docs : str) -> List[str] :
@@ -93,7 +135,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def agentOpenAIChatLMStudio(self, systemPrompt, prompt) -> AgentRunResult:
         """
-        Pydantic Agent call LLM using OpenAI chat API and LM Studio
+        Pydantic Agent call LLM using OpenAI Chat API
         
         :param systemPrompt: system prompt
         :type systemPrompt: str
@@ -105,7 +147,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
         OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-        model = OpenAIChatModel(model_name=self.lmStudioLLM, 
+        model = OpenAIChatModel(model_name=self.generalLLM, 
                             provider=OpenAIprovider)
         agent = Agent(model=model,
                       output_type=List,
@@ -125,19 +167,19 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def agentOpenAIResponses(self, systemPrompt, prompt) -> AgentRunResult :
         """
-        Pydantic Agent call LLM using OpenAI responses API and LM Studio
+        Pydantic Agent call LLM using OpenAI Responses API
         
         :param systemPrompt: system prompt
         :type systemPrompt: str
         :param prompt: user prompt
         :type prompt: str
-        :return: Agenr run result object
+        :return: Agent run result object
         :rtype: AgentRunResult
         """
 
         OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
         OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-        model = OpenAIResponsesModel(model_name=self.lmStudioLLM, 
+        model = OpenAIResponsesModel(model_name=self.generalLLM, 
                             provider=OpenAIprovider)
         agent = Agent(model=model,
                       output_type=List,
@@ -148,9 +190,8 @@ class DiscoveryWorkflow(WorkflowBase):
             return result
        
         except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior - fallback to chunking"
+            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
             self.workerSnapshot(msg)
-            return self.chunkText(docs), None
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
             self.workerSnapshot(msg)
@@ -159,19 +200,19 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def agentOpenAIChatOllama(self, systemPrompt, prompt) -> AgentRunResult :
         """
-        Pydantic Agent call LLM using OpenAI chat API and Ollama
+        Pydantic Agent call LLM using OpenAI Chat API on Ollama
         
         :param systemPrompt: system prompt
         :type systemPrompt: str
         :param prompt: user prompt
         :type prompt: str
-        :return: Agenr run result object
+        :return: Agent run result object
         :rtype: AgentRunResult
         """
 
         ollamaProvider=OllamaProvider(base_url=self.globalURL)
 
-        model = OpenAIChatModel(model_name=self.ollamaLLM, 
+        model = OpenAIChatModel(model_name=self.generalLLM, 
                                 provider=ollamaProvider)
         agent = Agent(model=model,
                       output_type=List,
@@ -234,7 +275,6 @@ class DiscoveryWorkflow(WorkflowBase):
 
         outList = []
 
-
         if isinstance(result.output, list) and len(result.output) == 1: 
             if isinstance(result.output[0], list):       # List[0] is a List
                 for item in result.output[0]:
@@ -258,24 +298,26 @@ class DiscoveryWorkflow(WorkflowBase):
         return outList, result.usage()
 
 
-    def parseSections(self, docs : str) -> tuple[List, RunUsage] :
+    def parseChunks(self, docs : str) -> tuple[List, RunUsage] :
         """
-        split text into section according to formatting
+        split text into chunks according to formatting
         
-        :param docs: text to split into sections
+        :param docs: text to split into chunks
         :type docs: str
         :return: Tuple of section list and LLM usage
         :rtype: tuple[List, RunUsage]
         """
 
-        systemPrompt = f"""The prompt contains English text. \
+        systemPrompt = f"""\
+The prompt contains English text. \
 Split text into sections.\
 If table of content exists use it as a guide.\
 If table of content does not exist, split the text in semantically complete chunks.\
 Output all the text in the section.\
 Do not escape whitespace characters.\
 Format output as Python list of sections.\
-If you cannot split the text, output Python list with one entry."""
+If you cannot split the text, output Python list with one entry.\
+        """
         prompt = f"{docs}"
 
         if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
@@ -590,7 +632,7 @@ If you cannot split the text, output Python list with one entry."""
             startTime = time.time()
 
             mime_type, encoding = mimetypes.guess_type(self.context['inputFileName'])
-            if mime_type in self.acceptedMimeTypes:
+            if mime_type in acceptedMimeTypes:
                 self.context['mime_type'] = mime_type
                 self.context['encoding'] = encoding
             else:
@@ -620,7 +662,7 @@ If you cannot split the text, output Python list with one entry."""
                 with open(self.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
                     textCombined = txtIn.read()
 
-            sectionListRaw, runUsageParse = self.parseSections(textCombined)
+            chunksListRaw, runUsageParse = self.parseChunks(textCombined)
             self.addUsage(runUsageParse)
 
             chunksList = []
@@ -648,13 +690,13 @@ If you cannot split the text, output Python list with one entry."""
                     chunksList = json.load(JsonIn)
 
             allTopicMatches = AllTopicMatches(topic_dict = {})
-            for topic in self.knownTopics:
+            for topic in knownTopics:
                 matchingSections = MatchingSections(topic = topic, section_list = [])
                 allTopicMatches.topic_dict[topic] = matchingSections
 
             runTotalUsage = RunUsage()
             for section in chunksList:
-                for topic in self.knownTopics:
+                for topic in knownTopics:
                     matchResult, runSingleUsage = self.matchChunks(section, topic)
                     runTotalUsage += runSingleUsage
                     if matchResult:
@@ -670,7 +712,6 @@ If you cannot split the text, output Python list with one entry."""
             endTime = time.time()
             msg = f"matchChunks: {self.usageFormat(runTotalUsage)} Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
-
 
 
         # ------------vectorize----------------------
@@ -733,18 +774,21 @@ If you cannot split the text, output Python list with one entry."""
             msg = f"verify:  {counts[0]}|{counts[1]}|{counts[2]}  score : {scorePerCent:.2f}%.  Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
 
-        # -------------- return data ---------------
+        # -------------- return results ---------------
 
-        # return all matches
-        if 'allTopicMatches' not in locals():
-            fileExists, strContent = OpenFile.open(filePath = self.context['matchJSON'], readContent = False)
-            if fileExists:
-                # return matches if they were previously created
-                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                    allTopicMatchesStr = json.load(JsonIn)
-                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
-            else:
-                allTopicMatches = AllTopicMatches(topic_dict = {})
+        if "returnResults" in self.context and self.context["returnResults"]:
+            # return all matches
+            if 'allTopicMatches' not in locals():
+                fileExists, strContent = OpenFile.open(filePath = self.context['matchJSON'], readContent = False)
+                if fileExists:
+                    # return matches if they were previously created
+                    with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
+                        allTopicMatchesStr = json.load(JsonIn)
+                        allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+                else:
+                    allTopicMatches = AllTopicMatches(topic_dict = {})
+            return counts, allTopicMatches
 
-        return counts, allTopicMatches
+        # return empty results
+        return counts, AllTopicMatches(topic_dict = {})
 

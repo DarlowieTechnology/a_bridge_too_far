@@ -2,6 +2,7 @@
 # base class for workflows
 #
 import sys
+import logging
 from logging import Logger
 import json
 from typing import List
@@ -35,7 +36,7 @@ from anyascii import anyascii
 
 
 # local
-from common import PROVIDERS, COLLECTION, OpenFile
+from common import GLOBALPROVIDER, PROVIDERS, COLLECTION, ConfigCollection, OpenFile
 
 
 class WorkflowBase(BaseModel):
@@ -43,81 +44,64 @@ class WorkflowBase(BaseModel):
     Base class for workflows
     """
 
-    context : dict = Field(..., description="Context dictionary", exclude=True) 
-    logger : Logger = Field(..., description="Application logger", exclude=True) 
-    globalProvider : str = Field(..., description="Global provider of LLM service", exclude=True) 
-    embeddingLLM : str = Field(..., description="Embedding LLM", exclude=True) 
-    embeddingURL : str = Field(..., description="Embedding LLM", exclude=True) 
-    generalLLM : str = Field(..., strict=True, description="LM Studio LLM", exclude=True) 
-    globalURL : str = Field(..., description="Global LLM service base URL", exclude=True) 
-    chromaClient : ClientAPI = Field(..., description="ChromaDB Persistent Client", exclude=True) 
-    embeddingFunction : Embedder = Field(..., description="ChromaDB embedding Function", exclude=True) 
-    collections : dict[str, Collection] = Field(..., description="dictionary of ChromaDB collections", exclude=True) 
-    usage : RunUsage = Field(..., description="LLM usage object", exclude=True)
+    logger : Logger = Field(default = None, description="Application logger") 
+    globalRAGDatapath : str = Field(default = "chromadb", description="Path to RAG database")
+    globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
+    globalProvider : str = Field(default = "", description="Global provider of LLM service") 
+    embeddingLLM : str = Field(default = "", description="Embedding LLM") 
+    embeddingURL : str = Field(default = "", description="Embedding LLM") 
+    generalLLM : str = Field(default = "", strict=True, description="General LLM") 
+    globalURL : str = Field(default = "", description="Global LLM service base URL") 
+    globalAPIkey : str = Field(default = "", description="Global API Key") 
+    chromaClient : ClientAPI = Field(default = None, description="ChromaDB Persistent Client") 
+    embeddingFunction : Embedder = Field(default = None, description="ChromaDB embedding Function") 
+    collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections") 
+    usage : RunUsage = Field(default = None, description="LLM usage object")
+    stage : str = Field(default = "", description="Stage of workflow") 
+    statusLog : List[str] = Field(default = [], description="Status log of workflow") 
+    statusFileName : str = Field(default = "", description="Name of status log file") 
+    resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
 
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
-        if self.globalProvider not in PROVIDERS.keys():
-            raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
-        providerInfo = PROVIDERS[self.globalProvider]
-        if providerInfo["embed"] != self.embeddingURL:
-            raise ValueError(f'Unknown Embedding URL: {self.embeddingURL}')
-        if providerInfo["url"] != self.globalURL:
-            raise ValueError(f'Unknown LLM API URL: {self.globalURL}')
-        if self.generalLLM not in providerInfo["llm"]:
-            raise ValueError(f'Unknown LLM: {self.generalLLM}')
+        if self.globalProvider:
+            if self.globalProvider not in PROVIDERS.keys():
+                raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
+            providerInfo = PROVIDERS[self.globalProvider]
+            if providerInfo["embed"] != self.embeddingURL:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown Embedding URL: {self.embeddingURL}')
+            if providerInfo["url"] != self.globalURL:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM API URL: {self.globalURL}')
+            if self.generalLLM not in providerInfo["llm"]:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM: {self.generalLLM}')
         return self
 
 
-    def __init__(self, **kwargs):
-#    def __init__(self, context : dict, logger : Logger, createCollection : bool):
-        """
-        Constructor for the base workflow object
+    def configure(self, configCollection : ConfigCollection) :
 
-        Args:
-            context (dict) - context data for workflow
-            logger (Logger) - created by caller (CLI or web app)
-            createCollection (bool) - if True, create vector database
-        """
+        self.logger = logging.getLogger(configCollection["DISCLIsession_key"])
 
-        super().__init__(**kwargs)
-#        super().__init__(context=context, logger=logger, globalProvider = "", embeddingLLM ="", generalLLM = "", embeddingURL = "", globalURL = "" )
+        self.globalProvider = configCollection["GLOBALllm_Provider"]
+        self.embeddingLLM = configCollection["GLOBALllm_Embed"]
+        self.embeddingURL = configCollection["GLOBALembedding_URL"]
+        self.generalLLM = configCollection["GLOBALllm_Version"]
+        self.globalURL = configCollection["GLOBALllm_URL"]
+        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+            self.globalAPIkey = configCollection['gemini_key']
 
-        configName = 'default.toml'
-        conf_dict = {}
-        try:
-            with open(configName, mode="rb") as fp:
-                conf_dict = tomli.load(fp)
-        except Exception as e:
-            try:
-                configName = "../" + configName
-                with open(configName, mode="rb") as fp:
-                    conf_dict = tomli.load(fp)
-            except Exception as e:
-                print(f"***ERROR: Cannot open config file {configName}, exception {e}")
-                sys.exit("Program terminates")
-
-        self.globalProvider = conf_dict["GLOBALllm_Provider"]
-        self.embeddingLLM = conf_dict["GLOBALllm_Embed"]
-        self.embeddingURL = conf_dict["GLOBALembedding_URL"]
-        self.generalLLM = conf_dict["GLOBALllm_Version"]
-        self.globalURL = conf_dict["GLOBALllm_Version"]
-
-        self.context = context
-        self.logger = logger
+        self.verify_configuration()
 
         self.embeddingFunction  = self.createEmbeddingFunction()
         self.chromaClient = self.openChromaClient()
         self.collections = {}
         if self.chromaClient:
             for coll in list(COLLECTION):
-                self.collections[coll.value] = self.openOrCreateCollection(coll.value, createCollection)
+                self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
         self.usage = RunUsage()
-
-
+        self.statusFileName = configCollection["statusFileName"]
 
 
     def openChromaClient(self) -> ClientAPI :
@@ -129,7 +113,8 @@ class WorkflowBase(BaseModel):
         """
         try:
             chromaClient = chromadb.PersistentClient(
-                path=self.getAbsPath("GLOBALrag_datapath"),
+#                path=self.getAbsPath("GLOBALrag_datapath"),
+                path=self.globalRAGDatapath,
                 settings=Settings(anonymized_telemetry=False),
                 tenant=DEFAULT_TENANT,
                 database=DEFAULT_DATABASE,
@@ -152,17 +137,16 @@ class WorkflowBase(BaseModel):
         if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
             
             return OllamaEmbeddingFunction(
-                model_name=self.ollamaEmbed,
-                url=self.globalURL + "/api/embeddings"
+                model_name=self.embeddingLLM,
+                url=self.embeddingURL
             )
 
         if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
 
             model = OpenAIEmbeddingModel(
-                self.lmStudioEmbed,
+                self.embeddingLLM,
                 provider=OpenAIProvider(
-                    base_url=self.globalURL,
-                    api_key=self.config["LMSTUDIO_API_KEY"]
+                    base_url=self.embeddingURL
                 ),
             )
             return Embedder(model)
@@ -170,10 +154,10 @@ class WorkflowBase(BaseModel):
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
 
             model = OpenAIEmbeddingModel(
-                self.geminiEmbed,
+                self.embeddingLLM,
                 provider=OpenAIProvider(
                     base_url=self.globalURL,
-                    api_key=self.config["gemini_key"]
+                    api_key=self.globalAPIkey
                 ),
             )
             return Embedder(model)
@@ -190,18 +174,18 @@ class WorkflowBase(BaseModel):
         """
 
         if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
-            return OpenAIChatModel(model_name=self.ollamaLLM, 
+            return OpenAIChatModel(model_name=self.generalLLM,
                                    provider=OllamaProvider(base_url=self.globalURL))
 
         if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
 
             client = AsyncOpenAI(base_url=self.globalURL)
-            return OpenAIChatModel(model_name=self.lmStudioLLM, 
+            return OpenAIChatModel(model_name=self.generalLLM, 
                                    provider=OpenAIProvider(openai_client=client))
         
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
 
-            provider = GoogleProvider(api_key=self.config["gemini_key"])
+            provider = GoogleProvider(api_key=self.globalAPIkey)
             return GoogleModel(self.geminiLLM , provider=provider)
 
         return None
@@ -226,9 +210,8 @@ class WorkflowBase(BaseModel):
 
         try:
             chromaCollection = self.chromaClient.get_collection(
-#                name=collectionName,
-#                embedding_function=self.embeddingFunction
-                name=collectionName
+                name=collectionName,
+                embedding_function=self.embeddingFunction
             )
 #            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
 #            self.workerSnapshot(msg)
@@ -238,7 +221,7 @@ class WorkflowBase(BaseModel):
                     chromaCollection = self.chromaClient.create_collection(
                         name=collectionName,
                         embedding_function=self.embeddingFunction,
-                        metadata={ "hnsw:space": self.context["GLOBALrag_hnsw_space"]  }
+                        metadata={ "hnsw:space": self.globalRAGHNSWspace }
                     )
                     msg = f"Created collection {collectionName}"
                     self.workerSnapshot(msg)
@@ -295,43 +278,17 @@ class WorkflowBase(BaseModel):
             return f""
 
 
-    def loadPDF(self, inputFile : str) -> str :
-        """
-        Load text from PDF
-        
-        :param inputFile: PDF file name
-        :type inputFile: str
-        :return: Text from PDF
-        :rtype: str
-        """
-        loader = PyPDFLoader(file_path = inputFile, mode = "page" )
-        docs = loader.load()
-
-        textCombined = ""
-        for page in docs:
-            pageContent = page.page_content
-            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
-                pageContent = pageContent.strip()
-            if "convertToLower" in self.context and self.context["convertToLower"]:
-                pageContent = pageContent.lower()
-            if "convertToASCII" in self.context and self.context["convertToASCII"]:
-                pageContent = anyascii(pageContent)
-            if "singleSpaces" in self.context and self.context["singleSpaces"]:
-                pageContent = " ".join(pageContent.split())
-            textCombined += " "
-            textCombined += pageContent
-        return textCombined
 
 
-    def getAbsPath(self, key) -> str:
-        """
-        absolute path value from relative path. Compatible with Django web app
-        
-        :param key: key in context dict
-        :return: absolute path
-        :rtype: str
-        """        
-        return Path(str(Path(__file__).parent.resolve()) + '/' + self.context[key]).resolve()
+#    def getAbsPath(self, key) -> str:
+#        """
+#        absolute path value from relative path. Compatible with Django web app
+#        
+#        :param key: key in context dict
+#        :return: absolute path
+#        :rtype: str
+#        """        
+#        return Path(str(Path(__file__).parent.resolve()) + '/' + self.context[key]).resolve()
 
 
     def workerSnapshot(self, msg : str):
@@ -346,9 +303,9 @@ class WorkflowBase(BaseModel):
         """
         if msg:
             self.logger.info(msg)
-            self.context['status'].append(msg)
-        with open(self.context['statusFileName'], "w") as jsonOut:
-            formattedOut = json.dumps(self.context, indent=2)
+            self.statusLog.append(msg)
+        with open(self.statusFileName, "w") as jsonOut:
+            formattedOut = json.dumps(self.statusLog, indent=2)
             jsonOut.write(formattedOut)
 
 
@@ -364,9 +321,9 @@ class WorkflowBase(BaseModel):
         """
         if msg:
             self.logger.warning(msg)    
-            self.context['status'].append(msg)
-        with open(self.context['statusFileName'], "w") as jsonOut:
-            formattedOut = json.dumps(self.context, indent=2)
+            self.statusLog.append(msg)
+        with open(self.statusFileName, "w") as jsonOut:
+            formattedOut = json.dumps(self.statusLog, indent=2)
             jsonOut.write(formattedOut)
 
 
@@ -382,10 +339,8 @@ class WorkflowBase(BaseModel):
         """
         if msg:
             self.logger.info(msg)
-            if 'results' not in self.context:
-                self.context['results'] = []
             for oneMsg in msg:
-                self.context['results'].append(oneMsg)
-        with open(self.context['statusFileName'], "w") as jsonOut:
-            formattedOut = json.dumps(self.context, indent=2)
+                self.resultsLog.append(oneMsg)
+        with open(self.statusFileName, "w") as jsonOut:
+            formattedOut = json.dumps(self.resultsLog, indent=2)
             jsonOut.write(formattedOut)

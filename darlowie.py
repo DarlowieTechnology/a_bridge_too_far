@@ -19,11 +19,6 @@
 
 context = {
 
-    # Global settings
-
-    "GLOBALrag_datapath": "chromadb",    # Path to folder with vector database, used to create ChromaClient
-    "GLOBALrag_hnsw_space": "cosine",  # For Hierarchical Navigable Small World (HNSW) search algorithm choose cosine similarity metric
-
     # Generator app settings
 
     "GENERArag_activity_cutoff" : 0.3,       # cut off distance for activity table match

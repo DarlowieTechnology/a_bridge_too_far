@@ -24,31 +24,57 @@ from pydantic import BaseModel, Field, ConfigDict
 sys.path.append("..")
 sys.path.append("../..")
 
+@unique
+class GLOBALPROVIDER(str, Enum) :
+    OLLAMA = "ollama"
+    LMSTUDIO = "lmstudio"
+    GEMINI = "gemini"
+
+@unique
+class LLMNAMES(str, Enum) :
+    GEMINI3OLLAMA = "gemini-3-flash-preview:latest"
+    GLM46CLOUDOLLAMA = "glm-4.6:cloud"
+    GPTOSS20BOLLAMA = "gpt-oss:20b"
+    GPTOSS120BCLOUDOLLAMA = "gpt-oss:120b-cloud"
+    LLAMA31OLLAMA = "llama3.1:latest"
+    LLAMA3370BLMSTUDIO = "llama-3.3-70b-instruct",
+    GPTOSS120BLMSTUDIO = "openai/gpt-oss-120b",
+    GPTOSS20BLMSTUDIO = "openai/gpt-oss-20b"
+    GEMINI31GOOGLE = "gemini-3.1-flash-lite-preview",
+    GEMINI3GOOGLE = "gemini-3-flash-preview",
+    GEMINI25PROGOOGLE = "gemini-2.5-pro",
+    GEMINI25GOOGLE = "gemini-2.5-flash",
+    GEMINI25LITEGOOGLE = "gemini-2.5-flash-lite"
+
+
 PROVIDERS = {
-    "ollama" : {
+    GLOBALPROVIDER.OLLAMA.value : {
         "llm" : [
-            "gpt-oss:20b",
-            "glm-4.6:cloud"
+            LLMNAMES.GEMINI3OLLAMA.value,
+            LLMNAMES.GLM46CLOUDOLLAMA.value,
+            LLMNAMES.GPTOSS20BOLLAMA.value,
+            LLMNAMES.GPTOSS120BCLOUDOLLAMA.value,
+            LLMNAMES.LLAMA31OLLAMA.value
         ],
         "url" : "http://localhost:11434/v1",
         "embed" : "http://localhost:11434/api/embeddings"
     },
-    "lmstudio" : {
+    GLOBALPROVIDER.LMSTUDIO.value : {
         "llm" : [
-            "llama-3.3-70b-instruct",
-            "openai/gpt-oss-120b",
-            "openai/gpt-oss-20b"
+            LLMNAMES.LLAMA3370BLMSTUDIO.value,
+            LLMNAMES.GPTOSS120BLMSTUDIO.value,
+            LLMNAMES.GPTOSS20BLMSTUDIO.value
         ],
         "url" : "http://localhost:1234/v1",
         "embed" : "http://localhost:1234/v1/embeddings"
     },
-    "gemini" : {
+    GLOBALPROVIDER.GEMINI.value : {
         "llm" : [
-            "gemini-3.1-flash-lite-preview",
-            "gemini-3-flash-preview",
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite"
+            LLMNAMES.GEMINI31GOOGLE.value,
+            LLMNAMES.GEMINI3GOOGLE.value,
+            LLMNAMES.GEMINI25PROGOOGLE.value,
+            LLMNAMES.GEMINI25GOOGLE.value,
+            LLMNAMES.GEMINI25LITEGOOGLE.value
         ],
         "url" : "https://generativelanguage.googleapis.com/v1beta/openai/",
         "embed" : "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -216,47 +242,53 @@ class ResultWithTypeList(BaseModel):
 
 
 
-class ConfigSingleton(object):
+class ConfigCollection(object):
     """
-    single instance class represents TOML configuration file
-    configuration file is in ./ directory for CLI
-    configuration file is in ../ directory for webapp
+    Collection of settings from TOML and ENV. 
+    If TOML file is not found the application terminates.
+    TOML configuration file is in ./ directory for CLI
+    TOML configuration file is in ../ directory for webapp
     """
 
-    _configName = 'default.toml'
-    init_lock = threading.Lock()
+    configName = 'default.toml'
     _conf = {}
 
-    def __init__(self):
-        """ special method __init__ is required to load configuration once """
-        with self.init_lock:
+    def __init__(self, context : Dict):
+
+        if "logger" in context.keys():
+            logger = context["logger"]
+        else:
+            logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+            logger = logging.getLogger("ConfigCollection")
+
+        try:
+            with open(self.configName, mode="rb") as fp:
+                self._conf = tomli.load(fp)
+        except Exception as e:
             try:
-                with open(self._configName, mode="rb") as fp:
+                self.configName = "../" + self.configName
+                with open(self.configName, mode="rb") as fp:
                     self._conf = tomli.load(fp)
             except Exception as e:
-                try:
-                    self._configName = "../" + self._configName
-                    with open(self._configName, mode="rb") as fp:
-                        self._conf = tomli.load(fp)
-                except Exception as e:
-                    print(f"***ERROR: Cannot open config file {self._configName}, exception {e}")
-                    sys.exit("Program terminates")
-            # read ENV
-            self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
-            self._conf['gemini_key'] = os.environ['gemini_key']
-            self._conf['mistral_key'] = os.environ['mistral_key']
-            self._conf["Jira_api_token"] = os.environ['Jira_api_token']
-            self._conf["Jira_user"] = os.environ['Jira_user']
-            self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+                logger.debug(f"***ERROR: Cannot open config file {self.configName}, exception {e}")
+                sys.exit("Program terminates")
+        # read ENV
+        self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
+        self._conf['gemini_key'] = os.environ['gemini_key']
+        self._conf['mistral_key'] = os.environ['mistral_key']
+        self._conf["Jira_api_token"] = os.environ['Jira_api_token']
+        self._conf["Jira_user"] = os.environ['Jira_user']
+        self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+        if 'LMSTUDIO_API_KEY' in os.environ:
             self._conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
-            
+        
+        # merge with overwrite 
+        for key in context.keys():
+            if key in self._conf.keys():
+                logger.debug(f"Overwriting configuration key {key}")
+            self._conf[key] = context[key]
 
-    def __new__(cls):
-        """ overwrite of __new__ to enforce one instance via class attribute 'instance' """
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(ConfigSingleton, cls).__new__(cls)
-        return cls.instance 
-    
+
     def __getitem__(self, key):
         """Called when obj[index] is used."""
         return self._conf[key]

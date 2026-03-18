@@ -12,7 +12,8 @@ import tomli
 
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic_ai.models.openai import OpenAIChatModel
+
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.models.google import GoogleModel
 
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -23,7 +24,7 @@ from pydantic_ai import Embedder
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 from pydantic_ai.usage import RunUsage
 
-from openai import AsyncOpenAI
+from openai import Model, AsyncOpenAI
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -36,7 +37,7 @@ from anyascii import anyascii
 
 
 # local
-from common import GLOBALPROVIDER, PROVIDERS, COLLECTION, ConfigCollection, OpenFile
+from common import GLOBALPROVIDER, PROVIDERS, LLMNAMES, OPENAIAPI, COLLECTION, ConfigCollection, OpenFile
 
 
 class WorkflowBase(BaseModel):
@@ -92,16 +93,67 @@ class WorkflowBase(BaseModel):
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
             self.globalAPIkey = configCollection['gemini_key']
 
+        # manually call model validator
         self.verify_configuration()
 
+        # delay RAG components till vectorize action
+#        self.embeddingFunction  = self.createEmbeddingFunction()
+#        self.chromaClient = self.openChromaClient()
+#        if self.chromaClient:
+#            for coll in list(COLLECTION):
+#                self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
+
+        self.usage = RunUsage()
+        self.statusFileName = configCollection["statusFileName"]
+
+
+    def initRAGcomponents(self) -> bool :
+        """
+        Init RAG components on demand.
+        """
         self.embeddingFunction  = self.createEmbeddingFunction()
+        if not self.embeddingFunction:
+            return False
         self.chromaClient = self.openChromaClient()
-        self.collections = {}
         if self.chromaClient:
             for coll in list(COLLECTION):
                 self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
-        self.usage = RunUsage()
-        self.statusFileName = configCollection["statusFileName"]
+        return True
+
+
+    def getModel(self, modelType : OPENAIAPI) -> Model :
+        """
+        Return Pydantic OpenAI Model instance
+        """
+
+        if modelType == OPENAIAPI.CHAT:
+            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+            OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
+            model = OpenAIChatModel(model_name=self.generalLLM, 
+                                provider=OpenAIprovider)
+            return model
+
+        if modelType == OPENAIAPI.RESPONSES:
+            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+            OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
+            model = OpenAIResponsesModel(model_name=self.generalLLM, 
+                                provider=OpenAIprovider)
+            return model
+
+        if modelType == OPENAIAPI.CHATOLLAMA:
+            ollamaProvider=OllamaProvider(base_url=self.globalURL)
+            model = OpenAIChatModel(model_name=self.generalLLM, 
+                                    provider=ollamaProvider)
+            return model
+        
+        if modelType == OPENAIAPI.CHATGEMINI:
+            provider = GoogleProvider(api_key=self.globalAPIkey)
+            model =  GoogleModel(self.generalLLM , provider=provider)
+            return model
+
+        msg = f"Error: unknown OpenAI model type."
+        self.workerError(msg)
+        return None
 
 
     def openChromaClient(self) -> ClientAPI :
@@ -153,41 +205,48 @@ class WorkflowBase(BaseModel):
 
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
 
-            model = OpenAIEmbeddingModel(
-                self.embeddingLLM,
-                provider=OpenAIProvider(
-                    base_url=self.globalURL,
-                    api_key=self.globalAPIkey
-                ),
+            return OllamaEmbeddingFunction(
+                model_name=self.embeddingLLM,
+                url=self.embeddingURL
             )
-            return Embedder(model)
 
+        msg = f"Error: Unknown provider. Cannot create embedding function."
+        self.workerError(msg)
         return None
     
 
-    def createOpenAIChatModel(self) -> OpenAIChatModel: 
+    def createOpenAIModel(self) -> Model: 
         """
-        return OpenAIChatModel class instance or None
+        return OpenAI Model class instance or None
         
-        :return: OpenAIChatModel class instance
-        :rtype: OpenAIChatModel
+        :return: OpenAI Model class instance
+        :rtype: OpenAI Model
         """
 
         if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
-            return OpenAIChatModel(model_name=self.generalLLM,
-                                   provider=OllamaProvider(base_url=self.globalURL))
 
+            # Ollama uses OpenAI Chat API
+            return self.getModel(OPENAIAPI.CHATOLLAMA)
+            
         if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
 
-            client = AsyncOpenAI(base_url=self.globalURL)
-            return OpenAIChatModel(model_name=self.generalLLM, 
-                                   provider=OpenAIProvider(openai_client=client))
-        
+            if (self.generalLLM == LLMNAMES.GPTOSS120B.value) or (self.generalLLM == LLMNAMES.GPTOSS20B.value):
+
+                # LM Studio uses OpenAI Responses API for gpt-oss models
+                return self.getModel(OPENAIAPI.RESPONSES)
+
+            if (self.generalLLM == LLMNAMES.LLAMA2.value) or (self.generalLLM == LLMNAMES.LLAMA33.value):
+
+                # LM Studio uses OpenAI Chat API for LLama models
+                return self.getModel(OPENAIAPI.CHAT)
+
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
 
-            provider = GoogleProvider(api_key=self.globalAPIkey)
-            return GoogleModel(self.geminiLLM , provider=provider)
+            # Google Gemini uses OpenAI Chat API
+            return self.getModel(OPENAIAPI.CHATGEMINI)
 
+        msg = f"Error: Unknown combination of provider and model name"
+        self.workerError(msg)
         return None
 
 

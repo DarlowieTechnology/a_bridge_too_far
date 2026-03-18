@@ -24,7 +24,9 @@ from pydantic_ai.providers.google import GoogleProvider
 
 from pydantic_ai.usage import RunUsage
 
-from openai import OpenAI, AsyncOpenAI, ChatCompletion
+from openai import Model, AsyncOpenAI, ChatCompletion
+
+import pandas as pd
 
 import chromadb
 from chromadb import Collection, ClientAPI
@@ -36,13 +38,16 @@ from jira import JIRA
 from langchain_community.document_loaders.pdf import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+import pymupdf.layout  # activate PyMuPDF-Layout in pymupdf
+import pymupdf4llm
+
 # import Stemmer
 # import bm25s
 
 from anyascii import anyascii
 
 # local
-from common import GLOBALPROVIDER, COLLECTION, RecordCollection, ConfigCollection, MatchingSections, AllTopicMatches, SectionInfo, OpenFile
+from common import ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
 from workflowbase import WorkflowBase 
 
 
@@ -67,30 +72,38 @@ knownTopics = [
 class DiscoveryWorkflow(WorkflowBase):
 
     context : dict[str, str] = Field(default = {}, description="Context dict") 
-
+    fails : list[str] = Field(default = [], description="Fails list") 
 
     def configure(self, configCollection : ConfigCollection) :
 
         # call base class configuration first
         super().configure(configCollection)
 
+        # workflow actions
         self.context["loadDocument"] = configCollection["loadDocument"]
         self.context["parseChunks"] = configCollection["parseChunks"]
-        self.context["matchSections"] = configCollection["matchSections"]
+        self.context["matchChunks"] = configCollection["matchChunks"]
         self.context["vectorize"] = configCollection["vectorize"]
         self.context["verify"] = configCollection["verify"]
+        self.context["returnResults"] = configCollection["returnResults"]
+        self.context["clear"] = configCollection["clear"]
 
-        # text extraction configuration from PDF
+        # text extraction configuration
         self.context["stripWhiteSpace"] = configCollection["stripWhiteSpace"]
         self.context["convertToLower"] = configCollection["convertToLower"]
         self.context["convertToASCII"] = configCollection["convertToASCII"]
         self.context["singleSpaces"] = configCollection["singleSpaces"]
 
+        # other app-specific configuration
+        self.context["documentFolder"] = configCollection["documentFolder"]
+        self.context["fileExtensions"] = configCollection["fileExtensions"]
+        self.context["chunkSize"] = configCollection["chunkSize"]
+        self.context["chunkOverlap"] = configCollection["chunkOverlap"]
 
 
-    def loadPDF(self, inputFile : str) -> str :
+    def loadPDFPyPDFLoader(self, inputFile : str) -> str :
         """
-        Load text from PDF
+        Load text from PDF using PyPDFLoader
         
         :param inputFile: PDF file name
         :type inputFile: str
@@ -98,7 +111,13 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: str
         """
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
-        docs = loader.load()
+        try:
+            docs = loader.load()
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            self.fails.append(f"loadDocument: PyPDFLoader failed to parse {inputFile}")
+            return None       
 
         textCombined = ""
         for page in docs:
@@ -116,9 +135,99 @@ class DiscoveryWorkflow(WorkflowBase):
         return textCombined
 
 
-    def chunkText(self, docs : str) -> List[str] :
+    def loadPDFpymupdf4llm(self, inputFile : str) -> str :
         """
-        split text into chunks - this is a fallback for semantic document parsing
+        Load text from PDF using pymupdf4llm
+        
+        :param inputFile: PDF file name
+        :type inputFile: str
+        :return: Text from PDF
+        :rtype: str
+        """
+
+        try:
+            docs = pymupdf4llm.to_text(inputFile)
+        except Exception as e:
+            msg = f"Exception: {e}"
+            self.workerSnapshot(msg)
+            self.fails.append(f"loadDocument: pymupdf4llm failed to parse {inputFile}")
+            return None       
+        
+
+        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+            docs = docs.strip()
+        if "convertToLower" in self.context and self.context["convertToLower"]:
+            docs = docs.lower()
+        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+            docs = anyascii(docs)
+        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+            docs = " ".join(docs.split())
+        return docs
+
+
+    def loadText(self, inputFile : str) -> str :
+        """
+        Load text from text-type file
+        
+        :param inputFile: file name
+        :type inputFile: str
+        :return: Text
+        :rtype: str
+        """
+
+        with open(inputFile, "r" , encoding="utf-8", errors="ignore") as txtIn:
+            docs = txtIn.read()
+
+        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+            docs = docs.strip()
+        if "convertToLower" in self.context and self.context["convertToLower"]:
+            docs = docs.lower()
+        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+            docs = anyascii(docs)
+        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+            docs = " ".join(docs.split())
+        return docs
+
+
+    def loadJSON(self, inputFile : str) -> str :
+        """
+        Load text from JSON file
+        
+        :param inputFile: file name
+        :type inputFile: str
+        :return: Text
+        :rtype: str
+        """
+
+        with open(inputFile, "r" , encoding="utf-8", errors="ignore") as JsonIn:
+            docs = json.load(JsonIn)
+
+        try:
+            dataframe = pd.DataFrame.from_dict(docs)
+            print(dataframe)
+        except ValueError as e:
+            dataframe = pd.DataFrame.from_dict(docs, orient="index")
+
+        pd.set_option('display.max_colwidth', None)
+        dataframe = str(dataframe)
+
+        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+            dataframe = dataframe.strip()
+        if "convertToLower" in self.context and self.context["convertToLower"]:
+            dataframe = dataframe.lower()
+        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+            dataframe = anyascii(dataframe)
+
+# leave dataframe formatting intact            
+#        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+#            dataframe = " ".join(dataframe.split())
+
+        return dataframe
+    
+
+    def parseChunks(self, docs : str) -> List[str] :
+        """
+        split text into chunks using text splitter object
         
         :param docs: document
         :type docs: str
@@ -126,385 +235,82 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: List[str]
         """
 
-        chunkSize = self.context["GLOBALchunk_size"]
+        chunkSize = self.context["chunkSize"]
+        chunkOverlap = self.context["chunkOverlap"]
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=0)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=chunkOverlap)
         texts = text_splitter.split_text(docs)
         return texts
 
 
-    def agentOpenAIChatLMStudio(self, systemPrompt, prompt) -> AgentRunResult:
-        """
-        Pydantic Agent call LLM using OpenAI Chat API
-        
-        :param systemPrompt: system prompt
-        :type systemPrompt: str
-        :param prompt: user prompt
-        :type prompt: str
-        :return: Agenr run result object
-        :rtype: AgentRunResult
-        """
-
-        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
-        OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-        model = OpenAIChatModel(model_name=self.generalLLM, 
-                            provider=OpenAIprovider)
-        agent = Agent(model=model,
-                      output_type=List,
-                      system_prompt = systemPrompt,
-                      retries=3)
-        try:
-            result = agent.run_sync(prompt)
-            return result
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None
-
-
-    def agentOpenAIResponses(self, systemPrompt, prompt) -> AgentRunResult :
-        """
-        Pydantic Agent call LLM using OpenAI Responses API
-        
-        :param systemPrompt: system prompt
-        :type systemPrompt: str
-        :param prompt: user prompt
-        :type prompt: str
-        :return: Agent run result object
-        :rtype: AgentRunResult
-        """
-
-        OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
-        OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-        model = OpenAIResponsesModel(model_name=self.generalLLM, 
-                            provider=OpenAIprovider)
-        agent = Agent(model=model,
-                      output_type=List,
-                      system_prompt = systemPrompt,
-                      retries=3)
-        try:
-            result = agent.run_sync(prompt)
-            return result
-       
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None
-
-
-    def agentOpenAIChatOllama(self, systemPrompt, prompt) -> AgentRunResult :
-        """
-        Pydantic Agent call LLM using OpenAI Chat API on Ollama
-        
-        :param systemPrompt: system prompt
-        :type systemPrompt: str
-        :param prompt: user prompt
-        :type prompt: str
-        :return: Agent run result object
-        :rtype: AgentRunResult
-        """
-
-        ollamaProvider=OllamaProvider(base_url=self.globalURL)
-
-        model = OpenAIChatModel(model_name=self.generalLLM, 
-                                provider=ollamaProvider)
-        agent = Agent(model=model,
-                      output_type=List,
-                      system_prompt = systemPrompt,
-                      retries=3)
-        try:
-            result = agent.run_sync(prompt)
-            return result
-       
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None
-
-
-    def agentOpenGemini(self, systemPrompt, prompt) -> AgentRunResult :
-        """
-        Pydantic Agent call LLM using Google API
-        
-        :param systemPrompt: system prompt
-        :type systemPrompt: str
-        :param prompt: user prompt
-        :type prompt: str
-        :return: Agenr run result object
-        :rtype: AgentRunResult
-        """
-
-        provider = GoogleProvider(api_key=self.config["gemini_key"])
-        model =  GoogleModel(self.geminiLLM , provider=provider)
-        agent = Agent(model=model,
-                      output_type=List,
-                      system_prompt = systemPrompt,
-                      retries=3)
-        try:
-            result = agent.run_sync(prompt)
-            return result
-       
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None
-
-
-
-    def parseAgentResult(self, result : AgentRunResult) -> tuple[List, RunUsage] :
-        """
-        Parse result from Pydantic Agent call
-        
-        :param result: text to split into sections
-        :type result: AgentRunResult
-        :return: Tuple of section list and LLM usage
-        :rtype: tuple[List, RunUsage]
-        """
-
-        outList = []
-
-        if isinstance(result.output, list) and len(result.output) == 1: 
-            if isinstance(result.output[0], list):       # List[0] is a List
-                for item in result.output[0]:
-                    outList.append(item)
-            else:
-                if isinstance(result.output[0], str):        # List[0] is a str
-                    listItems = result.output[0].split('\n')
-                    for item in listItems:
-                        outList.append(item)
-                else:
-                    msg = f"Error: LLM result.output[0] of unknown type: {type(result.output[0])}"
-                    self.workerError(msg)
-        else:
-            if isinstance(result.output, list) and len(result.output) > 1:  # List[]
-
-                for item in result.output:
-                    outList.append(item)
-            else:
-                msg = f"Error: LLM result.output of unknown type: {type(result.output)}"
-                self.workerError(msg)
-        return outList, result.usage()
-
-
-    def parseChunks(self, docs : str) -> tuple[List, RunUsage] :
-        """
-        split text into chunks according to formatting
-        
-        :param docs: text to split into chunks
-        :type docs: str
-        :return: Tuple of section list and LLM usage
-        :rtype: tuple[List, RunUsage]
-        """
-
-        systemPrompt = f"""\
-The prompt contains English text. \
-Split text into sections.\
-If table of content exists use it as a guide.\
-If table of content does not exist, split the text in semantically complete chunks.\
-Output all the text in the section.\
-Do not escape whitespace characters.\
-Format output as Python list of sections.\
-If you cannot split the text, output Python list with one entry.\
-        """
-        prompt = f"{docs}"
-
-        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
-
-            result = self.agentOpenAIChatOllama(systemPrompt, prompt)
-            return self.parseAgentResult(result)
-            
-        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
-
-            if (self.lmStudioLLM == LMSTUDIOLLM.GPTOSS120B.value) or (self.lmStudioLLM == LMSTUDIOLLM.GPTOSS20B.value):
-
-                result = self.agentOpenAIResponses(systemPrompt, prompt)
-                return self.parseAgentResult(result)
-
-            if (self.lmStudioLLM == LMSTUDIOLLM.LLAMA2.value) or (self.lmStudioLLM == LMSTUDIOLLM.LLAMA33.value):
-                result = self.agentOpenAIChatLMStudio(systemPrompt, prompt)
-                return self.parseAgentResult(result)
-
-        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
-            result = self.agentOpenGemini(systemPrompt, prompt)
-            return self.parseAgentResult(result)
-
-
-        return None, None
-
-
-    def matchChunks(self, doc : str, topic: str) -> tuple[bool, RunUsage] :
+    def matchAllChunks(self, doc : List[str], topics: List[str]) -> tuple[Dict[str, List[str]], RunUsage] :
         """
         match chunks against known topics
         
-        :param docs: chunk to match
-        :type doc: str
-        :param topic: topic to match
-        :type topic: str
-        :return: Tuple of result and LLM usage
+        :param docs: List of chunks to match
+        :type doc: List[str]
+        :param topic: list of topics to match
+        :type topic: List[str]
+        :return: Tuple of Dict and LLM usage
         :rtype: tuple[bool, RunUsage]
         """
 
         prompt = f"{doc}"
-        ollModel = self.createOpenAIChatModel()
+        llmModel = self.createOpenAIModel()
 
-        systemPrompt = f"""
-        You are an expert in English text analysis.
-        The user prompt contains English text. 
-        Output True or False if text semantically matches topic below:
-        {topic}
-        """
+        systemPrompt = f"""\
+You are an expert in English text analysis. The user prompt contains a list of English texts.\
+Match the following list of topics against every text.\
+Output Python dict where keys are topics and values are lists matching texts:
+{topics}"""
 
-        agent = Agent(ollModel,
-                    output_type=bool,
-                    system_prompt = systemPrompt)
+        totalResults = {}
+        for topic in knownTopics:
+            totalResults[topic] = []
+        totalUsage = RunUsage()
+
+        countChunks = len(doc)
+        nextChunk = 0
+        while nextChunk < countChunks:
+            endChunk = nextChunk + 1
+            if endChunk > countChunks:
+                endChunk = countChunks
+            nextList = doc[nextChunk:endChunk]
+            agent = Agent(llmModel,
+                        output_type=Dict[str, List[str]],
+                        system_prompt = systemPrompt,
+                        retries = 1
+                        )
+            try:
+                result = agent.run_sync(nextList, message_history=[])
+                for topic in totalResults.keys():
+                    if topic in result.output:
+                        totalResults[topic] = totalResults[topic] + result.output[topic]
+                totalUsage += result.usage()
+            except Exception as e:
+                msg = f"Exception: {e}"
+                self.workerSnapshot(msg)
+                self.fails.append(f"matchChunks: Exception '{e}' processing {self.context['inputFileName']}")
+            nextChunk = endChunk
+
+        return totalResults, totalUsage
+
+        agent = Agent(llmModel,
+                    output_type=Dict[str, List[str]],
+                    system_prompt = systemPrompt,
+                    retries = 5
+                    )
         try:
-            result = agent.run_sync(prompt)
+            result = agent.run_sync(prompt, message_history=[])
             return result.output, result.usage()
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-
-        return False, RunUsage()
-
-
-    def parseAttemptRecordListOllama(self, docs : str) -> tuple[List, RunUsage] :
-        """
-        Use Ollama host and Pydantic AI Agent to attempt extraction of repeated templates
         
-        Args:
-            docs (str) - text with unstructured data
-
-        Returns:
-            Tuple of record list and LLM usage
-        """
-
-        systemPrompt = f"""
-        You are an expert in English text analysis.
-        The prompt contains English text. 
-        You must discover repeated pattern of records in the text.
-        Records should start with unique identifier.
-        Output semantically complete chunks related to unique identifiers you found in the text.
-        Format output as Python list. 
-        """
-        
-        prompt = f"{docs}"
-
-        ollModel = self.createOpenAIChatModel()
-
-        agent = Agent(ollModel,
-                      output_type=List,
-                      system_prompt = systemPrompt)
-        try:
-            result = agent.run_sync(prompt)
-            runUsage = result.usage()
-            return result.output, runUsage
-       
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
+        except Exception as e:
+            msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None, None
+            self.fails.append(f"matchChunks: Exception '{e}' processing {self.context['inputFileName']}")
 
+        return {}, RunUsage()
 
-    def discoverRecordSchemaOllama(self, docs : List) -> tuple[dict, RunUsage] :
-
-        systemPrompt = f"""
-        You are an expert in English text analysis.
-        The prompt contains a list of repeated records. 
-        You must discover JSON schema of a single record. JSON schema must include all the fields that you find in any record.
-        Format output as JSON schema. 
-        Output only valid JSON, no Markdown or extra text.
-        Name identifier field 'identifier'
-        """
-        
-        prompt = f"{docs}"
-
-        ollModel = self.createOpenAIChatModel()
-
-        agent = Agent(ollModel,
-                      system_prompt = systemPrompt)
-        try:
-            result = agent.run_sync(prompt)
-            runUsage = result.usage()
-            return result.output, runUsage
-        
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-
-        # attempt regexp match only if LLM match failed
-        return None, None
-
-
-
-    def parseOneRecordOllama(self, docString : str, Model: BaseModel) -> tuple[BaseModel, RunUsage] :
-        """
-        Use Ollama host and Pydantic AI Agent 
-        
-        Args:
-            docs (str) - text with unstructured data
-            Model (BaseModel) - optional Pydantic model
-
-        Returns:
-            LLM RunUsage
-        """
-
-        systemPrompt = f"""
-        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
-        {json.dumps(Model.model_json_schema(), indent=2)}
-        Name identifier field key 'identifier'
-        Ensure the output is valid JSON as it will be parsed using `json.loads()` in Python.
-        Do not format output.
-        """
-        
-        prompt = f"{docString}"
-
-        ollModel = self.createOpenAIChatModel()
-
-        if Model:
-            agent = Agent(ollModel,
-                        output_type=Model,
-                        system_prompt = systemPrompt)
-        else:
-            agent = Agent(ollModel,
-                        system_prompt = systemPrompt)
-        try:            
-            result = agent.run_sync(prompt)
-            if Model:
-                oneIssue = Model.model_validate_json(result.output.model_dump_json())
-            else:
-                oneIssue = result.output
-            runUsage = result.usage()
-            return oneIssue, runUsage
-        
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
-            msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
-            self.workerSnapshot(msg)
-        except ValidationError as e:
-            msg = f"Exception: ValidationError {e}"
-            self.workerSnapshot(msg)
-        return None, None
-    
 
     def vectorize(self, allTopicMatches : AllTopicMatches)  -> tuple[int, int]:
         """
@@ -519,9 +325,13 @@ If you cannot split the text, output Python list with one entry.\
         accepted = 0
         rejected = 0
 
+        if not self.initRAGcomponents():
+            self.fails.append(f"vectorize: RAG database failed to initialize for {self.context['inputFileName']}")
+            return accepted, rejected            
+
         for topic in allTopicMatches.topic_dict.keys():
-            matchingSections = allTopicMatches.topic_dict[topic]
-            if len(matchingSections.section_list):
+            matchingChunks = allTopicMatches.topic_dict[topic]
+            if len(matchingChunks.chunk_list):
 
                 # ChromaDB does not accept table names with spaces
                 collectionName = topic.replace(" ", "_")
@@ -535,17 +345,16 @@ If you cannot split the text, output Python list with one entry.\
                 docMetadata : list[str] = []
                 embeddings = []
 
-                for sectionInfo in matchingSections.section_list:
-                    sectionInfo = SectionInfo.model_validate(sectionInfo)
+                for chunkInfo in matchingChunks.chunk_list:
+                    chunkInfo = ChunkInfo.model_validate(chunkInfo)
 
-                    recordHash = hash(sectionInfo.section)
-                    uniqueId = str(sectionInfo.uuid)
+                    recordHash = hash(chunkInfo.chunk)
+                    uniqueId = str(chunkInfo.uuid)
                     queryResult = chromaCollection.get(ids=[uniqueId])
                     if (len(queryResult["ids"])) :
 
-                        existingRecordJSON = json.loads(queryResult["documents"][0])
-                        existingRecord = SectionInfo.model_validate(existingRecordJSON)
-                        existingHash = hash(existingRecord.section)
+                        existingRecord = ChunkInfo.model_validate_json(queryResult["documents"][0])
+                        existingHash = hash(existingRecord.chunk)
 
                         if recordHash == existingHash:
                             rejected += 1
@@ -562,13 +371,13 @@ If you cannot split the text, output Python list with one entry.\
                         msg = f"Adding {uniqueId}"
                         self.workerSnapshot(msg)
 
-                    vectorSource = sectionInfo.model_dump_json()
+                    vectorSource = chunkInfo.model_dump_json()
 
                     ids.append(uniqueId)
                     docs.append(vectorSource)
                     metadataDict = {}
-                    metadataDict["recordType"] = type(sectionInfo).__name__
-                    metadataDict["document"] = sectionInfo.docName
+                    metadataDict["recordType"] = type(chunkInfo).__name__
+                    metadataDict["document"] = chunkInfo.docName
                     docMetadata.append( metadataDict )
                     embeddings.append(self.embeddingFunction([vectorSource])[0])
 
@@ -595,9 +404,12 @@ If you cannot split the text, output Python list with one entry.\
         for globName in self.context["fileExtensions"]:
             result, fileListOrError = OpenFile.readListOfFileNames(self.context["documentFolder"], globName)
             if result:
-                print(type(fileListOrError))
                 completeFileList = completeFileList + fileListOrError
         return completeFileList
+
+
+    def getFails(self) -> List[str] :
+        return self.fails
 
 
     def processOneFile(self, inputFileName : str) -> tuple[List[int], AllTopicMatches]:
@@ -626,6 +438,7 @@ If you cannot split the text, output Python list with one entry.\
         # make data path for the document if does not exist
         Path(self.context["dataFolder"]).mkdir(parents=True, exist_ok=True)
 
+
         # ---------------loadDocument ---------------
 
         if "loadDocument" in self.context and self.context["loadDocument"]:
@@ -636,15 +449,22 @@ If you cannot split the text, output Python list with one entry.\
                 self.context['mime_type'] = mime_type
                 self.context['encoding'] = encoding
             else:
-                msg = f" File type not supported: {mime_type}"
+                msg = f" Error: File type not supported: {mime_type}"
                 self.workerSnapshot(msg)
                 return
 
             if self.context['mime_type'] == "application/pdf":
-                textCombined = self.loadPDF(self.context['inputFileName'])
-            if self.context['mime_type'] in ["text/css", "text/csv", "text/html", "application/json", "text/markdown", "text/plain"]:
-                with open(self.context["inputFileName"], "r" , encoding="utf-8", errors="ignore") as txtIn:
-                    textCombined = txtIn.read()
+                textCombined = self.loadPDFPyPDFLoader(self.context['inputFileName'])
+                if not textCombined:
+                    textCombined = self.loadPDFpymupdf4llm(self.context['inputFileName'])
+
+            if self.context['mime_type'] in ["application/json"]:
+                msg = f"loadDocument: Loading JSON data"
+                self.workerSnapshot(msg)
+                textCombined = self.loadJSON(self.context['inputFileName'])
+
+            if self.context['mime_type'] in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
+                textCombined = self.loadText(self.context['inputFileName'])
 
             with open(self.context["rawtext"], "w" , encoding="utf-8", errors="ignore") as rawOut:
                 rawOut.write(textCombined)
@@ -653,65 +473,71 @@ If you cannot split the text, output Python list with one entry.\
             msg = f"loadDocument: Read <b>{len(textCombined)} bytes</b> from file <b>{self.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
             self.workerSnapshot(msg)
 
+
         # ---------------parseChunks ---------------
 
         if "parseChunks" in self.context and self.context["parseChunks"]:
+
             startTime = time.time()
+            result = True
             if 'textCombined' not in locals():
-                # if this is a separate step - read text into string
-                with open(self.context['rawtext'], "r", encoding='utf8', errors='ignore') as txtIn:
-                    textCombined = txtIn.read()
+                # if this is a separate step - read raw text into string
+                result, fileContentOrError = OpenFile.open(filePath = self.context['rawtext'], readContent = True)
+                if not result:
+                    msg = f"parseChunks: {fileContentOrError} - perform 'loadDocument' action first"
+                    self.workerSnapshot(msg)
+                else:
+                    textCombined = fileContentOrError
 
-            chunksListRaw, runUsageParse = self.parseChunks(textCombined)
-            self.addUsage(runUsageParse)
+            if result:
 
-            chunksList = []
-            for pageContent in chunksListRaw:
-                pageContent = pageContent.strip()
-                pageContent = pageContent.lower()
-                pageContent = " ".join(pageContent.split())
-                pageContent = anyascii(pageContent)
-                chunksList.append(pageContent)
+                chunksList = self.parseChunks(textCombined)
 
-            with open(self.context["chunksListRaw"], "w" , encoding="utf-8", errors="ignore") as summaryJSONOut:
-                summaryJSONOut.writelines(json.dumps(chunksList, indent=2))
-            endTime = time.time()
-            msg = f"parseChunks: {self.usageFormat(runUsageParse)} Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
+                with open(self.context["chunksListRaw"], "w" , encoding="utf-8", errors="ignore") as jsonOut:
+                    jsonOut.writelines(json.dumps(chunksList, indent=2))
+                endTime = time.time()
+                msg = f"parseChunks: Time: {(endTime - startTime):.2f} seconds"
+                self.workerSnapshot(msg)
 
 
         # ---------------matchChunks -----------------
 
         if "matchChunks" in self.context and self.context["matchChunks"]:
+
             startTime = time.time()
+            result = True
             if 'chunksList' not in locals():
                 # if this is a separate step - read list of chunks
-                with open(self.context['chunksListRaw'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                    chunksList = json.load(JsonIn)
+                result, fileContentOrError = OpenFile.open(filePath = self.context['chunksListRaw'], readContent = True)
+                if not result:
+                    msg = f"matchChunks: {fileContentOrError} - perform 'parseChunks' action first"
+                    self.workerSnapshot(msg)
+                else:
+                    chunksList = json.loads(fileContentOrError)
 
-            allTopicMatches = AllTopicMatches(topic_dict = {})
-            for topic in knownTopics:
-                matchingSections = MatchingSections(topic = topic, section_list = [])
-                allTopicMatches.topic_dict[topic] = matchingSections
+            if result:
 
-            runTotalUsage = RunUsage()
-            for section in chunksList:
+                matchResults, runSingleUsage = self.matchAllChunks(chunksList, knownTopics)
+
+                allTopicMatches = AllTopicMatches(topic_dict = {})
                 for topic in knownTopics:
-                    matchResult, runSingleUsage = self.matchChunks(section, topic)
-                    runTotalUsage += runSingleUsage
-                    if matchResult:
-                        sectionInfo = SectionInfo(uuid = uuid4(), docName = self.context['inputFileName'], section = section)
-                        matchingSections = allTopicMatches.topic_dict[topic]
-                        matchingSections.section_list.append(sectionInfo)
-                    time.sleep(5)
+                    matchingChunks = MatchingChunks(topic = topic, chunk_list =[])
+                    allTopicMatches.topic_dict[topic] = matchingChunks
 
-            with open(self.context["matchJSON"], "w", encoding="utf-8", errors="ignore") as jsonOut:
-                jsonOut.writelines(allTopicMatches.model_dump_json(indent=2))
+                for topic in matchResults.keys():
+                    if topic in allTopicMatches.topic_dict.keys():
+                        matchingChunks = allTopicMatches.topic_dict[topic]
+                        for chunk in matchResults[topic]:
+                            chunkInfo = ChunkInfo(uuid = uuid4(), docName = self.context['inputFileName'], chunk = chunk)
+                            matchingChunks.chunk_list.append(chunkInfo)
 
-            self.addUsage(runTotalUsage)
-            endTime = time.time()
-            msg = f"matchChunks: {self.usageFormat(runTotalUsage)} Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
+                with open(self.context["matchJSON"], "w", encoding="utf-8", errors="ignore") as jsonOut:
+                    jsonOut.writelines(allTopicMatches.model_dump_json(indent=2))
+
+                self.addUsage(runSingleUsage)
+                endTime = time.time()
+                msg = f"matchChunks: {self.usageFormat(runSingleUsage)} Time: {(endTime - startTime):.2f} seconds"
+                self.workerSnapshot(msg)
 
 
         # ------------vectorize----------------------
@@ -719,15 +545,21 @@ If you cannot split the text, output Python list with one entry.\
         if "vectorize" in self.context and self.context["vectorize"]:
 
             startTime = time.time()
+            result = True
             if 'allTopicMatches' not in locals():
-                # if this is a separate step - read text into string
-                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                    allTopicMatchesStr = json.load(JsonIn)
-                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
-            accepted, rejected = self.vectorize(allTopicMatches)
-            endTime = time.time()
-            msg = f"vectorize: accepted {accepted}  rejected {rejected}. Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
+                # if this is a separate step - read match file
+                result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
+                if not result:
+                    msg = f"vectorize: {fileContentOrError} - perform 'matchChunks' action first"
+                    self.workerSnapshot(msg)
+                else:
+                    allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
+
+            if result:
+                accepted, rejected = self.vectorize(allTopicMatches)
+                endTime = time.time()
+                msg = f"vectorize: accepted {accepted}  rejected {rejected}. Time: {(endTime - startTime):.2f} seconds"
+                self.workerSnapshot(msg)
 
 
         # ------------verify----------------------
@@ -735,60 +567,87 @@ If you cannot split the text, output Python list with one entry.\
         if "verify" in self.context and self.context["verify"]:
 
             startTime = time.time()
+            result = True
             totalScore = 0
 
-            with open(self.context['verifyInfo'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                verifyInfo = json.load(JsonIn)
-            if 'allTopicMatches' not in locals():
-                # if this is a separate step - read text into string
-                with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                    allTopicMatchesStr = json.load(JsonIn)
-                    allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
-
-            for item in verifyInfo:
-                expectedTopic = item["name"]
-                expected = item["value"]
-                totalScore += expected
-                if expectedTopic in allTopicMatches.topic_dict.keys():
-                    matchingSections = allTopicMatches.topic_dict[expectedTopic]
-                    number = len(matchingSections.section_list)
-                    if expected >= number:
-                        counts[0] += number
-                        counts[1] += (expected - number)
-                    if expected < number:
-                        counts[0] += expected
-                        counts[2] = number - expected
-                else:
-                    if expected > 0:
-                        counts[1] += expected
-
-            scoreForFile = counts[0] - counts[1] - counts[2] * 0.5
-            counts[3] = totalScore
-            if scoreForFile < 0:
-                scoreForFile = 0
-            if totalScore > 0:
-                scorePerCent = (scoreForFile/totalScore) * 100
+            result, fileContentOrError = OpenFile.open(filePath = self.context['verifyInfo'], readContent = True)
+            if not result:
+                msg = f"verify: {fileContentOrError} - supply 'verify info' file"
+                self.workerSnapshot(msg)
             else:
-                scorePerCent = 0
-            endTime = time.time()
-            msg = f"verify:  {counts[0]}|{counts[1]}|{counts[2]}  score : {scorePerCent:.2f}%.  Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
+                verifyInfo = json.loads(fileContentOrError)
+                if 'allTopicMatches' not in locals():
+                    # if this is a separate step - read match file
+                    result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
+                    if not result:
+                        msg = f"verify: {fileContentOrError} - perform 'matchChunks' action first"
+                        self.workerSnapshot(msg)
+                    else:
+                        allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
+
+                if result:
+                    for item in verifyInfo:
+                        expectedTopic = item["name"]
+                        expected = item["value"]
+                        totalScore += expected
+                        if expectedTopic in allTopicMatches.topic_dict.keys():
+                            matchingChunks = allTopicMatches.topic_dict[expectedTopic]
+                            number = len(matchingChunks.chunk_list)
+                            if expected >= number:
+                                counts[0] += number
+                                counts[1] += (expected - number)
+                            if expected < number:
+                                counts[0] += expected
+                                counts[2] = number - expected
+                        else:
+                            if expected > 0:
+                                counts[1] += expected
+
+                    scoreForFile = counts[0] - counts[1] - counts[2] * 0.5
+                    counts[3] = totalScore
+                    if scoreForFile < 0:
+                        scoreForFile = 0
+                    if totalScore > 0:
+                        scorePerCent = (scoreForFile/totalScore) * 100
+                    else:
+                        scorePerCent = 0
+                    endTime = time.time()
+                    msg = f"verify:  {counts[0]}|{counts[1]}|{counts[2]}  score : {scorePerCent:.2f}%.  Time: {(endTime - startTime):.2f} seconds"
+                    self.workerSnapshot(msg)
+
 
         # -------------- return results ---------------
 
         if "returnResults" in self.context and self.context["returnResults"]:
-            # return all matches
+
+            startTime = time.time()
+            result = True
+
             if 'allTopicMatches' not in locals():
-                fileExists, strContent = OpenFile.open(filePath = self.context['matchJSON'], readContent = False)
-                if fileExists:
-                    # return matches if they were previously created
-                    with open(self.context['matchJSON'], "r", encoding='utf8', errors='ignore') as JsonIn:
-                        allTopicMatchesStr = json.load(JsonIn)
-                        allTopicMatches = AllTopicMatches.model_validate(allTopicMatchesStr)
+                # if this is a separate step - read match file
+                result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
+                if not result:
+                    msg = f"returnResults: {fileContentOrError} - perform 'matchChunks' action first"
+                    self.workerSnapshot(msg)
                 else:
-                    allTopicMatches = AllTopicMatches(topic_dict = {})
-            return counts, allTopicMatches
+                    allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
+                
+                if result:
+                    return counts, allTopicMatches
 
-        # return empty results
+
+        # -------------- clear ---------------
+
+        if "clear" in self.context and self.context["clear"]:
+
+            startTime = time.time()
+            OpenFile.remove(self.context["rawtext"])
+            OpenFile.remove(self.context["chunksListRaw"])
+            OpenFile.remove(self.context["matchJSON"])
+            endTime = time.time()
+            msg = f"clear: Time: {(endTime - startTime):.2f} seconds"
+            self.workerSnapshot(msg)
+
+
+        # return empty results if no "return results" action
         return counts, AllTopicMatches(topic_dict = {})
-

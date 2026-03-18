@@ -59,9 +59,9 @@ def bm25prepare(context : dict, indexerWorkflow : IndexerWorkflow, issueTemplate
     :param corpus: global corpus for bm25s
     :type corpus: list[str]
     """
-    with open(context['finalJSON'], "r", encoding='utf8', errors='ignore') as jsonIn:
-        jsonStr = json.load(jsonIn)
-        recordCollection = RecordCollection.model_validate(jsonStr)
+    with open(context['finalJSON'], "r", encoding='utf8', errors='ignore') as txtIn:
+        textStr = txtIn.read()
+        recordCollection = RecordCollection.model_validate_json(textStr)
     indexerWorkflow.bm25sAddReportToCorpus(corpus, recordCollection, issueTemplate)
     msg = f"Added {len(recordCollection.finding_dict)} records to global bm25s corpus."
     indexerWorkflow.workerSnapshot(msg)
@@ -96,9 +96,9 @@ def parseIssues(context, indexerWorkflow, issueTemplate):
 
 
 def vectorize(context, indexerWorkflow, issueTemplate):
-    with open(context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
-        jsonStr = json.load(jsonIn)
-        recordCollection = RecordCollection.model_validate(jsonStr)
+    with open(context["finalJSON"], "r", encoding='utf8', errors='ignore') as txtIn:
+        txtStr = txtIn.read()
+        recordCollection = RecordCollection.model_validate_json(txtStr)
 
     accepted, rejected = indexerWorkflow.vectorize(recordCollection, issueTemplate)
     msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."

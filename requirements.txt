@@ -231,6 +231,7 @@ pydocket
 pyenv-win
 Pygments
 PyJWT
+pymupdf4llm
 pypandoc
 pyparsing
 pypdf

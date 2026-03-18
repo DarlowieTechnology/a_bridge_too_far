@@ -154,7 +154,7 @@ class IndexerWorkflow(WorkflowBase):
         
         prompt = f"{docs}"
 
-        ollModel = self.createOpenAIChatModel()
+        ollModel = self.createOpenAIModel()
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
@@ -366,8 +366,7 @@ class IndexerWorkflow(WorkflowBase):
             queryResult = chromaCollection.get(ids=[uniqueId])
             if (len(queryResult["ids"])) :
 
-                existingRecordJSON = json.loads(queryResult["documents"][0])
-                existingRecord = ClassTemplate.model_validate(existingRecordJSON)
+                existingRecord = ClassTemplate.model_validate_json(queryResult["documents"][0])
                 existingHash = hash(existingRecord)
 
                 if recordHash == existingHash:
@@ -536,9 +535,9 @@ class IndexerWorkflow(WorkflowBase):
 
             if 'recordCollection' not in locals():
                 # if this is a separate step - read final JSON into record collection
-                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
-                    jsonStr = json.load(jsonIn)
-                recordCollection = RecordCollection.model_validate(jsonStr)
+                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as txtIn:
+                    textStr = txtIn.read()
+                recordCollection = RecordCollection.model_validate_json(textStr)
                 msg = f"Read {recordCollection.objectCount()} records from file {self.context['inputFileBaseName']}."
                 self.workerSnapshot(msg)
 
@@ -570,10 +569,9 @@ class IndexerWorkflow(WorkflowBase):
 
             if 'recordCollection' not in locals():
                 # if this is a separate step - read final JSON into record collection
-                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as jsonIn:
-                    jsonStr = json.load(jsonIn)
-                recordCollection = RecordCollection.model_validate(jsonStr)
-                msg = f"Read {recordCollection.objectCount()} records from file {self.context['inputFileBaseName']}."
+                with open(self.context["finalJSON"], "r", encoding='utf8', errors='ignore') as txtIn:
+                    textStr = txtIn.read()
+                recordCollection = RecordCollection.model_validate_json(textStr)
                 self.workerSnapshot(msg)
 
             accepted, rejected = self.vectorize(recordCollection, issueTemplate)

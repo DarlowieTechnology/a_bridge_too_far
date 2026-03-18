@@ -59,7 +59,7 @@ class QueryWorkflow(WorkflowBase):
         :rtype: bool
         """        
 
-        self._llmModel = self.createOpenAIChatModel()
+        self._llmModel = self.createOpenAIModel()
         return True
 
 

@@ -77,9 +77,18 @@ PROVIDERS = {
             LLMNAMES.GEMINI25LITEGOOGLE.value
         ],
         "url" : "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "embed" : "https://generativelanguage.googleapis.com/v1beta/openai/"
+        "embed" : "http://localhost:11434/api/embeddings"
     }
 }
+
+
+@unique
+class OPENAIAPI(IntFlag) :
+    NONE = 0
+    CHAT = auto()
+    RESPONSES = auto()
+    CHATOLLAMA = auto()
+    CHATGEMINI = auto()
 
 
 @unique
@@ -146,30 +155,30 @@ class RecordCollection(BaseModel):
         return len(self.finding_dict)
 
 
-class SectionInfo(BaseModel):
+class ChunkInfo(BaseModel):
     """
-    represents one section of the document
+    represents one chunk of the document
     """
-    uuid: UUID = Field(..., description="uuid of the section")
+    uuid: UUID = Field(..., description="uuid of the chunk")
     docName: str = Field(..., description="document name")
-    section: str = Field(..., description="section data")
+    chunk: str = Field(..., description="chunk data")
 
     def __str__(self):
-        return f"{str(Path(self.docName).name)}: {self.section[:80]}"
+        return f"{str(Path(self.docName).name)}: {self.chunk[:80]}"
 
 
-class MatchingSections(BaseModel):
+class MatchingChunks(BaseModel):
     """
-    represents a known topic and sections of the document that matches it
+    represents a known topic and chunks of the document that matches it
     """
     topic: str = Field(..., description="document name")
-    section_list: List[SectionInfo] = Field(default=None, description="list of sections")
+    chunk_list: List[ChunkInfo] = Field(default=None, description="list of chunks")
 
 class AllTopicMatches(BaseModel):
     """
-    represents all section matches for all topics
+    represents all chunks matches for all topics
     """
-    topic_dict: Dict[str, MatchingSections] = Field(default=None, description="dict of section matches for topic")
+    topic_dict: Dict[str, MatchingChunks] = Field(default=None, description="dict of chunk matches for topic")
 
 
 class OneRecord(BaseModel):
@@ -273,9 +282,12 @@ class ConfigCollection(object):
                 logger.debug(f"***ERROR: Cannot open config file {self.configName}, exception {e}")
                 sys.exit("Program terminates")
         # read ENV
-        self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
-        self._conf['gemini_key'] = os.environ['gemini_key']
-        self._conf['mistral_key'] = os.environ['mistral_key']
+        if 'OLLAMA_API_KEY' in os.environ:
+            self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
+        if 'gemini_key' in os.environ:
+            self._conf['gemini_key'] = os.environ['gemini_key']
+        if 'mistral_key' in os.environ:
+            self._conf['mistral_key'] = os.environ['mistral_key']
         self._conf["Jira_api_token"] = os.environ['Jira_api_token']
         self._conf["Jira_user"] = os.environ['Jira_user']
         self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
@@ -372,6 +384,15 @@ class OpenFile():
         except Exception as e:
             return False, f"***ERROR: General error opening file {filePath}, exception {e}"
         return False, ""
+
+
+    @staticmethod
+    def remove(filePath : str) :
+        try:
+            os.remove(filePath)
+        except OSError:
+            pass
+
 
     @staticmethod
     def readRecordJSON(dataFolder: str, jsonName : str) -> tuple[bool, Union[AllRecords, str]] : 

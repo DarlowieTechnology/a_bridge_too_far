@@ -64,7 +64,8 @@ acceptedMimeTypes = [
 knownTopics = [
     "medical research notes",
     "pipe engineering",
-    "penetration test results"
+    "penetration test results",
+    "AWS permissions"
 ]
 
 
@@ -240,7 +241,14 @@ class DiscoveryWorkflow(WorkflowBase):
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=chunkOverlap)
         texts = text_splitter.split_text(docs)
-        return texts
+        retTexts = []
+        for text in texts:
+#            text = text.strip()
+#            text = text.lower()
+#            text = anyascii(text)
+#            text = " ".join(text.split())     # leave formatting
+            retTexts.append(text)
+        return retTexts
 
 
     def matchAllChunks(self, doc : List[str], topics: List[str]) -> tuple[Dict[str, List[str]], RunUsage] :
@@ -258,15 +266,29 @@ class DiscoveryWorkflow(WorkflowBase):
         prompt = f"{doc}"
         llmModel = self.createOpenAIModel()
 
-        systemPrompt = f"""\
-You are an expert in English text analysis. The user prompt contains a list of English texts.\
-Match the following list of topics against every text.\
-Output Python dict where keys are topics and values are lists matching texts:
-{topics}"""
+#        systemPrompt = f"""You are an expert in English text analysis.\
+#The user prompt contains a list of English texts.\
+#Match the following list of topics against every text.\
+#Output a list of key-value pairs where keys are topics and values are matching texts: {topics}"""
+
+        systemPrompt = f"""You are an expert in English text analysis.\
+Match each topic in the list against the text in user prompt: {topics}.\
+Output a list topics that match the text."""
+
+        agent = Agent(llmModel,
+                    output_type=List[str],
+                    system_prompt = systemPrompt,
+                    retries = 5
+                    )
 
         totalResults = {}
-        for topic in knownTopics:
+        for topic in topics:
             totalResults[topic] = []
+
+        print("-------total results------------")
+        print(totalResults)
+        print("-------------------------")
+
         totalUsage = RunUsage()
 
         countChunks = len(doc)
@@ -276,22 +298,32 @@ Output Python dict where keys are topics and values are lists matching texts:
             if endChunk > countChunks:
                 endChunk = countChunks
             nextList = doc[nextChunk:endChunk]
-            agent = Agent(llmModel,
-                        output_type=Dict[str, List[str]],
-                        system_prompt = systemPrompt,
-                        retries = 1
-                        )
             try:
+
+                print("-------user prompt------------")
+                print(nextList)
+                print("-------------------------")
+
                 result = agent.run_sync(nextList, message_history=[])
+
+                print("-------result.output-----------")
+                print(result.output)
+                print("-------------------------")
+
                 for topic in totalResults.keys():
-                    if topic in result.output:
-                        totalResults[topic] = totalResults[topic] + result.output[topic]
+                    dictResults = result.output['output']
+                    if topic in dictResults:
+                        totalResults[topic].append(result.output['output'][topic])
                 totalUsage += result.usage()
             except Exception as e:
                 msg = f"Exception: {e}"
                 self.workerSnapshot(msg)
                 self.fails.append(f"matchChunks: Exception '{e}' processing {self.context['inputFileName']}")
             nextChunk = endChunk
+
+        print("-------total results------------")
+        print(totalResults)
+        print("-------------------------")
 
         return totalResults, totalUsage
 

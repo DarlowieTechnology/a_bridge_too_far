@@ -118,12 +118,13 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
-#    fileList = [
-#        "documents/2412.16720v1.pdf" # twice 500, Time: 314.90 seconds
+    fileList = [
+#        "documents/2412.16720v1.pdf"
 #        "documents/AWS_Review.pdf" # three 500, Time: 334.41 seconds
-#        "documents/Database Review.pdf" # three 500, Time: 420.24 seconds
+#        "documents/Database Review.pdf", # three 500, Time: 420.24 seconds
 #        "documents/2009.03393v1.pdf"  # five tries, Time: 75.62 seconds - 63 chunks - exceed max retries
-#    ]
+        "test.txt"
+    ]
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
@@ -179,8 +180,8 @@ def main():
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
     # workflow actions
-    context["loadDocument"] = False
-    context["parseChunks"] = False
+    context["loadDocument"] = True
+    context["parseChunks"] = True
     context["matchChunks"] = True
     context["vectorize"] = False
     context["verify"] = False

@@ -230,12 +230,13 @@ class WorkflowBase(BaseModel):
             
         if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
 
-            if (self.generalLLM == LLMNAMES.GPTOSS120B.value) or (self.generalLLM == LLMNAMES.GPTOSS20B.value):
+            if (self.generalLLM == LLMNAMES.GPTOSS120BLMSTUDIO.value) or (self.generalLLM == LLMNAMES.GPTOSS20BLMSTUDIO.value):
 
                 # LM Studio uses OpenAI Responses API for gpt-oss models
                 return self.getModel(OPENAIAPI.RESPONSES)
-
-            if (self.generalLLM == LLMNAMES.LLAMA2.value) or (self.generalLLM == LLMNAMES.LLAMA33.value):
+#                return self.getModel(OPENAIAPI.CHAT)
+            
+            if self.generalLLM == LLMNAMES.LLAMA3370BLMSTUDIO.value:
 
                 # LM Studio uses OpenAI Chat API for LLama models
                 return self.getModel(OPENAIAPI.CHAT)

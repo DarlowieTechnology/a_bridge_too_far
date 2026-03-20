@@ -93,6 +93,7 @@ class OPENAIAPI(IntFlag) :
 
 @unique
 class COLLECTION(str, Enum) :
+    RAWDATA = "rawdata"
     ISSUES = "reportissues"
     JIRA = "jiraissues"
 

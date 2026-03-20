@@ -37,7 +37,7 @@ from anyascii import anyascii
 
 
 # local
-from common import GLOBALPROVIDER, PROVIDERS, LLMNAMES, OPENAIAPI, COLLECTION, ConfigCollection, OpenFile
+from common import GLOBALPROVIDER, PROVIDERS, LLMNAMES, OPENAIAPI, COLLECTION, ConfigCollection, DebugUtils
 
 
 class WorkflowBase(BaseModel):
@@ -55,7 +55,7 @@ class WorkflowBase(BaseModel):
     globalURL : str = Field(default = "", description="Global LLM service base URL") 
     globalAPIkey : str = Field(default = "", description="Global API Key") 
     chromaClient : ClientAPI = Field(default = None, description="ChromaDB Persistent Client") 
-    embeddingFunction : Embedder = Field(default = None, description="ChromaDB embedding Function") 
+    embeddingFunction : OllamaEmbeddingFunction = Field(default = None, description="ChromaDB embedding Function") 
     collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections") 
     usage : RunUsage = Field(default = None, description="LLM usage object")
     stage : str = Field(default = "", description="Stage of workflow") 
@@ -109,16 +109,37 @@ class WorkflowBase(BaseModel):
 
     def initRAGcomponents(self) -> bool :
         """
-        Init RAG components on demand.
+        Init RAG components on demand. Avoid repeated initialization.
         """
-        self.embeddingFunction  = self.createEmbeddingFunction()
-        if not self.embeddingFunction:
-            return False
-        self.chromaClient = self.openChromaClient()
+#        if not self.embeddingFunction:
+#            self.embeddingFunction  = self.createEmbeddingFunction()
+#        if not self.embeddingFunction:
+#            return False
+        if not self.chromaClient:
+            self.chromaClient = self.openChromaClient()
+            if not self.chromaClient:
+                return False
         if self.chromaClient:
             for coll in list(COLLECTION):
-                self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
+                if coll.value in self.collections.keys():
+                    if not self.collections[coll.value]:
+                        self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
+                    if not self.collections[coll.value]:
+                        return False
+                else:
+                    self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
+                    if not self.collections[coll.value]:
+                        return False
         return True
+
+
+    def getChromaCollection(self, name: str) -> Collection:
+        """
+        Returns Chroma collection by name or None
+        """
+        if name in self.collections.keys():
+            return self.collections[name]
+        return None
 
 
     def getModel(self, modelType : OPENAIAPI) -> Model :
@@ -186,12 +207,20 @@ class WorkflowBase(BaseModel):
         :return: embedding function object
         """
 
+        ollamaEmbeddingFunction = OllamaEmbeddingFunction(
+            model_name=self.embeddingLLM,
+            url=self.embeddingURL
+        )
+        return ollamaEmbeddingFunction
+
+
         if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
             
-            return OllamaEmbeddingFunction(
+            ollamaEmbeddingFunction = OllamaEmbeddingFunction(
                 model_name=self.embeddingLLM,
                 url=self.embeddingURL
             )
+            return ollamaEmbeddingFunction
 
         if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
 
@@ -270,17 +299,17 @@ class WorkflowBase(BaseModel):
 
         try:
             chromaCollection = self.chromaClient.get_collection(
-                name=collectionName,
-                embedding_function=self.embeddingFunction
+#                embedding_function=self.embeddingFunction,
+                name=collectionName
             )
-#            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
-#            self.workerSnapshot(msg)
+            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
+            self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             if createFlag:
                 try:
                     chromaCollection = self.chromaClient.create_collection(
                         name=collectionName,
-                        embedding_function=self.embeddingFunction,
+#                       embedding_function=self.embeddingFunction,
                         metadata={ "hnsw:space": self.globalRAGHNSWspace }
                     )
                     msg = f"Created collection {collectionName}"

@@ -7,6 +7,8 @@ from pathlib import Path
 import mimetypes
 from  uuid import UUID, uuid4
 from typing import List
+import threading
+
 
 from pydantic_ai.usage import RunUsage
 from anyascii import anyascii
@@ -118,13 +120,13 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
-    fileList = [
+#    fileList = [
 #        "documents/2412.16720v1.pdf"
-#        "documents/AWS_Review.pdf" # three 500, Time: 334.41 seconds
+#        "documents/AWS_Review.pdf"
 #        "documents/Database Review.pdf", # three 500, Time: 420.24 seconds
 #        "documents/2009.03393v1.pdf"  # five tries, Time: 75.62 seconds - 63 chunks - exceed max retries
-        "test.txt"
-    ]
+#        "documents/1912.02292v1.pdf"
+#    ]
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
@@ -158,7 +160,8 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     # ---------------completed ---------------
 
-    print(f"totalCounts: {totalCounts}    score:{scorePerCent:.2f} %")
+    msg = f"TotalCounts: {totalCounts}    score:{scorePerCent:.2f} %"
+    discoveryWorkflow.workerSnapshot(msg)
 
     with open("fails.json", "w" , encoding="utf-8", errors="ignore") as jsonOut:
         jsonOut.writelines(json.dumps(discoveryWorkflow.getFails(), indent=2))
@@ -167,7 +170,6 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     discoveryWorkflow.stage = "completed"
     msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
-
 
 
 def main():
@@ -180,8 +182,9 @@ def main():
     context["statusFileName"] = context["DISCLIstatus_FileName"]
 
     # workflow actions
-    context["loadDocument"] = True
-    context["parseChunks"] = True
+    context["loadDocument"] = False
+    context["parseChunks"] = False
+    context["makeRawVector"] = False
     context["matchChunks"] = True
     context["vectorize"] = False
     context["verify"] = False
@@ -197,15 +200,20 @@ def main():
     # other app-specific configuration
     context["documentFolder"] = "documents"
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
-    context["chunkSize"] = 2048
-    context["chunkOverlap"] = 0
+    context["chunkSize"] = 512
+    context["chunkOverlap"] = 35
 
     configCollection = ConfigCollection(context)
 
     discoverWorkflow = DiscoveryWorkflow()
     discoverWorkflow.configure(configCollection)
 
-    testRun(discoverWorkflow)
+#    testRun(discoverWorkflow)
+
+    thread = threading.Thread( target=discoverWorkflow.threadWorker)
+    thread.start()
+    thread.join()
+
 
 
 if __name__ == "__main__":

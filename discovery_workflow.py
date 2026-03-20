@@ -6,9 +6,11 @@ from logging import Logger
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 import mimetypes
 from  uuid import UUID, uuid4
+import hashlib
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import pydantic_ai
@@ -47,7 +49,8 @@ import pymupdf4llm
 from anyascii import anyascii
 
 # local
-from common import ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
+from common import COLLECTION, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
+from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, AllQueryResults
 from workflowbase import WorkflowBase 
 
 
@@ -62,7 +65,6 @@ acceptedMimeTypes = [
 ]
 
 knownTopics = [
-    "medical research notes",
     "pipe engineering",
     "penetration test results",
     "AWS permissions"
@@ -83,6 +85,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # workflow actions
         self.context["loadDocument"] = configCollection["loadDocument"]
         self.context["parseChunks"] = configCollection["parseChunks"]
+        self.context["makeRawVector"] = configCollection["makeRawVector"]
         self.context["matchChunks"] = configCollection["matchChunks"]
         self.context["vectorize"] = configCollection["vectorize"]
         self.context["verify"] = configCollection["verify"]
@@ -243,12 +246,76 @@ class DiscoveryWorkflow(WorkflowBase):
         texts = text_splitter.split_text(docs)
         retTexts = []
         for text in texts:
-#            text = text.strip()
-#            text = text.lower()
-#            text = anyascii(text)
-#            text = " ".join(text.split())     # leave formatting
+            text = text.strip()
+            text = text.lower()
+            text = anyascii(text)
+            text = " ".join(text.split())
             retTexts.append(text)
         return retTexts
+
+
+    def makeRawVector(self, doc : List[str]) -> tuple[int, int]:
+        """
+        Add all chunks to raw vector database. 
+        Chunk is rejected if sha256 digest and chunk sequence in the document are the same as recorded previously
+        ChromaDB default embedding model is used
+        
+        :param doc: chunks to add
+        :type List[str]
+        :return: Tuple of accepted and rejected chunks
+        :rtype: tuple[int, int]
+        """
+
+        accepted = 0
+        rejected = 0
+
+        if not self.initRAGcomponents():
+            return accepted, rejected
+
+        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
+        if not chromaCollection:
+            return accepted, rejected
+
+        runId = str(uuid4())
+        chunkId = -1
+        ids : list[str] = []
+        docs : list[str] = []
+        docMetadata : list[str] = []
+#        embeddings = []
+
+        for chunk in doc:
+            chunkId += 1
+            hashFunc = hashlib.sha256()
+            hashFunc.update(chunk.encode('utf-8'))
+            recordHash = hashFunc.hexdigest() + "-" + str(chunkId)
+
+            queryResult = chromaCollection.get(ids=[recordHash])
+            if (len(queryResult["ids"])) :
+
+                rejected += 1
+                continue
+            else:
+                accepted += 1
+
+                ids.append(recordHash)
+                docs.append(chunk)
+                metadataDict = {}
+                metadataDict["document"] = self.context['inputFileName']
+                metadataDict["runid"] = runId
+                metadataDict["chunkid"] = str(chunkId)
+                docMetadata.append( metadataDict )
+#                embedding = self.embeddingFunction([chunk])
+#                embeddings.append(embedding[0])
+
+        if len(ids):
+            chromaCollection.add(
+#                embeddings=embeddings,
+                documents=docs,
+                ids=ids,
+                metadatas=docMetadata
+            )
+
+        return accepted, rejected
 
 
     def matchAllChunks(self, doc : List[str], topics: List[str]) -> tuple[Dict[str, List[str]], RunUsage] :
@@ -262,6 +329,54 @@ class DiscoveryWorkflow(WorkflowBase):
         :return: Tuple of Dict and LLM usage
         :rtype: tuple[bool, RunUsage]
         """
+
+        if not self.initRAGcomponents():
+            return {}, RunUsage()
+
+        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
+        if not chromaCollection:
+            return {}, RunUsage()
+
+        query = topics[0]
+
+        oneQueryResultList = OneQueryResultList(
+            result_dict = {},
+            query = query,
+            searchType = SEARCH.SEMANTIC.value,
+            label = ""
+        )
+
+        cutDist = 0.5
+        n_results = 3
+        queryResult = chromaCollection.query(query_texts=query, n_results=n_results)
+
+        resultIdx = -1
+
+        for distFloat in queryResult["distances"][0]:
+            resultIdx += 1
+            if (distFloat > cutDist) :
+                break
+
+            print(f"------dist {distFloat}-------------------")
+            print(type(queryResult["documents"][0][resultIdx]))
+            print(queryResult["documents"][0][resultIdx])
+            print("-------------------------")
+            print(type(queryResult["metadatas"][0][resultIdx]))
+            print(queryResult["metadatas"][0][resultIdx])
+
+            oneQueryResultList.appendResult(
+                identifier = "",
+                title = "",
+                report = queryResult["metadatas"][0][resultIdx]["document"],
+                score = distFloat,
+                rank = resultIdx + 1
+            )
+
+        return {}, RunUsage()
+
+
+
+
 
         prompt = f"{doc}"
         llmModel = self.createOpenAIModel()
@@ -411,11 +526,11 @@ Output a list topics that match the text."""
                     metadataDict["recordType"] = type(chunkInfo).__name__
                     metadataDict["document"] = chunkInfo.docName
                     docMetadata.append( metadataDict )
-                    embeddings.append(self.embeddingFunction([vectorSource])[0])
+#                    embeddings.append(self.embeddingFunction([vectorSource])[0])
 
                 if len(ids):
                     chromaCollection.add(
-                        embeddings=embeddings,
+#                        embeddings=embeddings,
                         documents=docs,
                         ids=ids,
                         metadatas=docMetadata
@@ -528,8 +643,31 @@ Output a list topics that match the text."""
                 with open(self.context["chunksListRaw"], "w" , encoding="utf-8", errors="ignore") as jsonOut:
                     jsonOut.writelines(json.dumps(chunksList, indent=2))
                 endTime = time.time()
-                msg = f"parseChunks: Time: {(endTime - startTime):.2f} seconds"
+                msg = f"parseChunks: created {len(chunksList)} chunks. Time: {(endTime - startTime):.2f} seconds"
                 self.workerSnapshot(msg)
+
+
+        # ------------makeRawVector----------------------
+
+        if "makeRawVector" in self.context and self.context["makeRawVector"]:
+
+            startTime = time.time()
+            result = True
+            if 'chunksList' not in locals():
+                # if this is a separate step - read list of chunks
+                result, fileContentOrError = OpenFile.open(filePath = self.context['chunksListRaw'], readContent = True)
+                if not result:
+                    msg = f"matchChunks: {fileContentOrError} - perform 'parseChunks' action first"
+                    self.workerSnapshot(msg)
+                else:
+                    chunksList = json.loads(fileContentOrError)
+
+            if result:
+                accepted, rejected = self.makeRawVector(chunksList)
+                endTime = time.time()
+                msg = f"makeRawVector: accepted {accepted}  rejected {rejected}  Time: {(endTime - startTime):.2f} seconds"
+                self.workerSnapshot(msg)
+
 
 
         # ---------------matchChunks -----------------
@@ -683,3 +821,62 @@ Output a list topics that match the text."""
 
         # return empty results if no "return results" action
         return counts, AllTopicMatches(topic_dict = {})
+
+
+    def threadWorker(self):
+        """
+        Workflow to perform query. 
+        
+        Args:
+            None
+        
+        Returns:
+            None
+
+        """
+
+        totalStart = time.time()
+        self.stage = "started"
+
+        fileList = self.formFileList()
+
+        msg = f"Discovered {len(fileList)} files for processing."
+        self.workerSnapshot(msg)
+
+        totalCounts = [0] * 4
+        chunks = []
+
+        for inputFileName in fileList:
+            counts, allTopicMatches = self.processOneFile(inputFileName)
+            totalCounts[0] += counts[0]
+            totalCounts[1] += counts[1]
+            totalCounts[2] += counts[2]
+            totalCounts[3] += counts[3]
+            for key in allTopicMatches.topic_dict.keys():
+                matchingChunks = allTopicMatches.topic_dict[key]
+                for chunk in matchingChunks.chunk_list:
+                    chunks.append(chunk)
+
+        score = totalCounts[0] - totalCounts[1] - totalCounts[2] * 0.5
+        if score < 0:
+            score = 0
+        if totalCounts[3] > 0:
+            scorePerCent = (score/totalCounts[3]) * 100
+        else:
+            scorePerCent = 0
+
+        for chunk in chunks:
+            self.workerSnapshot(str(chunk))
+
+        # ---------------completed ---------------
+
+        msg = f"TotalCounts: {totalCounts}    score:{scorePerCent:.2f} %"
+        self.workerSnapshot(msg)
+
+        with open("fails.json", "w" , encoding="utf-8", errors="ignore") as jsonOut:
+            jsonOut.writelines(json.dumps(self.getFails(), indent=2))
+
+        totalEnd = time.time()
+        self.stage = "completed"
+        msg = f"Workflow completed. {self.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
+        self.workerSnapshot(msg)

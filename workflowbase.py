@@ -62,12 +62,13 @@ class WorkflowBase(BaseModel):
     statusLog : List[str] = Field(default = [], description="Status log of workflow") 
     statusFileName : str = Field(default = "", description="Name of status log file") 
     resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
-
+    fails : list[str] = Field(default = [], description="Fails list for workflow") 
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+
     @model_validator(mode='after')
-    def verify_configuration(self) -> Self:
+    def WorkflowBase_verify_configuration(self) -> Self:
         if self.globalProvider:
             if self.globalProvider not in PROVIDERS.keys():
                 raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
@@ -94,7 +95,7 @@ class WorkflowBase(BaseModel):
             self.globalAPIkey = configCollection['gemini_key']
 
         # manually call model validator
-        self.verify_configuration()
+        self.WorkflowBase_verify_configuration()
 
         # delay RAG components till vectorize action
 #        self.embeddingFunction  = self.createEmbeddingFunction()
@@ -111,10 +112,10 @@ class WorkflowBase(BaseModel):
         """
         Init RAG components on demand. Avoid repeated initialization.
         """
-#        if not self.embeddingFunction:
-#            self.embeddingFunction  = self.createEmbeddingFunction()
-#        if not self.embeddingFunction:
-#            return False
+        if not self.embeddingFunction:
+            self.embeddingFunction  = self.createEmbeddingFunction()
+        if not self.embeddingFunction:
+            return False
         if not self.chromaClient:
             self.chromaClient = self.openChromaClient()
             if not self.chromaClient:
@@ -131,6 +132,10 @@ class WorkflowBase(BaseModel):
                     if not self.collections[coll.value]:
                         return False
         return True
+
+
+    def getFails(self) -> List[str] :
+        return self.fails
 
 
     def getChromaCollection(self, name: str) -> Collection:
@@ -299,17 +304,17 @@ class WorkflowBase(BaseModel):
 
         try:
             chromaCollection = self.chromaClient.get_collection(
-#                embedding_function=self.embeddingFunction,
+                embedding_function=self.embeddingFunction,
                 name=collectionName
             )
-            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
-            self.workerSnapshot(msg)
+#            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
+#            self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             if createFlag:
                 try:
                     chromaCollection = self.chromaClient.create_collection(
                         name=collectionName,
-#                       embedding_function=self.embeddingFunction,
+                        embedding_function=self.embeddingFunction,
                         metadata={ "hnsw:space": self.globalRAGHNSWspace }
                     )
                     msg = f"Created collection {collectionName}"

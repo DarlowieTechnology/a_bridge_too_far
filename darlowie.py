@@ -50,8 +50,9 @@ context = {
 
     # Discovery app settings
 
-    "DISCOVdocumentFolder" : "documents/",  # folder for documents
-    "DISCOVbm25IndexFolder" : "__combined.bm25/",  # folder for combined BM25 index
+    "DISCOVdocumentFolder" : "documents/",          # folder for source documents
+    "DISCOVdataFolder" : "discoverydata/",          # Interim data folder
+    "DISCOVbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
 
     # Discovery CLI settings
 

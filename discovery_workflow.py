@@ -2,6 +2,7 @@
 # Discovery workflow class used by Django app and command line
 #
 from typing import List, Dict
+from typing_extensions import Self
 from logging import Logger
 import json
 import sys
@@ -11,8 +12,10 @@ from pathlib import Path
 import mimetypes
 from  uuid import UUID, uuid4
 import hashlib
+import re
+from pprint import pprint
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 import pydantic_ai
 from pydantic_ai import Agent, AgentRunResult
 
@@ -65,17 +68,61 @@ acceptedMimeTypes = [
 ]
 
 knownTopics = [
-    "pipe engineering",
-    "penetration test results",
-    "AWS permissions"
+#    "pipe engineering",
+#    "penetration test results",
+    "medical notes"
 ]
 
 
 
 class DiscoveryWorkflow(WorkflowBase):
 
-    context : dict[str, str] = Field(default = {}, description="Context dict") 
-    fails : list[str] = Field(default = [], description="Fails list") 
+    # app specific configuration
+    documentFolder : str = Field(default = "documents/", description="Source document folder") 
+    dataFolder : str = Field(default = "discoverydata/", description="Intermediate data folder") 
+    fileExtensions : List[str] = Field(default = ["*.txt"], description="List of source file allowed file name extensions") 
+    chunkSize : int = Field(default = 512, description="Chunk size for source documents") 
+    chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents") 
+
+    # text processing flags
+    stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text") 
+    convertToLower : bool = Field(default = False, description="Covert all characters in source text to lowercase") 
+    convertToASCII : bool = Field(default = False, description="Covert all characters in source text to ASCII") 
+    singleSpaces : bool = Field(default = False, description="Replace multiple space characters with single space in source text") 
+
+    # workflow actions
+    loadDocument : bool = Field(default = False, description="Load text from source documents")
+    parseChunks : bool = Field(default = False, description="Create chunks out of text")
+    makeRawVector : bool = Field(default = False, description="Vectorize chunks in intermediate table")
+    matchChunks : bool = Field(default = False, description="Match chunks against known topics")
+    vectorize : bool = Field(default = False, description="Vectorize in specialized tables")
+    verify : bool = Field(default = False, description="Verify results against known data set")
+    returnResults : bool = Field(default = False, description="Collect test results")
+    clear : bool = Field(default = False, description="Clear Intermediate data")
+
+    stats : Dict[str, int] = Field(default = {}, description="Run statistics")
+
+
+    @model_validator(mode='after')
+    def discoveryWorkflow_verify_configuration(self) -> Self:
+
+        # verify access to Source document folder
+        if not Path(self.documentFolder).is_dir:
+            raise ValueError(f'Source document folder is invalid')
+        # verify access to Intermediate data folder
+        if not Path(self.dataFolder).is_dir:
+            raise ValueError(f'Intermediate data folder is invalid')
+        # verify formatting of file extension list
+        for fileExt in self.fileExtensions:
+            extPattern = r"\*\.[A-Za-z0-9]*$"
+            if not re.match(extPattern, fileExt):
+                raise ValueError(f'File extension pattern is invalid')
+        if not self.chunkSize in range(128, 513):
+            raise ValueError(f'Chunk size is invalid')
+        if not self.chunkOverlap in range(0, 65):
+            raise ValueError(f'Chunk overlap is invalid')
+        return self
+
 
     def configure(self, configCollection : ConfigCollection) :
 
@@ -83,26 +130,32 @@ class DiscoveryWorkflow(WorkflowBase):
         super().configure(configCollection)
 
         # workflow actions
-        self.context["loadDocument"] = configCollection["loadDocument"]
-        self.context["parseChunks"] = configCollection["parseChunks"]
-        self.context["makeRawVector"] = configCollection["makeRawVector"]
-        self.context["matchChunks"] = configCollection["matchChunks"]
-        self.context["vectorize"] = configCollection["vectorize"]
-        self.context["verify"] = configCollection["verify"]
-        self.context["returnResults"] = configCollection["returnResults"]
-        self.context["clear"] = configCollection["clear"]
+        self.loadDocument = configCollection["loadDocument"]
+        self.parseChunks = configCollection["parseChunks"]
+        self.makeRawVector = configCollection["makeRawVector"]
+        self.matchChunks = configCollection["matchChunks"]
+        self.vectorize = configCollection["vectorize"]
+        self.verify = configCollection["verify"]
+        self.returnResults = configCollection["returnResults"]
+        self.clear = configCollection["clear"]
 
-        # text extraction configuration
-        self.context["stripWhiteSpace"] = configCollection["stripWhiteSpace"]
-        self.context["convertToLower"] = configCollection["convertToLower"]
-        self.context["convertToASCII"] = configCollection["convertToASCII"]
-        self.context["singleSpaces"] = configCollection["singleSpaces"]
+        self.stripWhiteSpace = configCollection["stripWhiteSpace"]
+        self.convertToLower = configCollection["convertToLower"]
+        self.convertToASCII = configCollection["convertToASCII"]
+        self.singleSpaces = configCollection["singleSpaces"]
 
         # other app-specific configuration
-        self.context["documentFolder"] = configCollection["documentFolder"]
-        self.context["fileExtensions"] = configCollection["fileExtensions"]
-        self.context["chunkSize"] = configCollection["chunkSize"]
-        self.context["chunkOverlap"] = configCollection["chunkOverlap"]
+        self.documentFolder = configCollection["DISCOVdocumentFolder"]
+        self.dataFolder = configCollection["DISCOVdataFolder"]
+        self.fileExtensions = configCollection["fileExtensions"]
+        self.chunkSize = configCollection["chunkSize"]
+        self.chunkOverlap = configCollection["chunkOverlap"]
+
+        self.stats = {}
+
+        # manually call model validator
+        self.discoveryWorkflow_verify_configuration()
+
 
 
     def loadPDFPyPDFLoader(self, inputFile : str) -> str :
@@ -126,13 +179,13 @@ class DiscoveryWorkflow(WorkflowBase):
         textCombined = ""
         for page in docs:
             pageContent = page.page_content
-            if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+            if self.stripWhiteSpace:
                 pageContent = pageContent.strip()
-            if "convertToLower" in self.context and self.context["convertToLower"]:
+            if self.convertToLower:
                 pageContent = pageContent.lower()
-            if "convertToASCII" in self.context and self.context["convertToASCII"]:
+            if self.convertToASCII:
                 pageContent = anyascii(pageContent)
-            if "singleSpaces" in self.context and self.context["singleSpaces"]:
+            if self.singleSpaces:
                 pageContent = " ".join(pageContent.split())
             textCombined += " "
             textCombined += pageContent
@@ -158,13 +211,13 @@ class DiscoveryWorkflow(WorkflowBase):
             return None       
         
 
-        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+        if self.stripWhiteSpace:
             docs = docs.strip()
-        if "convertToLower" in self.context and self.context["convertToLower"]:
+        if self.convertToLower:
             docs = docs.lower()
-        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+        if self.convertToASCII:
             docs = anyascii(docs)
-        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+        if self.singleSpaces:
             docs = " ".join(docs.split())
         return docs
 
@@ -182,13 +235,13 @@ class DiscoveryWorkflow(WorkflowBase):
         with open(inputFile, "r" , encoding="utf-8", errors="ignore") as txtIn:
             docs = txtIn.read()
 
-        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+        if self.stripWhiteSpace:
             docs = docs.strip()
-        if "convertToLower" in self.context and self.context["convertToLower"]:
+        if self.convertToLower:
             docs = docs.lower()
-        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+        if self.convertToASCII:
             docs = anyascii(docs)
-        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+        if self.singleSpaces:
             docs = " ".join(docs.split())
         return docs
 
@@ -215,248 +268,20 @@ class DiscoveryWorkflow(WorkflowBase):
         pd.set_option('display.max_colwidth', None)
         dataframe = str(dataframe)
 
-        if "stripWhiteSpace" in self.context and self.context["stripWhiteSpace"]:
+        if self.stripWhiteSpace:
             dataframe = dataframe.strip()
-        if "convertToLower" in self.context and self.context["convertToLower"]:
+        if self.convertToLower:
             dataframe = dataframe.lower()
-        if "convertToASCII" in self.context and self.context["convertToASCII"]:
+        if self.convertToASCII:
             dataframe = anyascii(dataframe)
 
 # leave dataframe formatting intact            
-#        if "singleSpaces" in self.context and self.context["singleSpaces"]:
+#        if self.singleSpaces:
 #            dataframe = " ".join(dataframe.split())
 
         return dataframe
-    
-
-    def parseChunks(self, docs : str) -> List[str] :
-        """
-        split text into chunks using text splitter object
-        
-        :param docs: document
-        :type docs: str
-        :return: chunk list
-        :rtype: List[str]
-        """
-
-        chunkSize = self.context["chunkSize"]
-        chunkOverlap = self.context["chunkOverlap"]
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=chunkOverlap)
-        texts = text_splitter.split_text(docs)
-        retTexts = []
-        for text in texts:
-            text = text.strip()
-            text = text.lower()
-            text = anyascii(text)
-            text = " ".join(text.split())
-            retTexts.append(text)
-        return retTexts
 
 
-    def makeRawVector(self, doc : List[str]) -> tuple[int, int]:
-        """
-        Add all chunks to raw vector database. 
-        Chunk is rejected if sha256 digest and chunk sequence in the document are the same as recorded previously
-        ChromaDB default embedding model is used
-        
-        :param doc: chunks to add
-        :type List[str]
-        :return: Tuple of accepted and rejected chunks
-        :rtype: tuple[int, int]
-        """
-
-        accepted = 0
-        rejected = 0
-
-        if not self.initRAGcomponents():
-            return accepted, rejected
-
-        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
-        if not chromaCollection:
-            return accepted, rejected
-
-        runId = str(uuid4())
-        chunkId = -1
-        ids : list[str] = []
-        docs : list[str] = []
-        docMetadata : list[str] = []
-#        embeddings = []
-
-        for chunk in doc:
-            chunkId += 1
-            hashFunc = hashlib.sha256()
-            hashFunc.update(chunk.encode('utf-8'))
-            recordHash = hashFunc.hexdigest() + "-" + str(chunkId)
-
-            queryResult = chromaCollection.get(ids=[recordHash])
-            if (len(queryResult["ids"])) :
-
-                rejected += 1
-                continue
-            else:
-                accepted += 1
-
-                ids.append(recordHash)
-                docs.append(chunk)
-                metadataDict = {}
-                metadataDict["document"] = self.context['inputFileName']
-                metadataDict["runid"] = runId
-                metadataDict["chunkid"] = str(chunkId)
-                docMetadata.append( metadataDict )
-#                embedding = self.embeddingFunction([chunk])
-#                embeddings.append(embedding[0])
-
-        if len(ids):
-            chromaCollection.add(
-#                embeddings=embeddings,
-                documents=docs,
-                ids=ids,
-                metadatas=docMetadata
-            )
-
-        return accepted, rejected
-
-
-    def matchAllChunks(self, doc : List[str], topics: List[str]) -> tuple[Dict[str, List[str]], RunUsage] :
-        """
-        match chunks against known topics
-        
-        :param docs: List of chunks to match
-        :type doc: List[str]
-        :param topic: list of topics to match
-        :type topic: List[str]
-        :return: Tuple of Dict and LLM usage
-        :rtype: tuple[bool, RunUsage]
-        """
-
-        if not self.initRAGcomponents():
-            return {}, RunUsage()
-
-        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
-        if not chromaCollection:
-            return {}, RunUsage()
-
-        query = topics[0]
-
-        oneQueryResultList = OneQueryResultList(
-            result_dict = {},
-            query = query,
-            searchType = SEARCH.SEMANTIC.value,
-            label = ""
-        )
-
-        cutDist = 0.5
-        n_results = 3
-        queryResult = chromaCollection.query(query_texts=query, n_results=n_results)
-
-        resultIdx = -1
-
-        for distFloat in queryResult["distances"][0]:
-            resultIdx += 1
-            if (distFloat > cutDist) :
-                break
-
-            print(f"------dist {distFloat}-------------------")
-            print(type(queryResult["documents"][0][resultIdx]))
-            print(queryResult["documents"][0][resultIdx])
-            print("-------------------------")
-            print(type(queryResult["metadatas"][0][resultIdx]))
-            print(queryResult["metadatas"][0][resultIdx])
-
-            oneQueryResultList.appendResult(
-                identifier = "",
-                title = "",
-                report = queryResult["metadatas"][0][resultIdx]["document"],
-                score = distFloat,
-                rank = resultIdx + 1
-            )
-
-        return {}, RunUsage()
-
-
-
-
-
-        prompt = f"{doc}"
-        llmModel = self.createOpenAIModel()
-
-#        systemPrompt = f"""You are an expert in English text analysis.\
-#The user prompt contains a list of English texts.\
-#Match the following list of topics against every text.\
-#Output a list of key-value pairs where keys are topics and values are matching texts: {topics}"""
-
-        systemPrompt = f"""You are an expert in English text analysis.\
-Match each topic in the list against the text in user prompt: {topics}.\
-Output a list topics that match the text."""
-
-        agent = Agent(llmModel,
-                    output_type=List[str],
-                    system_prompt = systemPrompt,
-                    retries = 5
-                    )
-
-        totalResults = {}
-        for topic in topics:
-            totalResults[topic] = []
-
-        print("-------total results------------")
-        print(totalResults)
-        print("-------------------------")
-
-        totalUsage = RunUsage()
-
-        countChunks = len(doc)
-        nextChunk = 0
-        while nextChunk < countChunks:
-            endChunk = nextChunk + 1
-            if endChunk > countChunks:
-                endChunk = countChunks
-            nextList = doc[nextChunk:endChunk]
-            try:
-
-                print("-------user prompt------------")
-                print(nextList)
-                print("-------------------------")
-
-                result = agent.run_sync(nextList, message_history=[])
-
-                print("-------result.output-----------")
-                print(result.output)
-                print("-------------------------")
-
-                for topic in totalResults.keys():
-                    dictResults = result.output['output']
-                    if topic in dictResults:
-                        totalResults[topic].append(result.output['output'][topic])
-                totalUsage += result.usage()
-            except Exception as e:
-                msg = f"Exception: {e}"
-                self.workerSnapshot(msg)
-                self.fails.append(f"matchChunks: Exception '{e}' processing {self.context['inputFileName']}")
-            nextChunk = endChunk
-
-        print("-------total results------------")
-        print(totalResults)
-        print("-------------------------")
-
-        return totalResults, totalUsage
-
-        agent = Agent(llmModel,
-                    output_type=Dict[str, List[str]],
-                    system_prompt = systemPrompt,
-                    retries = 5
-                    )
-        try:
-            result = agent.run_sync(prompt, message_history=[])
-            return result.output, result.usage()
-        
-        except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
-            self.fails.append(f"matchChunks: Exception '{e}' processing {self.context['inputFileName']}")
-
-        return {}, RunUsage()
 
 
     def vectorize(self, allTopicMatches : AllTopicMatches)  -> tuple[int, int]:
@@ -473,7 +298,7 @@ Output a list topics that match the text."""
         rejected = 0
 
         if not self.initRAGcomponents():
-            self.fails.append(f"vectorize: RAG database failed to initialize for {self.context['inputFileName']}")
+            self.fails.append(f"vectorize: RAG database failed to initialize")
             return accepted, rejected            
 
         for topic in allTopicMatches.topic_dict.keys():
@@ -548,125 +373,327 @@ Output a list topics that match the text."""
         """
 
         completeFileList = []
-        for globName in self.context["fileExtensions"]:
-            result, fileListOrError = OpenFile.readListOfFileNames(self.context["documentFolder"], globName)
+        for globName in self.fileExtensions:
+            result, fileListOrError = OpenFile.readListOfFileNames(self.documentFolder, globName)
             if result:
                 completeFileList = completeFileList + fileListOrError
         return completeFileList
 
 
-    def getFails(self) -> List[str] :
-        return self.fails
+    def updateStats(self, keyValList : List[tuple[str, int]]) :
+
+        for key, value in keyValList:
+            try:
+                prevVal = self.stats[key]
+                self.stats[key] = prevVal + value
+            except Exception:
+                self.stats[key] = value
 
 
-    def processOneFile(self, inputFileName : str) -> tuple[List[int], AllTopicMatches]:
+    def loadDocumentPhase(self, inputFileName : str, dataFolder : str, outputFileName : str) -> int: 
         """
-        Process one file in workflow
+        Load document and store it in plain text format
+        """
+
+        mime_type, encoding = mimetypes.guess_type(inputFileName)
+        if mime_type not in acceptedMimeTypes:
+            msg = f" Error: File type not supported: {mime_type}"
+            self.workerSnapshot(msg)
+            self.updateStats([("Files", 1), ("Unknown MIME type", 1)])
+            return 0
+
+        # make data path if does not exist
+        Path(dataFolder).mkdir(parents=True, exist_ok=True)
+
+        if mime_type == "application/pdf":
+            textCombined = self.loadPDFPyPDFLoader(inputFileName)
+            if not textCombined:
+                textCombined = self.loadPDFpymupdf4llm(inputFileName)
+            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF Length", len(textCombined))])
+
+        if mime_type in ["application/json"]:
+            textCombined = self.loadJSON(inputFileName)
+            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("JSON", 1), ("JSON Length", len(textCombined))])
+
+        if mime_type in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
+            textCombined = self.loadText(inputFileName)
+            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("Other text", 1), ("Other text Length", len(textCombined))])
+
+        fullOutputFileName = dataFolder + "/" + outputFileName
+        with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
+            rawOut.write(textCombined)
+
+        return len(textCombined)
+
+
+    def parseChunksPhase(self, docs : str) -> List[str] :
+        """
+        split text into chunks using text splitter object
         
-        :param inputFileName: name of file
-        :type inputFileName: str
-        :return: Tuple of score result list and matched chunks
-        :rtype: tuple[List[int], AllTopicMatches]
+        :param docs: document
+        :type docs: str
+        :return: chunk list
+        :rtype: List[str]
         """
-        msg = f"Input file {inputFileName}"
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunkSize, chunk_overlap=self.chunkOverlap)
+        texts = text_splitter.split_text(docs)
+        retTexts = []
+        for text in texts:
+            text = text.strip()
+            text = text.lower()
+            text = anyascii(text)
+            text = " ".join(text.split())
+            retTexts.append(text)
+
+        self.updateStats([("Chunks", len(retTexts))])
+        return retTexts
+
+
+    def makeRawVectorPhase(self, doc : List[str], inputFileName : str) -> tuple[int, int]:
+        """
+        Add all chunks to raw vector database. 
+        Chunk is rejected if sha256 digest and chunk sequence in the document are the same as recorded previously
+        ChromaDB default embedding model is used
+        
+        :param doc: chunks to add
+        :type List[str]
+        :param inputFileName: source file name
+        :type str
+        :return: Tuple of accepted and rejected chunks
+        :rtype: tuple[int, int]
+        """
+
+        accepted = 0
+        rejected = 0
+
+        if not self.initRAGcomponents():
+            return accepted, rejected
+
+        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
+        if not chromaCollection:
+            return accepted, rejected
+
+        runId = str(uuid4())
+        chunkId = -1
+        ids : list[str] = []
+        docs : list[str] = []
+        docMetadata : list[str] = []
+        embeddings = []
+
+        for chunk in doc:
+            chunkId += 1
+            hashFunc = hashlib.sha256()
+            hashFunc.update(chunk.encode('utf-8'))
+            recordHash = hashFunc.hexdigest() + "-" + str(chunkId)
+
+            queryResult = chromaCollection.get(ids=[recordHash])
+            if (len(queryResult["ids"])) :
+
+                rejected += 1
+                continue
+            else:
+                accepted += 1
+
+                ids.append(recordHash)
+                docs.append(chunk)
+                metadataDict = {}
+                metadataDict["document"] = str(inputFileName)
+                metadataDict["runid"] = runId
+                metadataDict["chunkid"] = str(chunkId)
+                docMetadata.append( metadataDict )
+                embedding = self.embeddingFunction([chunk])
+                embeddings.append(embedding[0])
+
+        if len(ids):
+            chromaCollection.add(
+                embeddings=embeddings,
+                documents=docs,
+                ids=ids,
+                metadatas=docMetadata
+            )
+
+        self.updateStats([("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
+        return accepted, rejected
+
+
+    def matchChunksPhase(self, topics: List[str]) -> Dict[str, List[str]] :
+        """
+        match chunks against known topics
+        
+        :param topic: list of topics to match
+        :type topic: List[str]
+        :return: Dict with topics as keys, and lists of chunks as values
+        :rtype: Dict[str, List[str]]
+        """
+
+        if not self.initRAGcomponents():
+            return {}
+
+        chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
+        if not chromaCollection:
+            return {}
+
+        query = topics[0]
+
+        oneQueryResultList = OneQueryResultList(
+            result_dict = {},
+            query = query,
+            searchType = SEARCH.SEMANTIC.value,
+            label = ""
+        )
+
+        n_results = 50
+#        queryResult = chromaCollection.query(query_texts=query, n_results=n_results)
+        queryResult = chromaCollection.query(query_texts=["medical", "clinical", "diagnosis", "human organ", "medical procedure"], n_results=n_results)
+
+        resultIdx = -1
+
+        for doc in queryResult["documents"][0]:
+            resultIdx += 1
+            print(queryResult["metadatas"][0][resultIdx]['document'])
+            print(f"\t{queryResult["documents"][0][resultIdx]}")
+
+        return {}
+
+
+    def threadWorker(self):
+        """
+        Workflow to perform query. 
+        
+        Args:
+            None
+        
+        Returns:
+            None
+
+        """
+
+        totalStart = time.time()
+        self.stage = "started"
+
+        fileList = self.formFileList()
+
+        msg = f"Discovered {len(fileList)} files for processing."
         self.workerSnapshot(msg)
 
-        # count results array
-        counts = [0] * 4
+        # make root data path if does not exist
+        Path(self.dataFolder).mkdir(parents=True, exist_ok=True)
 
-        self.context["inputFileName"] = str(inputFileName)
-        self.context["inputFileBaseName"] = str(Path(self.context["inputFileName"]).name)
-        self.context["dataFolder"] = self.context["inputFileName"] + "-data"
-        self.context["rawtext"] = self.context["dataFolder"] + "/raw.txt"
-        self.context["chunksListRaw"] = self.context["dataFolder"] + "/raw.chunks.txt"
-        self.context["matchJSON"] = self.context["dataFolder"] + "/match.json"
-        self.context["verifyInfo"] = self.context["dataFolder"] + "/verify.json"
+        #------------------loadDocument---------------------
 
-        # make data path for the document if does not exist
-        Path(self.context["dataFolder"]).mkdir(parents=True, exist_ok=True)
-
-
-        # ---------------loadDocument ---------------
-
-        if "loadDocument" in self.context and self.context["loadDocument"]:
-            startTime = time.time()
-
-            mime_type, encoding = mimetypes.guess_type(self.context['inputFileName'])
-            if mime_type in acceptedMimeTypes:
-                self.context['mime_type'] = mime_type
-                self.context['encoding'] = encoding
-            else:
-                msg = f" Error: File type not supported: {mime_type}"
-                self.workerSnapshot(msg)
-                return
-
-            if self.context['mime_type'] == "application/pdf":
-                textCombined = self.loadPDFPyPDFLoader(self.context['inputFileName'])
-                if not textCombined:
-                    textCombined = self.loadPDFpymupdf4llm(self.context['inputFileName'])
-
-            if self.context['mime_type'] in ["application/json"]:
-                msg = f"loadDocument: Loading JSON data"
-                self.workerSnapshot(msg)
-                textCombined = self.loadJSON(self.context['inputFileName'])
-
-            if self.context['mime_type'] in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
-                textCombined = self.loadText(self.context['inputFileName'])
-
-            with open(self.context["rawtext"], "w" , encoding="utf-8", errors="ignore") as rawOut:
-                rawOut.write(textCombined)
-
-            endTime = time.time()
-            msg = f"loadDocument: Read <b>{len(textCombined)} bytes</b> from file <b>{self.context['inputFileName']}</b>.  Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
-
+        if self.loadDocument:
+            for inputFileName in fileList:
+                startTime = time.time()
+                intermediateDataFolder = self.dataFolder + "/" + str(inputFileName) + "-data"
+                readLength = self.loadDocumentPhase(inputFileName, intermediateDataFolder, "raw.txt")
+                endTime = time.time()
+                self.updateStats([("Time Load Documents", endTime - startTime)])
+ #               msg = f"loadDocument: Read <b>{readLength} bytes</b> from file <b>{inputFileName}</b>.  Time: {(endTime - startTime):.2f} seconds"
+ #               self.workerSnapshot(msg)
 
         # ---------------parseChunks ---------------
 
-        if "parseChunks" in self.context and self.context["parseChunks"]:
+        if self.parseChunks:
+            for inputFileName in fileList:
+                startTime = time.time()
 
-            startTime = time.time()
-            result = True
-            if 'textCombined' not in locals():
-                # if this is a separate step - read raw text into string
-                result, fileContentOrError = OpenFile.open(filePath = self.context['rawtext'], readContent = True)
+                # read raw text into string
+                rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
+                result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
                 if not result:
                     msg = f"parseChunks: {fileContentOrError} - perform 'loadDocument' action first"
                     self.workerSnapshot(msg)
                 else:
-                    textCombined = fileContentOrError
+                    chunksList = self.parseChunksPhase(fileContentOrError)
+                    chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
 
-            if result:
-
-                chunksList = self.parseChunks(textCombined)
-
-                with open(self.context["chunksListRaw"], "w" , encoding="utf-8", errors="ignore") as jsonOut:
-                    jsonOut.writelines(json.dumps(chunksList, indent=2))
-                endTime = time.time()
-                msg = f"parseChunks: created {len(chunksList)} chunks. Time: {(endTime - startTime):.2f} seconds"
-                self.workerSnapshot(msg)
-
+                    with open(chunkListFileName, "w" , encoding="utf-8", errors="ignore") as jsonOut:
+                        jsonOut.writelines(json.dumps(chunksList, indent=2))
+                    endTime = time.time()
+                    self.updateStats([("Time Chunking", endTime - startTime)])
+#                    msg = f"parseChunks: created {len(chunksList)} chunks. Time: {(endTime - startTime):.2f} seconds"
+#                    self.workerSnapshot(msg)
 
         # ------------makeRawVector----------------------
 
-        if "makeRawVector" in self.context and self.context["makeRawVector"]:
+        if self.makeRawVector:
+            for inputFileName in fileList:
+                startTime = time.time()
 
-            startTime = time.time()
-            result = True
-            if 'chunksList' not in locals():
-                # if this is a separate step - read list of chunks
-                result, fileContentOrError = OpenFile.open(filePath = self.context['chunksListRaw'], readContent = True)
+                # read list of chunks
+                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
+                result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
                 if not result:
                     msg = f"matchChunks: {fileContentOrError} - perform 'parseChunks' action first"
                     self.workerSnapshot(msg)
                 else:
                     chunksList = json.loads(fileContentOrError)
+                    accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
+                    endTime = time.time()
+                    self.updateStats([("Time Vectorizing", endTime - startTime)])
+#                    msg = f"makeRawVector: accepted {accepted}  rejected {rejected}  Time: {(endTime - startTime):.2f} seconds"
+#                    self.workerSnapshot(msg)
 
-            if result:
-                accepted, rejected = self.makeRawVector(chunksList)
+
+        # --------------matchChunks------------------
+
+        if self.matchChunks:
+            startTime = time.time()
+            self.matchChunksPhase(knownTopics)
+            endTime = time.time()
+            self.updateStats([("Time Matching", endTime - startTime)])
+
+        # -------------- clear ---------------
+
+        if self.clear:
+            for inputFileName in fileList:
+                startTime = time.time()
+                rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
+                OpenFile.remove(rawTextFileName)
+                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
+                OpenFile.remove(chunkListFileName)
                 endTime = time.time()
-                msg = f"makeRawVector: accepted {accepted}  rejected {rejected}  Time: {(endTime - startTime):.2f} seconds"
-                self.workerSnapshot(msg)
+                self.updateStats([("Time Clearing", endTime - startTime)])
+#                msg = f"clear: Time: {(endTime - startTime):.2f} seconds"
+#                self.workerSnapshot(msg)
+
+        totalEnd = time.time()
+        self.updateStats([("Time Total", totalEnd - totalStart)])
+
+        msg = f"{pprint(self.stats)}"
+        self.workerSnapshot(msg)
+        return
+
+
+
+
+
+        totalCounts = [0] * 4
+        chunks = []
+
+        for inputFileName in fileList:
+            counts, allTopicMatches = self.processOneFile(inputFileName)
+            totalCounts[0] += counts[0]
+            totalCounts[1] += counts[1]
+            totalCounts[2] += counts[2]
+            totalCounts[3] += counts[3]
+            for key in allTopicMatches.topic_dict.keys():
+                matchingChunks = allTopicMatches.topic_dict[key]
+                for chunk in matchingChunks.chunk_list:
+                    chunks.append(chunk)
+
+        score = totalCounts[0] - totalCounts[1] - totalCounts[2] * 0.5
+        if score < 0:
+            score = 0
+        if totalCounts[3] > 0:
+            scorePerCent = (score/totalCounts[3]) * 100
+        else:
+            scorePerCent = 0
+
+        for chunk in chunks:
+            self.workerSnapshot(str(chunk))
+
 
 
 
@@ -819,54 +846,25 @@ Output a list topics that match the text."""
             self.workerSnapshot(msg)
 
 
-        # return empty results if no "return results" action
-        return counts, AllTopicMatches(topic_dict = {})
 
 
-    def threadWorker(self):
-        """
-        Workflow to perform query. 
-        
-        Args:
-            None
-        
-        Returns:
-            None
 
-        """
 
-        totalStart = time.time()
-        self.stage = "started"
 
-        fileList = self.formFileList()
 
-        msg = f"Discovered {len(fileList)} files for processing."
-        self.workerSnapshot(msg)
 
-        totalCounts = [0] * 4
-        chunks = []
 
-        for inputFileName in fileList:
-            counts, allTopicMatches = self.processOneFile(inputFileName)
-            totalCounts[0] += counts[0]
-            totalCounts[1] += counts[1]
-            totalCounts[2] += counts[2]
-            totalCounts[3] += counts[3]
-            for key in allTopicMatches.topic_dict.keys():
-                matchingChunks = allTopicMatches.topic_dict[key]
-                for chunk in matchingChunks.chunk_list:
-                    chunks.append(chunk)
 
-        score = totalCounts[0] - totalCounts[1] - totalCounts[2] * 0.5
-        if score < 0:
-            score = 0
-        if totalCounts[3] > 0:
-            scorePerCent = (score/totalCounts[3]) * 100
-        else:
-            scorePerCent = 0
 
-        for chunk in chunks:
-            self.workerSnapshot(str(chunk))
+
+
+
+
+
+
+
+
+
 
         # ---------------completed ---------------
 

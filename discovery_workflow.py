@@ -46,14 +46,17 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import pymupdf.layout  # activate PyMuPDF-Layout in pymupdf
 import pymupdf4llm
 
-# import Stemmer
-# import bm25s
+import Stemmer
+import bm25s
+import spacy
+from spacy import Language
 
 from anyascii import anyascii
 
 # local
-from common import COLLECTION, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, AllQueryResults
+from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
+from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneQueryResultList, IdentifierRRFScores, AllQueryResults
+from queryService import QueryService
 from workflowbase import WorkflowBase 
 
 
@@ -78,27 +81,36 @@ knownTopics = [
 class DiscoveryWorkflow(WorkflowBase):
 
     # app specific configuration
-    documentFolder : str = Field(default = "documents/", description="Source document folder") 
-    dataFolder : str = Field(default = "discoverydata/", description="Intermediate data folder") 
-    fileExtensions : List[str] = Field(default = ["*.txt"], description="List of source file allowed file name extensions") 
-    chunkSize : int = Field(default = 512, description="Chunk size for source documents") 
-    chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents") 
+    documentFolder : str = Field(default = "documents/", description="Source document folder")
+    dataFolder : str = Field(default = "discoverydata/", description="Intermediate data folder")
+    bm25IndexFolder : str = Field(default = "__combined.bm25/", description="bm25 index folder")
+    bm25CorpusFileName : str = Field(default = "corpus.jsonl", description="bm25 corpus file")
+    fileExtensions : List[str] = Field(default = ["*.txt"], description="List of source file allowed file name extensions")
+    chunkSize : int = Field(default = 512, description="Chunk size for source documents")
+    chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
 
     # text processing flags
-    stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text") 
-    convertToLower : bool = Field(default = False, description="Covert all characters in source text to lowercase") 
-    convertToASCII : bool = Field(default = False, description="Covert all characters in source text to ASCII") 
-    singleSpaces : bool = Field(default = False, description="Replace multiple space characters with single space in source text") 
+    stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text")
+    convertToLower : bool = Field(default = False, description="Covert all characters in source text to lowercase")
+    convertToASCII : bool = Field(default = False, description="Covert all characters in source text to ASCII")
+    singleSpaces : bool = Field(default = False, description="Replace multiple space characters with single space in source text")
 
     # workflow actions
     loadDocument : bool = Field(default = False, description="Load text from source documents")
     parseChunks : bool = Field(default = False, description="Create chunks out of text")
     makeRawVector : bool = Field(default = False, description="Vectorize chunks in intermediate table")
+    bm25Process : bool = Field(default = False, description="Create bm25 index")
     matchChunks : bool = Field(default = False, description="Match chunks against known topics")
     vectorize : bool = Field(default = False, description="Vectorize in specialized tables")
     verify : bool = Field(default = False, description="Verify results against known data set")
     returnResults : bool = Field(default = False, description="Collect test results")
     clear : bool = Field(default = False, description="Clear Intermediate data")
+
+    # retrieval configuration
+    semanticRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with semantic query")
+    semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
+    bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
+    rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion value cut off")
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
@@ -112,6 +124,9 @@ class DiscoveryWorkflow(WorkflowBase):
         # verify access to Intermediate data folder
         if not Path(self.dataFolder).is_dir:
             raise ValueError(f'Intermediate data folder is invalid')
+        # verify access to bm25 index folder
+        if not Path(self.dataFolder + self.bm25IndexFolder).is_dir:
+            raise ValueError(f'bm25 index folder is invalid')
         # verify formatting of file extension list
         for fileExt in self.fileExtensions:
             extPattern = r"\*\.[A-Za-z0-9]*$"
@@ -121,6 +136,17 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Chunk size is invalid')
         if not self.chunkOverlap in range(0, 65):
             raise ValueError(f'Chunk overlap is invalid')
+        if not self.semanticRetrieveNumber in range(0, 513):
+            raise ValueError(f'Number of semantic search items is invalid')
+        if not (self.semanticMaxCutItemDistance >= 0 and self.semanticMaxCutItemDistance <= 1.0):
+            raise ValueError(f'Maximum distance of semantic search items is invalid')
+        if not self.bm25sRetrieveNumber in range(0, 513):
+            raise ValueError(f'Number of bm25s search items is invalid')
+        if not (self.rrfCutOffValue >= 0 and self.rrfCutOffValue <= 1.0):
+            raise ValueError(f'Reciprocal Rank Fusion (RRF) cut off value is invalid')
+
+
+
         return self
 
 
@@ -133,6 +159,7 @@ class DiscoveryWorkflow(WorkflowBase):
         self.loadDocument = configCollection["loadDocument"]
         self.parseChunks = configCollection["parseChunks"]
         self.makeRawVector = configCollection["makeRawVector"]
+        self.bm25Process = configCollection["bm25Process"]
         self.matchChunks = configCollection["matchChunks"]
         self.vectorize = configCollection["vectorize"]
         self.verify = configCollection["verify"]
@@ -147,9 +174,15 @@ class DiscoveryWorkflow(WorkflowBase):
         # other app-specific configuration
         self.documentFolder = configCollection["DISCOVdocumentFolder"]
         self.dataFolder = configCollection["DISCOVdataFolder"]
+        self.bm25IndexFolder = configCollection["DISCOVbm25IndexFolder"]
         self.fileExtensions = configCollection["fileExtensions"]
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]
+
+        self.semanticRetrieveNumber = configCollection["semanticRetrieveNumber"]
+        self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
+        self.bm25sRetrieveNumber = configCollection["bm25sRetrieveNumber"]
+        self.rrfCutOffValue = configCollection["rrfCutOffValue"]
 
         self.stats = {}
 
@@ -387,7 +420,65 @@ class DiscoveryWorkflow(WorkflowBase):
                 prevVal = self.stats[key]
                 self.stats[key] = prevVal + value
             except Exception:
+
                 self.stats[key] = value
+
+
+    def compressText(self, textIn : str, nlp : Language) -> str:
+        """
+        Perform Telegraphic Semantic Compression (TSC) on the query for semantic search. 
+        Ref: https://developer-service.blog/telegraphic-semantic-compression-tsc-a-semantic-compression-method-for-llm-contexts/.
+        Get english dictionary: python -m spacy download en_core_web_sm.
+
+        :param textIn:  original chunk of text 
+        :type textIn: str
+        :return: compressed text
+        :rtype: str
+        """
+
+        # Parts of speech to remove (predictable grammar)
+        REMOVE_POS = {"DET", "ADP", "AUX", "PRON", "CCONJ", "SCONJ", "PART"}
+
+        # Optional low-information words to remove
+        REMOVE_LIKE = {"like", "just", "really", "basically", "literally", "have"}
+
+        doc = nlp(textIn)
+
+        chunks = []
+
+        for sent in doc.sents:
+
+            words = [
+                token.lemma_
+                for token in sent
+                if (
+                    token.pos_ not in REMOVE_POS
+                    and token.text.lower() not in REMOVE_LIKE
+                    and not token.is_punct
+                )
+            ]
+            if words:
+                chunks.append(" ".join(words))
+           
+
+        outText =  " ".join(chunks)
+
+        return outText
+
+
+    def outputRRFInfo(self, rrfScores : Dict[str, IdentifierRRFScores]) -> List[str]:
+
+        outStrings = []
+        for ident in rrfScores:
+            rank, oneResult = rrfScores[ident]
+            if rank < self.rrfCutOffValue:
+                break
+            msg = f"{rank:.4f} {oneResult.document.lower()} ({ident.lower()})"
+            print(msg)
+            outStrings.append(msg)
+            print(oneResult.chunk)
+
+        return outStrings
 
 
     def loadDocumentPhase(self, inputFileName : str, dataFolder : str, outputFileName : str) -> int: 
@@ -517,15 +608,22 @@ class DiscoveryWorkflow(WorkflowBase):
         return accepted, rejected
 
 
-    def matchChunksPhase(self, topics: List[str]) -> Dict[str, List[str]] :
+    def matchChunksPhase(self, topics: List[str], queryService : QueryService) -> AllQueryResults :
         """
         match chunks against known topics
         
-        :param topic: list of topics to match
-        :type topic: List[str]
-        :return: Dict with topics as keys, and lists of chunks as values
-        :rtype: Dict[str, List[str]]
+        :param topics: list of topics to match
+        :type topics: List[str]
+        :param queryService: Query service object
+        :type queryService: QueryService
+        :return: collection of all results
+        :rtype: AllQueryResults
         """
+
+        allQueryResults = AllQueryResults(
+            result_lists = [],
+            rrfScores = {}
+        )
 
         if not self.initRAGcomponents():
             return {}
@@ -534,27 +632,60 @@ class DiscoveryWorkflow(WorkflowBase):
         if not chromaCollection:
             return {}
 
-        query = topics[0]
+        model = self.createOpenAIModel()
 
-        oneQueryResultList = OneQueryResultList(
-            result_dict = {},
-            query = query,
-            searchType = SEARCH.SEMANTIC.value,
-            label = ""
-        )
+        topics = ["medical research into human disease"]
 
-        n_results = 50
-#        queryResult = chromaCollection.query(query_texts=query, n_results=n_results)
-        queryResult = chromaCollection.query(query_texts=["medical", "clinical", "diagnosis", "human organ", "medical procedure"], n_results=n_results)
+#        fullQueryList = []
+#        queryTexts, usage = queryService.multiQuery(topics, model)
+#        self.addUsage(usage)
+#        fullQueryList.append(topics[0])
+#        for item in queryTexts:
+#            fullQueryList.append(item)
+#            hyde_text, usage = queryService.hydeQuery(item, model)
+#            fullQueryList.append(hyde_text)
+#            self.addUsage(usage)
+#        queryTexts, usage = QueryService.rewriteQuery(self, fullQueryList, model)
+#        self.addUsage(usage)
+#        fullQueryList.append(queryTexts)
 
-        resultIdx = -1
+#        print(fullQueryList)
+#        print(self.totalUsageFormat())
 
-        for doc in queryResult["documents"][0]:
-            resultIdx += 1
-            print(queryResult["metadatas"][0][resultIdx]['document'])
-            print(f"\t{queryResult["documents"][0][resultIdx]}")
+#        fullQueryList = ['medical research into human disease', 'what are the latest studies on human disease within medical research?', "recent high-impact studies include the 2024 nejm multicenter trial demonstrating crispr-cas9-mediated gene editing can achieve durable remission in adults with sickle-cell disease, and the 2023-2024 series of longitudinal cohort analyses linking gut-brain axis dysbiosis to the onset of neurodegenerative disorders such as alzheimer's and parkinson's via metabolomic and neuroimaging biomarkers. parallel advances are emerging from ai-driven drug discovery platforms that identified novel antiviral compounds against long-covid pathogenesis, and from patient-derived organoid models that have uncovered tissue-specific mechanisms of fibrosis in chronic lung and kidney diseases, accelerating translational pipelines across multiple human disease domains.", 'can you provide recent medical research findings related to human diseases?', "recent 2023-2024 research has demonstrated that a blood-based dna methylation test can detect early-stage alzheimer's disease with over 85 % accuracy, while a large multicenter trial of combined kras-g12c inhibitors and immunotherapy reported a 40 % improvement in progression-free survival for patients with metastatic lung cancer. additionally, longitudinal analyses of post-covid-19 cohorts reveal that persistent immune dysregulation, characterized by elevated auto-antibodies and prolonged cytokine signaling, contributes to neurological and cardiovascular complications in up to 30 % of survivors.", 'where can i find up-to-date research on diseases affecting humans?', "you can access the latest peer-reviewed studies through databases such as pubmed, google scholar, and the nih nih lit covid/nih reporter portals, as well as the world health organization's global health library and the cdc's morbidity and mortality weekly report archives. additionally, many academic journals (e.g., the lancet, nejm, bmj) offer free-to-read articles and pre-print servers like medrxiv provide rapidly posted research on emerging human diseases.", 'what scientific literature covers medical investigations into human disease?', 'scientific literature that documents medical investigations into human disease includes peer-reviewed primary research articles (e.g., clinical trials, cohort and case-control studies, case reports, and mechanistic laboratory studies) as well as secondary sources such as systematic reviews, meta-analyses, and evidence-based clinical guidelines, all typically published in journals like *the new england journal of medicine*, *the lancet*, *jama*, *nature medicine*, and specialty journals (e.g., *blood*, *neurology*). textbooks, conference proceedings, and databases such as pubmed, embase, and cochrane library also curate these investigations for clinicians and researchers.', 'which publications discuss current medical research on human illnesses?', 'major peer-reviewed journals such as *the new england journal of medicine*, *the lancet*, *jama*, *nature medicine*, *bmj* and open-access titles like *plos medicine* regularly publish the latest clinical and translational research on human diseases. in addition, science-focused magazines (e.g., *scientific american*, *popular science*), specialty newsletters (e.g., nih news in health), and preprint servers such as **medrxiv** provide timely overviews and summaries of emerging medical studies.', 'latest peer-reviewed medical research studies on human diseases (clinical trials, epidemiology, pathogenesis, diagnostics, therapies) 2023-2024 site:pubmed.org or source:medrxiv.org']
+        fullQueryList = [
+            'medical research into human dermoids'
+            ]
 
-        return {}
+        processedFullQueryList = []
+        for item in fullQueryList:
+            if self.stripWhiteSpace:
+                item = item.strip()
+            if self.convertToLower:
+                item = item.lower()
+            if self.convertToASCII:
+                item = anyascii(item)
+            if self.singleSpaces:
+                item = " ".join(item.split())
+            processedFullQueryList.append(item)
+
+        semanticQueryResultList = queryService.semanticQuery(
+            query = processedFullQueryList, 
+            chromaCollection = chromaCollection, 
+            queryLabel = "result",
+            maxRetrieveNumber = self.semanticRetrieveNumber,
+            maxCutItemDistance = self.semanticMaxCutItemDistance)
+        allQueryResults.result_lists.append(semanticQueryResultList)
+
+        tokenList = queryService.tokenizeQuery(query = processedFullQueryList, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
+
+        bm25sFolder = self.dataFolder + self.bm25IndexFolder
+        bm25sQueryResultList = queryService.bm25sQuery(query = tokenList, folderName=bm25sFolder, queryLabel = "BM25S", bm25sRetrieveNumber = self.bm25sRetrieveNumber)
+        allQueryResults.result_lists.append(bm25sQueryResultList)
+
+        allQueryResults = queryService.rrfReRanking(allQueryResults)
+
+        return allQueryResults
 
 
     def threadWorker(self):
@@ -583,20 +714,18 @@ class DiscoveryWorkflow(WorkflowBase):
         #------------------loadDocument---------------------
 
         if self.loadDocument:
+            startTime = time.time()
             for inputFileName in fileList:
-                startTime = time.time()
                 intermediateDataFolder = self.dataFolder + "/" + str(inputFileName) + "-data"
-                readLength = self.loadDocumentPhase(inputFileName, intermediateDataFolder, "raw.txt")
-                endTime = time.time()
-                self.updateStats([("Time Load Documents", endTime - startTime)])
- #               msg = f"loadDocument: Read <b>{readLength} bytes</b> from file <b>{inputFileName}</b>.  Time: {(endTime - startTime):.2f} seconds"
- #               self.workerSnapshot(msg)
+                self.loadDocumentPhase(inputFileName, intermediateDataFolder, "raw.txt")
+            endTime = time.time()
+            self.updateStats([("Time Load Documents", endTime - startTime)])
 
         # ---------------parseChunks ---------------
 
         if self.parseChunks:
+            startTime = time.time()
             for inputFileName in fileList:
-                startTime = time.time()
 
                 # read raw text into string
                 rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
@@ -610,16 +739,14 @@ class DiscoveryWorkflow(WorkflowBase):
 
                     with open(chunkListFileName, "w" , encoding="utf-8", errors="ignore") as jsonOut:
                         jsonOut.writelines(json.dumps(chunksList, indent=2))
-                    endTime = time.time()
-                    self.updateStats([("Time Chunking", endTime - startTime)])
-#                    msg = f"parseChunks: created {len(chunksList)} chunks. Time: {(endTime - startTime):.2f} seconds"
-#                    self.workerSnapshot(msg)
+            endTime = time.time()
+            self.updateStats([("Time Chunking", endTime - startTime)])
 
         # ------------makeRawVector----------------------
 
         if self.makeRawVector:
+            startTime = time.time()
             for inputFileName in fileList:
-                startTime = time.time()
 
                 # read list of chunks
                 chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
@@ -630,33 +757,81 @@ class DiscoveryWorkflow(WorkflowBase):
                 else:
                     chunksList = json.loads(fileContentOrError)
                     accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
-                    endTime = time.time()
-                    self.updateStats([("Time Vectorizing", endTime - startTime)])
-#                    msg = f"makeRawVector: accepted {accepted}  rejected {rejected}  Time: {(endTime - startTime):.2f} seconds"
-#                    self.workerSnapshot(msg)
+            endTime = time.time()
+            self.updateStats([("Time Vectorizing", endTime - startTime)])
 
+        # ------------bm25Process----------------------
+
+        if self.bm25Process:
+            startTime = time.time()
+
+            # make bm25 index folder if does not exist
+            Path(self.dataFolder + self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
+
+            # Load spaCy English model
+            nlp = spacy.load("en_core_web_sm")
+
+            corpus = []
+            for inputFileName in fileList:
+
+                startFileTime = time.time()
+
+                # read list of chunks
+                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
+                result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
+                if not result:
+                    msg = f"bm25Process: {fileContentOrError} - perform 'parseChunks' action first"
+                    self.workerSnapshot(msg)
+                else:
+                    chunksList = json.loads(fileContentOrError)
+                    chunkId = 0
+                    for chunk in chunksList:
+                        chunk = self.compressText(chunk, nlp)
+                        outText = str(inputFileName) + '--' + str(chunkId) + "\n" + chunk
+                        corpus.append(outText)
+                        chunkId += 1
+                print(f"{inputFileName}   {time.time() - startFileTime}  added {len(chunksList)} chunks")
+
+
+            # stemmer = Stemmer.Stemmer("english")
+            # corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+
+            corpus_tokens = bm25s.tokenize(corpus, stopwords="en")
+            retriever = bm25s.BM25(corpus=corpus)
+            retriever.index(corpus_tokens)
+            retriever.save(self.dataFolder + self.bm25IndexFolder)
+
+            endTime = time.time()
+            self.updateStats([("Time bm25Process", endTime - startTime)])
 
         # --------------matchChunks------------------
 
         if self.matchChunks:
             startTime = time.time()
-            self.matchChunksPhase(knownTopics)
+            queryService = QueryService()
+            allQueryResults = self.matchChunksPhase(topics = knownTopics, queryService = queryService)
+
+            msgList = self.outputRRFInfo(allQueryResults.rrfScores)
+#            self.workerSnapshot(msgList)
+
             endTime = time.time()
             self.updateStats([("Time Matching", endTime - startTime)])
 
         # -------------- clear ---------------
 
         if self.clear:
+            startTime = time.time()
+
             for inputFileName in fileList:
-                startTime = time.time()
                 rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
                 OpenFile.remove(rawTextFileName)
                 chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
                 OpenFile.remove(chunkListFileName)
-                endTime = time.time()
-                self.updateStats([("Time Clearing", endTime - startTime)])
-#                msg = f"clear: Time: {(endTime - startTime):.2f} seconds"
-#                self.workerSnapshot(msg)
+
+            OpenFile.remove(self.dataFolder + self.bm25IndexFolder + self.bm25CorpusFileName)
+
+            endTime = time.time()
+            self.updateStats([("Time Clearing", endTime - startTime)])
 
         totalEnd = time.time()
         self.updateStats([("Time Total", totalEnd - totalStart)])

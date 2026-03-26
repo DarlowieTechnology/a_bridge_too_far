@@ -14,7 +14,7 @@
 {"id":13,"text":"sr-109-001\niam roles assigned with excessive permissions"}
 {"id":14,"text":"sr-109-002\noverly permissive network configuration"}
 {"id":15,"text":"sr-109-003\nunauthorised access to s3 buckets"}
-{"id":16,"text":"sr-109-004\nuser without mfa enabled"}
+{"id":16,"text":"sr-109-004\nuser without mfa enabled"} 
 {"id":17,"text":"sr-109-005\niam password policy"}
 {"id":18,"text":"sr-109-006\nautomated backups not enabled for rds instances"}
 {"id":19,"text":"sr-109-007 single availability zone rds instance\nrds instances without multi-availability zone enabled"}

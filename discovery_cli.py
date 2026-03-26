@@ -185,6 +185,7 @@ def main():
     context["loadDocument"] = False
     context["parseChunks"] = False
     context["makeRawVector"] = False
+    context["bm25Process"] = False
     context["matchChunks"] = True
     context["vectorize"] = False
     context["verify"] = False
@@ -192,16 +193,20 @@ def main():
     context["clear"] = False
 
     # text extraction configuration
-    context["stripWhiteSpace"] = False
-    context["convertToLower"] = False
+    context["stripWhiteSpace"] = True
+    context["convertToLower"] = True
     context["convertToASCII"] = True
-    context["singleSpaces"] = False
+    context["singleSpaces"] = True
 
     # other app-specific configuration
     context["documentFolder"] = "documents"
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
     context["chunkSize"] = 512
     context["chunkOverlap"] = 35
+    context["semanticRetrieveNumber"] = 15
+    context["semanticMaxCutItemDistance"] = 0.5
+    context["bm25sRetrieveNumber"] = 15
+    context["rrfCutOffValue"] = 0.03
 
     configCollection = ConfigCollection(context)
 

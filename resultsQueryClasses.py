@@ -6,42 +6,70 @@ from pydantic import BaseModel, Field
 
 
 @unique
-class SEARCH(Enum) :
+class SEARCH(str, Enum) :
     BM25S = "bm25s"
     SEMANTIC = "semantic"
 
-#--------------------OneQueryAppResult-------------------------------------
+#--------------------one query result-------------------------------------
 
-class OneQueryAppResult(BaseModel):
+class OneQueryBaseResult(BaseModel):
+    """represents base class for query result"""
+    score : float = Field(..., description="distance/score of record")
+    rank : int = Field(..., description="rank of the record in search")
+
+
+class OneQueryChunkResult(OneQueryBaseResult):
+    """represents one query result in chunked document query"""
+    chunk: str = Field(..., description="chunk text in document")
+    chunkID : int = Field(..., description="chunk id in document")
+    document: str = Field(..., description="document name")
+
+
+class OneQueryAppResult(OneQueryBaseResult):
     """represents one query result in query app"""
     identifier: str = Field(..., description="identifier of record")
     title: str = Field(..., description="title of record")
-    report: str = Field(..., description="report document name")
-    score : float = Field(..., description="distance/score of record")
-    rank : int = Field(..., description="rank of the record in search")
 
 #----------------------OneQueryResultList-----------------------------------
 
 class OneQueryResultList(BaseModel):
     """represents collection of one query results"""
-    result_dict: Dict[str, OneQueryAppResult] = Field(default=None, description="dict of one query results, key by issue identifier")
+    result_dict: Dict[str, OneQueryBaseResult] = Field(default=None, description="dict of one query results, key by issue identifier")
     query : Any = Field(..., description="query used in search")
     searchType : SEARCH = Field(..., description="type of search used")
     label : str = Field(..., description="unique label of search run")
 
-    def appendResult(self, identifier : str, title : str, report : str, score : float, rank : int) :
+
+    def appendQueryAppResult(self, identifier : str, title : str, report : str, score : float, rank : int) :
         self.result_dict[identifier] = OneQueryAppResult(
             identifier = identifier,
             title = title,
-            report = report,
+            document = report,
             score = score,
             rank = rank
         )
 
+
+    def appendQueryChunkResult(self, chunk : str, chunkID: int, document : str, score : float, rank : int) :
+        identifier = document + "--" + str(chunkID)
+        self.result_dict[identifier] = OneQueryChunkResult(
+            chunk = chunk,
+            chunkID = chunkID,
+            document = document,
+            score = score,
+            rank = rank
+        )
+    
+
+
 #--------------------AllQueryResults-------------------------------------
+
+class IdentifierRRFScores(BaseModel):
+    """represents RRF scores for unique identifier"""
+    tuple_list: List[tuple[int, OneQueryBaseResult]] = Field(default=None, description="List of tuples for rank, query results")
+    
 
 class AllQueryResults(BaseModel):
     """represents collection of all query results"""
-    result_lists: List[OneQueryResultList] = Field(default=None, description="List of dict - all result")
-    rrfScores : Dict[str, List[tuple[int, OneQueryAppResult]]] = Field(..., description="RRF ranks of issues in descending order")
-    overall_score : float = Field(default=0, description="Overall score of result quality")
+    result_lists: List[OneQueryResultList] = Field(default=None, description="List of OneQueryResultList - all result")
+    rrfScores : Dict[str, IdentifierRRFScores] = Field(..., description="RRF ranks in descending order")

@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Dict
 from typing_extensions import Self
-import time
+import json
 
 import Stemmer
 import bm25s
@@ -16,7 +16,7 @@ import chromadb
 from chromadb import Collection
 
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, AllQueryResults
+from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, RRFScores, IdentifierQueryResults, AllQueryResults
 
 
 
@@ -126,7 +126,8 @@ class QueryService(BaseModel):
 
     def rrfReRanking(self, allQueryResults : AllQueryResults) -> AllQueryResults:
         """
-        Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results
+        Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results.
+        RRF rank is used as dict key. It is rounded to 6 digits
         
         :param allQueryResults: query results
         :type allQueryResults: AllQueryResults
@@ -134,33 +135,42 @@ class QueryService(BaseModel):
         :rtype: AllQueryResults
         """
 
-
-        for item in allQueryResults.result_lists:
-            print(f"RRF:  {item.label} matches: {len(item.result_dict)}")
-
-
         # merge identifiers in the form "document names--chunkID" from all runs into set
         setKeys = set()
         for item in allQueryResults.result_lists:
             for key in item.result_dict:
                 setKeys.add(key)
 
+        print(f"RRF: semantic: {len(allQueryResults.result_lists[0].result_dict)}  bm25s: {len(allQueryResults.result_lists[1].result_dict)}  unique keys : {len(setKeys)}")
 
-        print(f"RRF: Length of 'document names--chunkID' set: {len(setKeys)}")
+        scoresDict = dict[float, IdentifierQueryResults]()
 
         # calculate rank for issue access all query runs
-        rrfScores = {}
         for ident in list(setKeys):
-            finalRank = 0
-            oneQueryAppResult = None
-            for item in allQueryResults.result_lists:
-                if ident in item.result_dict:
-                    oneQueryAppResult = item.result_dict[ident]
-                    finalRank += 1/(60 + oneQueryAppResult.rank)
-            rrfScores[ident] = [finalRank, oneQueryAppResult]
+            identifierQueryResults = IdentifierQueryResults(
+                identifier = ident,
+                all_query_results = []
+            )
+            finalRank = 0.0
+            oneQueryBaseResult = None
+            for item in allQueryResults.result_lists:               # item : OneQueryResultList
+                if ident in item.result_dict.keys():
+                    oneQueryBaseResult = item.result_dict[ident]
+                    finalRank += 1/(60 + oneQueryBaseResult.rank)
+                    identifierQueryResults.all_query_results.append(oneQueryBaseResult)
+            scoresDict[round(finalRank, 6)] = identifierQueryResults
+
         # sort descending by rank
-        rrfScores = dict(sorted(rrfScores.items(), key=lambda item: item[1][0], reverse=True))
+        scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[0], reverse=True)}
+
+        rrfScores = RRFScores(
+            scoresDict = scoresDict
+        )
+
         allQueryResults.rrfScores = rrfScores
+
+        print(f"=====\n{rrfScores.model_dump_json(indent=2)}\n================")
+
         return allQueryResults
 
 

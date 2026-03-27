@@ -55,7 +55,7 @@ from anyascii import anyascii
 
 # local
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneQueryResultList, IdentifierRRFScores, AllQueryResults
+from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneQueryResultList, IdentifierQueryResults, RRFScores, AllQueryResults
 from queryService import QueryService
 from workflowbase import WorkflowBase 
 
@@ -190,6 +190,25 @@ class DiscoveryWorkflow(WorkflowBase):
         self.discoveryWorkflow_verify_configuration()
 
 
+    def processText(self, textIn : str) -> str:
+        """
+        Process text per flags (strip, lower, conver to ASCII, single space)
+        
+        :param textIn: text to process
+        :type textIn: str
+        :return: processed text
+        :rtype: str
+        """
+        if self.stripWhiteSpace:
+            textIn = textIn.strip()
+        if self.convertToLower:
+            textIn = textIn.lower()
+        if self.convertToASCII:
+            textIn = anyascii(textIn)
+        if self.singleSpaces:
+            textIn = " ".join(textIn.split())
+        return textIn
+
 
     def loadPDFPyPDFLoader(self, inputFile : str) -> str :
         """
@@ -212,14 +231,7 @@ class DiscoveryWorkflow(WorkflowBase):
         textCombined = ""
         for page in docs:
             pageContent = page.page_content
-            if self.stripWhiteSpace:
-                pageContent = pageContent.strip()
-            if self.convertToLower:
-                pageContent = pageContent.lower()
-            if self.convertToASCII:
-                pageContent = anyascii(pageContent)
-            if self.singleSpaces:
-                pageContent = " ".join(pageContent.split())
+            pageContent = self.processText(pageContent)
             textCombined += " "
             textCombined += pageContent
         return textCombined
@@ -243,15 +255,7 @@ class DiscoveryWorkflow(WorkflowBase):
             self.fails.append(f"loadDocument: pymupdf4llm failed to parse {inputFile}")
             return None       
         
-
-        if self.stripWhiteSpace:
-            docs = docs.strip()
-        if self.convertToLower:
-            docs = docs.lower()
-        if self.convertToASCII:
-            docs = anyascii(docs)
-        if self.singleSpaces:
-            docs = " ".join(docs.split())
+        docs = self.processText(docs)
         return docs
 
 
@@ -268,14 +272,7 @@ class DiscoveryWorkflow(WorkflowBase):
         with open(inputFile, "r" , encoding="utf-8", errors="ignore") as txtIn:
             docs = txtIn.read()
 
-        if self.stripWhiteSpace:
-            docs = docs.strip()
-        if self.convertToLower:
-            docs = docs.lower()
-        if self.convertToASCII:
-            docs = anyascii(docs)
-        if self.singleSpaces:
-            docs = " ".join(docs.split())
+        docs = self.processText(docs)
         return docs
 
 
@@ -300,17 +297,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         pd.set_option('display.max_colwidth', None)
         dataframe = str(dataframe)
-
-        if self.stripWhiteSpace:
-            dataframe = dataframe.strip()
-        if self.convertToLower:
-            dataframe = dataframe.lower()
-        if self.convertToASCII:
-            dataframe = anyascii(dataframe)
-
-# leave dataframe formatting intact            
-#        if self.singleSpaces:
-#            dataframe = " ".join(dataframe.split())
+        dataframe = self.processText(dataframe)
 
         return dataframe
 
@@ -414,13 +401,20 @@ class DiscoveryWorkflow(WorkflowBase):
 
 
     def updateStats(self, keyValList : List[tuple[str, int]]) :
+        """
+        Update internal statistics. Attempt to update first, create key second.
+        
+        :param keyValList:  list of stats tuples (key-val)
+        :type keyValList: List[tuple[str, int]]
+        :return: None
+        :rtype: None
+        """
 
         for key, value in keyValList:
             try:
                 prevVal = self.stats[key]
                 self.stats[key] = prevVal + value
             except Exception:
-
                 self.stats[key] = value
 
 
@@ -466,24 +460,41 @@ class DiscoveryWorkflow(WorkflowBase):
         return outText
 
 
-    def outputRRFInfo(self, rrfScores : Dict[str, IdentifierRRFScores]) -> List[str]:
+    def outputRRFInfo(self, rrfScores : RRFScores) -> List[str]:
+        """
+        Output RRF scores. Stop at RRF cut off value. 
 
+        :param rrfScores:  RRFScores object
+        :type rrfScores:  RRFScores
+        :return: list of output strings
+        :rtype: List[str]
+        """
         outStrings = []
-        for ident in rrfScores:
-            rank, oneResult = rrfScores[ident]
+        for rank in rrfScores.scoresDict.keys():
             if rank < self.rrfCutOffValue:
                 break
-            msg = f"{rank:.4f} {oneResult.document.lower()} ({ident.lower()})"
+            identifierQueryResults = rrfScores[rank]
+            ident = identifierQueryResults.identifier
+            msg = f"{rank:.4f} {ident}"
             print(msg)
             outStrings.append(msg)
-            print(oneResult.chunk)
+#            print(oneResult.chunk)
 
         return outStrings
 
 
     def loadDocumentPhase(self, inputFileName : str, dataFolder : str, outputFileName : str) -> int: 
         """
-        Load document and store it in plain text format
+        Load document from one of various formats and store it as plain text
+
+        :param inputFileName:  input file name  
+        :type inputFileName:  str
+        :param dataFolder:  temp data folder name
+        :type dataFolder:  str
+        :param outputFileName:  output file name
+        :type outputFileName:  str
+        :return: Length of extracted text 
+        :rtype: int
         """
 
         mime_type, encoding = mimetypes.guess_type(inputFileName)
@@ -608,12 +619,12 @@ class DiscoveryWorkflow(WorkflowBase):
         return accepted, rejected
 
 
-    def matchChunksPhase(self, topics: List[str], queryService : QueryService) -> AllQueryResults :
+    def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllQueryResults :
         """
         match chunks against known topics
         
-        :param topics: list of topics to match
-        :type topics: List[str]
+        :param queryTexts: list of topics to match
+        :type queryTexts: List[str]
         :param queryService: Query service object
         :type queryService: QueryService
         :return: collection of all results
@@ -622,7 +633,9 @@ class DiscoveryWorkflow(WorkflowBase):
 
         allQueryResults = AllQueryResults(
             result_lists = [],
-            rrfScores = {}
+            rrfScores = RRFScores(
+                scoresDict = {}
+            )
         )
 
         if not self.initRAGcomponents():
@@ -634,53 +647,47 @@ class DiscoveryWorkflow(WorkflowBase):
 
         model = self.createOpenAIModel()
 
-        topics = ["medical research into human disease"]
+        queryTexts = ["medical research into human dermoids"]
 
-#        fullQueryList = []
-#        queryTexts, usage = queryService.multiQuery(topics, model)
+        
+#        queryTexts, usage = queryService.multiQuery(queryTexts, model)
 #        self.addUsage(usage)
-#        fullQueryList.append(topics[0])
-#        for item in queryTexts:
-#            fullQueryList.append(item)
-#            hyde_text, usage = queryService.hydeQuery(item, model)
-#            fullQueryList.append(hyde_text)
-#            self.addUsage(usage)
-#        queryTexts, usage = QueryService.rewriteQuery(self, fullQueryList, model)
-#        self.addUsage(usage)
-#        fullQueryList.append(queryTexts)
 
-#        print(fullQueryList)
+        fullQueryList = []
+        for item in queryTexts:
+            fullQueryList.append(item)
+            hyde_text, usage = queryService.hydeQuery(item, model)
+            fullQueryList.append(hyde_text)
+            self.addUsage(usage)
+        queryTexts = fullQueryList
+
+#        queryTexts, usage = QueryService.rewriteQuery(self, queryTexts, model)
+#        self.addUsage(usage)
+
+#        print(queryTexts)
 #        print(self.totalUsageFormat())
-
-#        fullQueryList = ['medical research into human disease', 'what are the latest studies on human disease within medical research?', "recent high-impact studies include the 2024 nejm multicenter trial demonstrating crispr-cas9-mediated gene editing can achieve durable remission in adults with sickle-cell disease, and the 2023-2024 series of longitudinal cohort analyses linking gut-brain axis dysbiosis to the onset of neurodegenerative disorders such as alzheimer's and parkinson's via metabolomic and neuroimaging biomarkers. parallel advances are emerging from ai-driven drug discovery platforms that identified novel antiviral compounds against long-covid pathogenesis, and from patient-derived organoid models that have uncovered tissue-specific mechanisms of fibrosis in chronic lung and kidney diseases, accelerating translational pipelines across multiple human disease domains.", 'can you provide recent medical research findings related to human diseases?', "recent 2023-2024 research has demonstrated that a blood-based dna methylation test can detect early-stage alzheimer's disease with over 85 % accuracy, while a large multicenter trial of combined kras-g12c inhibitors and immunotherapy reported a 40 % improvement in progression-free survival for patients with metastatic lung cancer. additionally, longitudinal analyses of post-covid-19 cohorts reveal that persistent immune dysregulation, characterized by elevated auto-antibodies and prolonged cytokine signaling, contributes to neurological and cardiovascular complications in up to 30 % of survivors.", 'where can i find up-to-date research on diseases affecting humans?', "you can access the latest peer-reviewed studies through databases such as pubmed, google scholar, and the nih nih lit covid/nih reporter portals, as well as the world health organization's global health library and the cdc's morbidity and mortality weekly report archives. additionally, many academic journals (e.g., the lancet, nejm, bmj) offer free-to-read articles and pre-print servers like medrxiv provide rapidly posted research on emerging human diseases.", 'what scientific literature covers medical investigations into human disease?', 'scientific literature that documents medical investigations into human disease includes peer-reviewed primary research articles (e.g., clinical trials, cohort and case-control studies, case reports, and mechanistic laboratory studies) as well as secondary sources such as systematic reviews, meta-analyses, and evidence-based clinical guidelines, all typically published in journals like *the new england journal of medicine*, *the lancet*, *jama*, *nature medicine*, and specialty journals (e.g., *blood*, *neurology*). textbooks, conference proceedings, and databases such as pubmed, embase, and cochrane library also curate these investigations for clinicians and researchers.', 'which publications discuss current medical research on human illnesses?', 'major peer-reviewed journals such as *the new england journal of medicine*, *the lancet*, *jama*, *nature medicine*, *bmj* and open-access titles like *plos medicine* regularly publish the latest clinical and translational research on human diseases. in addition, science-focused magazines (e.g., *scientific american*, *popular science*), specialty newsletters (e.g., nih news in health), and preprint servers such as **medrxiv** provide timely overviews and summaries of emerging medical studies.', 'latest peer-reviewed medical research studies on human diseases (clinical trials, epidemiology, pathogenesis, diagnostics, therapies) 2023-2024 site:pubmed.org or source:medrxiv.org']
-        fullQueryList = [
-            'medical research into human dermoids'
-            ]
 
         processedFullQueryList = []
         for item in fullQueryList:
-            if self.stripWhiteSpace:
-                item = item.strip()
-            if self.convertToLower:
-                item = item.lower()
-            if self.convertToASCII:
-                item = anyascii(item)
-            if self.singleSpaces:
-                item = " ".join(item.split())
+            item = item.strip()
+            item = item.lower()
+            item = anyascii(item)
+            item = " ".join(item.split())
             processedFullQueryList.append(item)
+        queryTexts = processedFullQueryList
 
         semanticQueryResultList = queryService.semanticQuery(
-            query = processedFullQueryList, 
+            query = queryTexts, 
             chromaCollection = chromaCollection, 
-            queryLabel = "result",
+            queryLabel = "semantic result",
             maxRetrieveNumber = self.semanticRetrieveNumber,
             maxCutItemDistance = self.semanticMaxCutItemDistance)
         allQueryResults.result_lists.append(semanticQueryResultList)
 
-        tokenList = queryService.tokenizeQuery(query = processedFullQueryList, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
+        tokenList = queryService.tokenizeQuery(query = queryTexts, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
 
         bm25sFolder = self.dataFolder + self.bm25IndexFolder
-        bm25sQueryResultList = queryService.bm25sQuery(query = tokenList, folderName=bm25sFolder, queryLabel = "BM25S", bm25sRetrieveNumber = self.bm25sRetrieveNumber)
+        bm25sQueryResultList = queryService.bm25sQuery(query = tokenList, folderName=bm25sFolder, queryLabel = "BM25S results", bm25sRetrieveNumber = self.bm25sRetrieveNumber)
         allQueryResults.result_lists.append(bm25sQueryResultList)
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
@@ -809,7 +816,7 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.matchChunks:
             startTime = time.time()
             queryService = QueryService()
-            allQueryResults = self.matchChunksPhase(topics = knownTopics, queryService = queryService)
+            allQueryResults = self.matchChunksPhase(queryTexts = knownTopics, queryService = queryService)
 
             msgList = self.outputRRFInfo(allQueryResults.rrfScores)
 #            self.workerSnapshot(msgList)
@@ -828,7 +835,10 @@ class DiscoveryWorkflow(WorkflowBase):
                 chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
                 OpenFile.remove(chunkListFileName)
 
-            OpenFile.remove(self.dataFolder + self.bm25IndexFolder + self.bm25CorpusFileName)
+            result, fileNameListOrError = OpenFile.readListOfFileNames(self.dataFolder + self.bm25IndexFolder, "*.*")
+            if result:
+                for fileName in fileNameListOrError:
+                    OpenFile.remove(fileName)
 
             endTime = time.time()
             self.updateStats([("Time Clearing", endTime - startTime)])

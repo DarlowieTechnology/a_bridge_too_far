@@ -193,20 +193,20 @@ def main():
     context["clear"] = False
 
     # text extraction configuration
-    context["stripWhiteSpace"] = True
-    context["convertToLower"] = True
-    context["convertToASCII"] = True
-    context["singleSpaces"] = True
+    context["stripWhiteSpace"] = False
+    context["convertToLower"] = False
+    context["convertToASCII"] = False
+    context["singleSpaces"] = False
 
     # other app-specific configuration
     context["documentFolder"] = "documents"
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
-    context["chunkSize"] = 512
-    context["chunkOverlap"] = 35
-    context["semanticRetrieveNumber"] = 15
+    context["chunkSize"] = 256
+    context["chunkOverlap"] = 48
+    context["semanticRetrieveNumber"] = 5
     context["semanticMaxCutItemDistance"] = 0.5
-    context["bm25sRetrieveNumber"] = 15
-    context["rrfCutOffValue"] = 0.03
+    context["bm25sRetrieveNumber"] = 5
+    context["rrfCutOffValue"] = 0.02
 
     configCollection = ConfigCollection(context)
 

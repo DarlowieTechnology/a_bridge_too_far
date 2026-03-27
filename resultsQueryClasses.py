@@ -34,7 +34,7 @@ class OneQueryAppResult(OneQueryBaseResult):
 
 class OneQueryResultList(BaseModel):
     """represents collection of one query results"""
-    result_dict: Dict[str, OneQueryBaseResult] = Field(default=None, description="dict of one query results, key by issue identifier")
+    result_dict: Dict[str, OneQueryChunkResult] = Field(default=None, description="dict of one query results, key by issue identifier")
     query : Any = Field(..., description="query used in search")
     searchType : SEARCH = Field(..., description="type of search used")
     label : str = Field(..., description="unique label of search run")
@@ -64,12 +64,18 @@ class OneQueryResultList(BaseModel):
 
 #--------------------AllQueryResults-------------------------------------
 
-class IdentifierRRFScores(BaseModel):
-    """represents RRF scores for unique identifier"""
-    tuple_list: List[tuple[int, OneQueryBaseResult]] = Field(default=None, description="List of tuples for rank, query results")
-    
+class IdentifierQueryResults(BaseModel):
+    """represents unique identifier and list of query results from multiple queries"""
+    identifier: str = Field(default = "", description="unique identifier")
+    all_query_results: List[OneQueryChunkResult] = Field(default=None, description="List of query results for the identifier")
+
+
+class RRFScores(BaseModel):
+    """represents all RRF scores. Scores are rounded to 6 digits"""
+    scoresDict : Dict[float, IdentifierQueryResults] = Field(..., description="RRF ranks in descending order")
+
 
 class AllQueryResults(BaseModel):
     """represents collection of all query results"""
     result_lists: List[OneQueryResultList] = Field(default=None, description="List of OneQueryResultList - all result")
-    rrfScores : Dict[str, IdentifierRRFScores] = Field(..., description="RRF ranks in descending order")
+    rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")

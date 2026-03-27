@@ -351,11 +351,11 @@ class DebugUtils(object):
 class OpenFile():
 
     @staticmethod
-    def readListOfFileNames(inputFolder: str, globPattern : str) -> tuple[bool, Union[list[str],str]] :
+    def readListOfFileNames(inputFolder: str, globPattern : str) -> tuple[bool, list[str]] :
         """return list of files in a folder"""
         folder_path = Path(inputFolder)
         if not folder_path.is_dir():
-            return False, f"***ERROR: data path is not a folder: {folder_path}"
+            return False, [f"***ERROR: data path is not a folder: {folder_path}"]
         fileNames = list(folder_path.glob(globPattern))
         for file in fileNames:
             boolResult, sourceStr = OpenFile.open(filePath = file, readContent = False)

@@ -45,10 +45,8 @@ class QueryService(BaseModel):
         """
 
         oneQueryResultList = OneQueryResultList(
-            result_dict = {},
-            query = query,
-            searchType = SEARCH.SEMANTIC.value,
-            label = queryLabel
+            query ={'searchType' : SEARCH.SEMANTIC, 'query' : query },
+            label = queryLabel        
         )
 
         queryResult = chromaCollection.query(query_texts = query, n_results = maxRetrieveNumber)
@@ -63,39 +61,40 @@ class QueryService(BaseModel):
 #            self.printOneQueryResult(queryResult, resultIdx)
 
             oneQueryResultList.appendQueryChunkResult(
+                score = distFloat,
+                rank = resultIdx,
                 chunk = queryResult["documents"][0][resultIdx],
                 chunkID = queryResult["metadatas"][0][resultIdx]["chunkid"],
                 document = queryResult["metadatas"][0][resultIdx]["document"],
-                score = distFloat,
-                rank = resultIdx + 1
+                searchTypeName = SEARCH.SEMANTIC.value
             )
         return oneQueryResultList
 
 
-    def bm25sQuery(self, query : str, folderName : str, queryLabel : str, bm25sRetrieveNumber : int) -> OneQueryResultList : 
+    def bm25sQuery(self, query : List[List[str]], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneQueryResultList : 
         """
         Perform bm25s query for combined corpus of documents
-        data in corpus is encoded as 'identifier\\ntitle'
+        data in corpus is encoded as documentFileName + '--' + chunkId + '\n' + chunkText
         Number of items retrieved is limited to min of context['bm25sRetrieveNum'] and number of items
         Discard items with score less or equal to value context['bm25sCutOffScore']
 
-        :param query: query for bm25s
-        :type query: str
+        :param query: list of lists of query tokens for bm25s
+        :type query: List[List[str]]
         :param folderName: name of folder with bm25s index
         :type folderName: str
         :param queryLabel: unique label to query run
         :type queryLabel: str
         :param bm25sRetrieveNumber: number of results to retrieve
         :type bm25sRetrieveNumber: int
+        :param bm25sMinCutOffScore: cut off for bm25s score, items with lower score are discarded
+        :type bm25sMinCutOffScore: float
         :return: search result object
         :rtype: OneQueryResultList
         """
 
         oneQueryResultList = OneQueryResultList(
-            result_dict = {},
-            query = query,
-            searchType = SEARCH.BM25S.value,
-            label = queryLabel            
+            query ={'searchType' : SEARCH.BM25S, 'query' : query },
+            label = queryLabel        
         )
 
         retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
@@ -107,7 +106,8 @@ class QueryService(BaseModel):
         results, scores = retriever.retrieve(query, k=max_items)
         for rankIdx in range(results.shape[1]):
             docN, score = results[0, rankIdx], scores[0, rankIdx]
-            # format of corpus data : documentFileName + '--' + chunkId + "\n" + chunkText
+            if bm25sMinCutOffScore >= score:
+                break
             docN = docN["text"].splitlines()
             combo = docN[0].strip()
             documentAndID = combo.split('--')
@@ -115,11 +115,12 @@ class QueryService(BaseModel):
             chunkID = documentAndID[1]
             chunkText = docN[1].strip()
             oneQueryResultList.appendQueryChunkResult(
+                score = score,
+                rank = rankIdx,
                 chunk = chunkText,
                 chunkID = chunkID,
                 document = documentName,
-                score = score,
-                rank = rankIdx + 1
+                searchTypeName = SEARCH.BM25S.value
             )
         return oneQueryResultList
 
@@ -137,39 +138,37 @@ class QueryService(BaseModel):
 
         # merge identifiers in the form "document names--chunkID" from all runs into set
         setKeys = set()
-        for item in allQueryResults.result_lists:
+        for item in allQueryResults.listQueryResults:
             for key in item.result_dict:
                 setKeys.add(key)
 
-        print(f"RRF: semantic: {len(allQueryResults.result_lists[0].result_dict)}  bm25s: {len(allQueryResults.result_lists[1].result_dict)}  unique keys : {len(setKeys)}")
+        # print(f"RRF: semantic: {len(allQueryResults.listQueryResults[0].result_dict)}  bm25s: {len(allQueryResults.listQueryResults[1].result_dict)}  unique keys : {len(setKeys)}")
 
-        scoresDict = dict[float, IdentifierQueryResults]()
+        scoresDict = dict[str, IdentifierQueryResults]()
 
         # calculate rank for issue access all query runs
         for ident in list(setKeys):
             identifierQueryResults = IdentifierQueryResults(
                 identifier = ident,
-                all_query_results = []
             )
-            finalRank = 0.0
-            oneQueryBaseResult = None
-            for item in allQueryResults.result_lists:               # item : OneQueryResultList
+            finalScore = 0.0
+            for item in allQueryResults.listQueryResults:               # item : OneQueryResultList
                 if ident in item.result_dict.keys():
-                    oneQueryBaseResult = item.result_dict[ident]
-                    finalRank += 1/(60 + oneQueryBaseResult.rank)
-                    identifierQueryResults.all_query_results.append(oneQueryBaseResult)
-            scoresDict[round(finalRank, 6)] = identifierQueryResults
+                    oneQueryChunkResult = item.result_dict[ident]        # OneQueryChunkResult
+                    finalScore += 1/(60 + oneQueryChunkResult.score)
+                    if oneQueryChunkResult.searchTypeName == SEARCH.SEMANTIC.value:
+                        identifierQueryResults.chunk = oneQueryChunkResult.chunk
+            identifierQueryResults.score = finalScore
+            scoresDict[ident] = identifierQueryResults
 
         # sort descending by rank
-        scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[0], reverse=True)}
+        scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[1].score, reverse=True)}
 
-        rrfScores = RRFScores(
+        allQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
 
-        allQueryResults.rrfScores = rrfScores
-
-        print(f"=====\n{rrfScores.model_dump_json(indent=2)}\n================")
+        # print(f"=====\n{allQueryResults.rrfScores.model_dump_json(indent=2)}\n================")
 
         return allQueryResults
 

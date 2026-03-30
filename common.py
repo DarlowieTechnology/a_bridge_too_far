@@ -306,6 +306,10 @@ class ConfigCollection(object):
         """Called when obj[index] is used."""
         return self._conf[key]
 
+    def keyExists(self, key) -> bool:
+        """returns True if key exists in configuration"""
+        return key in self._conf.keys()
+
     def getAbsPath(this, key):
         """return absolute path value from relative path. Compatible with Django web app"""
         return Path(str(Path(__file__).parent.resolve()) + '/' + this._conf[key]).resolve()

@@ -110,6 +110,7 @@ class DiscoveryWorkflow(WorkflowBase):
     semanticRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with semantic query")
     semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
     bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
+    bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion value cut off")
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
@@ -142,10 +143,10 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Maximum distance of semantic search items is invalid')
         if not self.bm25sRetrieveNumber in range(0, 513):
             raise ValueError(f'Number of bm25s search items is invalid')
+        if not (self.bm25sMinCutOffScore >= 0):
+            raise ValueError(f'bm25s score cut off value is invalid')
         if not (self.rrfCutOffValue >= 0 and self.rrfCutOffValue <= 1.0):
             raise ValueError(f'Reciprocal Rank Fusion (RRF) cut off value is invalid')
-
-
 
         return self
 
@@ -156,22 +157,35 @@ class DiscoveryWorkflow(WorkflowBase):
         super().configure(configCollection)
 
         # workflow actions
-        self.loadDocument = configCollection["loadDocument"]
-        self.parseChunks = configCollection["parseChunks"]
-        self.makeRawVector = configCollection["makeRawVector"]
-        self.bm25Process = configCollection["bm25Process"]
-        self.matchChunks = configCollection["matchChunks"]
-        self.vectorize = configCollection["vectorize"]
-        self.verify = configCollection["verify"]
-        self.returnResults = configCollection["returnResults"]
-        self.clear = configCollection["clear"]
+        if configCollection.keyExists("loadDocument"): 
+            self.loadDocument = configCollection["loadDocument"]
+        if configCollection.keyExists("parseChunks"): 
+            self.parseChunks = configCollection["parseChunks"]
+        if configCollection.keyExists("makeRawVector"): 
+            self.makeRawVector = configCollection["makeRawVector"]
+        if configCollection.keyExists("bm25Process"): 
+            self.bm25Process = configCollection["bm25Process"]
+        if configCollection.keyExists("matchChunks"): 
+            self.matchChunks = configCollection["matchChunks"]
+        if configCollection.keyExists("vectorize"): 
+            self.vectorize = configCollection["vectorize"]
+        if configCollection.keyExists("verify"): 
+            self.verify = configCollection["verify"]
+        if configCollection.keyExists("returnResults"): 
+            self.returnResults = configCollection["returnResults"]
+        if configCollection.keyExists("clear"): 
+            self.clear = configCollection["clear"]
 
-        self.stripWhiteSpace = configCollection["stripWhiteSpace"]
-        self.convertToLower = configCollection["convertToLower"]
-        self.convertToASCII = configCollection["convertToASCII"]
-        self.singleSpaces = configCollection["singleSpaces"]
+        if configCollection.keyExists("stripWhiteSpace"): 
+            self.stripWhiteSpace = configCollection["stripWhiteSpace"]
+        if configCollection.keyExists("convertToLower"): 
+            self.convertToLower = configCollection["convertToLower"]
+        if configCollection.keyExists("convertToASCII"): 
+            self.convertToASCII = configCollection["convertToASCII"]
+        if configCollection.keyExists("singleSpaces"): 
+            self.singleSpaces = configCollection["singleSpaces"]
 
-        # other app-specific configuration
+        # app-specific required configuration
         self.documentFolder = configCollection["DISCOVdocumentFolder"]
         self.dataFolder = configCollection["DISCOVdataFolder"]
         self.bm25IndexFolder = configCollection["DISCOVbm25IndexFolder"]
@@ -179,10 +193,16 @@ class DiscoveryWorkflow(WorkflowBase):
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]
 
-        self.semanticRetrieveNumber = configCollection["semanticRetrieveNumber"]
-        self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
-        self.bm25sRetrieveNumber = configCollection["bm25sRetrieveNumber"]
-        self.rrfCutOffValue = configCollection["rrfCutOffValue"]
+        if configCollection.keyExists("semanticRetrieveNumber"): 
+            self.semanticRetrieveNumber = configCollection["semanticRetrieveNumber"]
+        if configCollection.keyExists("semanticMaxCutItemDistance"):
+            self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
+        if configCollection.keyExists("bm25sRetrieveNumber"):
+            self.bm25sRetrieveNumber = configCollection["bm25sRetrieveNumber"]
+        if configCollection.keyExists("bm25sMinCutOffScore"):
+            self.bm25sMinCutOffScore = configCollection["bm25sMinCutOffScore"]
+        if configCollection.keyExists("rrfCutOffValue"):
+            self.rrfCutOffValue = configCollection["rrfCutOffValue"]
 
         self.stats = {}
 
@@ -469,16 +489,15 @@ class DiscoveryWorkflow(WorkflowBase):
         :return: list of output strings
         :rtype: List[str]
         """
+
         outStrings = []
-        for rank in rrfScores.scoresDict.keys():
-            if rank < self.rrfCutOffValue:
+        for ident in rrfScores.scoresDict.keys():
+            identifierQueryResults = rrfScores.scoresDict[ident]
+            if identifierQueryResults.score < self.rrfCutOffValue:
                 break
-            identifierQueryResults = rrfScores[rank]
-            ident = identifierQueryResults.identifier
-            msg = f"{rank:.4f} {ident}"
+            msg = f"{identifierQueryResults.score:.4f} {ident}]\n\t{identifierQueryResults.chunk}"
             print(msg)
             outStrings.append(msg)
-#            print(oneResult.chunk)
 
         return outStrings
 
@@ -540,16 +559,9 @@ class DiscoveryWorkflow(WorkflowBase):
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunkSize, chunk_overlap=self.chunkOverlap)
         texts = text_splitter.split_text(docs)
-        retTexts = []
-        for text in texts:
-            text = text.strip()
-            text = text.lower()
-            text = anyascii(text)
-            text = " ".join(text.split())
-            retTexts.append(text)
 
-        self.updateStats([("Chunks", len(retTexts))])
-        return retTexts
+        self.updateStats([("Chunks", len(texts))])
+        return texts
 
 
     def makeRawVectorPhase(self, doc : List[str], inputFileName : str) -> tuple[int, int]:
@@ -587,11 +599,10 @@ class DiscoveryWorkflow(WorkflowBase):
             chunkId += 1
             hashFunc = hashlib.sha256()
             hashFunc.update(chunk.encode('utf-8'))
-            recordHash = hashFunc.hexdigest() + "-" + str(chunkId)
+            recordHash = hashFunc.hexdigest() + "," + str(chunkId) + "," + str(inputFileName)
 
             queryResult = chromaCollection.get(ids=[recordHash])
             if (len(queryResult["ids"])) :
-
                 rejected += 1
                 continue
             else:
@@ -632,7 +643,7 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         allQueryResults = AllQueryResults(
-            result_lists = [],
+            listQueryResults = [],
             rrfScores = RRFScores(
                 scoresDict = {}
             )
@@ -647,34 +658,34 @@ class DiscoveryWorkflow(WorkflowBase):
 
         model = self.createOpenAIModel()
 
-        queryTexts = ["medical research into human dermoids"]
-
-        
 #        queryTexts, usage = queryService.multiQuery(queryTexts, model)
 #        self.addUsage(usage)
 
-        fullQueryList = []
-        for item in queryTexts:
-            fullQueryList.append(item)
-            hyde_text, usage = queryService.hydeQuery(item, model)
-            fullQueryList.append(hyde_text)
-            self.addUsage(usage)
-        queryTexts = fullQueryList
+#        fullQueryList = []
+#        for item in queryTexts:
+#            fullQueryList.append(item)
+#            hyde_text, usage = queryService.hydeQuery(item, model)
+#            fullQueryList.append(hyde_text)
+#            self.addUsage(usage)
+#        queryTexts = fullQueryList
 
 #        queryTexts, usage = QueryService.rewriteQuery(self, queryTexts, model)
 #        self.addUsage(usage)
 
-#        print(queryTexts)
+#        print(f"==HyDE===\n{queryTexts}\n=======")
 #        print(self.totalUsageFormat())
 
-        processedFullQueryList = []
-        for item in fullQueryList:
-            item = item.strip()
-            item = item.lower()
-            item = anyascii(item)
-            item = " ".join(item.split())
-            processedFullQueryList.append(item)
-        queryTexts = processedFullQueryList
+#        processedFullQueryList = []
+#        for item in fullQueryList:
+#            item = item.strip()
+#            item = item.lower()
+#            item = anyascii(item)
+#            item = " ".join(item.split())
+#            processedFullQueryList.append(item)
+#        queryTexts = processedFullQueryList
+#
+#        print(f"==ReWrite===\n{queryTexts}\n=======")
+#        print(self.totalUsageFormat())
 
         semanticQueryResultList = queryService.semanticQuery(
             query = queryTexts, 
@@ -682,13 +693,19 @@ class DiscoveryWorkflow(WorkflowBase):
             queryLabel = "semantic result",
             maxRetrieveNumber = self.semanticRetrieveNumber,
             maxCutItemDistance = self.semanticMaxCutItemDistance)
-        allQueryResults.result_lists.append(semanticQueryResultList)
+        allQueryResults.listQueryResults.append(semanticQueryResultList)
 
         tokenList = queryService.tokenizeQuery(query = queryTexts, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
+#        tokenList = queryService.tokenizeQuery(query = queryTexts, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN)
 
         bm25sFolder = self.dataFolder + self.bm25IndexFolder
-        bm25sQueryResultList = queryService.bm25sQuery(query = tokenList, folderName=bm25sFolder, queryLabel = "BM25S results", bm25sRetrieveNumber = self.bm25sRetrieveNumber)
-        allQueryResults.result_lists.append(bm25sQueryResultList)
+        bm25sQueryResultList = queryService.bm25sQuery(
+            query = tokenList, 
+            folderName=bm25sFolder, 
+            queryLabel = "BM25S results", 
+            bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+            bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+        allQueryResults.listQueryResults.append(bm25sQueryResultList)
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
 
@@ -819,7 +836,7 @@ class DiscoveryWorkflow(WorkflowBase):
             allQueryResults = self.matchChunksPhase(queryTexts = knownTopics, queryService = queryService)
 
             msgList = self.outputRRFInfo(allQueryResults.rrfScores)
-#            self.workerSnapshot(msgList)
+            self.workerSnapshot(msgList)
 
             endTime = time.time()
             self.updateStats([("Time Matching", endTime - startTime)])

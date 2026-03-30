@@ -174,7 +174,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
 def main():
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
 
     context = darlowie.context
 
@@ -203,10 +203,11 @@ def main():
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48
-    context["semanticRetrieveNumber"] = 5
-    context["semanticMaxCutItemDistance"] = 0.5
-    context["bm25sRetrieveNumber"] = 5
-    context["rrfCutOffValue"] = 0.02
+    context["semanticRetrieveNumber"] = 10
+    context["semanticMaxCutItemDistance"] = 0.4
+    context["bm25sRetrieveNumber"] = 10
+    context["bm25sMinCutOffScore"] = 0.001
+    context["rrfCutOffValue"] = 0.000001
 
     configCollection = ConfigCollection(context)
 

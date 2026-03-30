@@ -1,12 +1,13 @@
 from enum import Enum, unique
 
-from typing import List, Dict, Any
+from typing import List, Dict, Literal, Union
 
 from pydantic import BaseModel, Field
 
 
 @unique
 class SEARCH(str, Enum) :
+    NONE = "none"
     BM25S = "bm25s"
     SEMANTIC = "semantic"
 
@@ -18,11 +19,15 @@ class OneQueryBaseResult(BaseModel):
     rank : int = Field(..., description="rank of the record in search")
 
 
-class OneQueryChunkResult(OneQueryBaseResult):
+class OneQueryChunkResult(BaseModel):
     """represents one query result in chunked document query"""
-    chunk: str = Field(..., description="chunk text in document")
-    chunkID : int = Field(..., description="chunk id in document")
-    document: str = Field(..., description="document name")
+
+    score : float = Field(..., description="distance/score of record")
+    rank : int = Field(..., description="rank of the record in search")
+    chunk: str = Field( default = "", description="chunk of text in document")
+    chunkID : int = Field( default = -1, description="chunk id in document")
+    document: str = Field( default = "", description="document name")
+    searchTypeName : str = Field( default=SEARCH.NONE.value , description="name of search type used")
 
 
 class OneQueryAppResult(OneQueryBaseResult):
@@ -32,12 +37,21 @@ class OneQueryAppResult(OneQueryBaseResult):
 
 #----------------------OneQueryResultList-----------------------------------
 
+class QuerySemantic(BaseModel):
+    query : list[str] = Field(default = [], description="semantic query is a list of strings")
+    searchType : Literal[SEARCH.SEMANTIC]
+
+
+class QueryBM25s(BaseModel):
+    query : list[list[str]] = Field(default = [], description="bm25s query is a list of list of strings")
+    searchType : Literal[SEARCH.BM25S]
+
+
 class OneQueryResultList(BaseModel):
     """represents collection of one query results"""
-    result_dict: Dict[str, OneQueryChunkResult] = Field(default=None, description="dict of one query results, key by issue identifier")
-    query : Any = Field(..., description="query used in search")
-    searchType : SEARCH = Field(..., description="type of search used")
-    label : str = Field(..., description="unique label of search run")
+    result_dict: Dict[str, OneQueryChunkResult] = Field(default = {}, description="dict of one query results, key by issue identifier")
+    query : Union[ QuerySemantic, QueryBM25s ] = Field(default = [], description="query used in search", discriminator='searchType')
+    label : str = Field( "", description="unique label of search run")
 
 
     def appendQueryAppResult(self, identifier : str, title : str, report : str, score : float, rank : int) :
@@ -50,14 +64,15 @@ class OneQueryResultList(BaseModel):
         )
 
 
-    def appendQueryChunkResult(self, chunk : str, chunkID: int, document : str, score : float, rank : int) :
+    def appendQueryChunkResult(self, score : float, rank : int, chunk : str, chunkID: int, document : str, searchTypeName : str) :
         identifier = document + "--" + str(chunkID)
         self.result_dict[identifier] = OneQueryChunkResult(
+            score = score,
+            rank = rank,
             chunk = chunk,
             chunkID = chunkID,
             document = document,
-            score = score,
-            rank = rank
+            searchTypeName = searchTypeName
         )
     
 
@@ -67,15 +82,16 @@ class OneQueryResultList(BaseModel):
 class IdentifierQueryResults(BaseModel):
     """represents unique identifier and list of query results from multiple queries"""
     identifier: str = Field(default = "", description="unique identifier")
-    all_query_results: List[OneQueryChunkResult] = Field(default=None, description="List of query results for the identifier")
+    score : float = Field(default = 0.0, description="RRF score")
+    chunk: str = Field( default = "", description="chunk of text in document")
 
 
 class RRFScores(BaseModel):
-    """represents all RRF scores. Scores are rounded to 6 digits"""
-    scoresDict : Dict[float, IdentifierQueryResults] = Field(..., description="RRF ranks in descending order")
+    """represents all RRF scores"""
+    scoresDict : Dict[str, IdentifierQueryResults] = Field(..., description="RRF ranks in descending order")
 
 
 class AllQueryResults(BaseModel):
     """represents collection of all query results"""
-    result_lists: List[OneQueryResultList] = Field(default=None, description="List of OneQueryResultList - all result")
+    listQueryResults: List[OneQueryResultList] = Field(default=None, description="List of OneQueryResultList - all result")
     rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")

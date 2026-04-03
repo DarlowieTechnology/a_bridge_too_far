@@ -98,20 +98,31 @@ class DiscoveryWorkflow(WorkflowBase):
     # workflow actions
     loadDocument : bool = Field(default = False, description="Load text from source documents")
     parseChunks : bool = Field(default = False, description="Create chunks out of text")
-    makeRawVector : bool = Field(default = False, description="Vectorize chunks in intermediate table")
+    makeRawVector : bool = Field(default = False, description="Vectorize chunks in vector table")
     bm25Process : bool = Field(default = False, description="Create bm25 index")
     matchChunks : bool = Field(default = False, description="Match chunks against known topics")
-    vectorize : bool = Field(default = False, description="Vectorize in specialized tables")
     verify : bool = Field(default = False, description="Verify results against known data set")
     returnResults : bool = Field(default = False, description="Collect test results")
     clear : bool = Field(default = False, description="Clear Intermediate data")
+
+    # search configuration
+    searchSemanticOriginal : bool = Field(default = True, description="Perform original semantic query")
+    searchBM25sOriginal : bool = Field(default = True, description="Perform original bm25s query")
+    searchSemanticMulti : bool = Field(default = True, description="Perform semantic query on multi transform")
+    searchBM25sMulti : bool = Field(default = True, description="Perform bm25s query on multi transform")
+    searchSemanticRewrite : bool = Field(default = True, description="Perform semantic query on rewrite transform")
+    searchBM25sRewrite : bool = Field(default = True, description="Perform bm25s query on rewrite transform")
+    searchSemanticHyDE : bool = Field(default = True, description="Perform semantic query on HyDE transform")
+    searchBM25sHyDE : bool = Field(default = True, description="Perform bm25s query on HyDE transform")
 
     # retrieval configuration
     semanticRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with semantic query")
     semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
     bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
-    rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion value cut off")
+    rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion (RRF) value cut off")
+    rrfOutlierZScoreThreshold : float = Field(default = 1.5, description="Threshold for outlier z-score")
+    outputNumber : int = Field(default = 1, description="Minimum number of items to return")
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
@@ -147,6 +158,10 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'bm25s score cut off value is invalid')
         if not (self.rrfCutOffValue >= 0 and self.rrfCutOffValue <= 1.0):
             raise ValueError(f'Reciprocal Rank Fusion (RRF) cut off value is invalid')
+        if not (self.rrfOutlierZScoreThreshold >= 0):
+            raise ValueError(f'Z Score threshold for outliers is invalid')
+        if not self.outputNumber in range(1, 100):
+            raise ValueError(f'output number is invalid')
 
         return self
 
@@ -167,8 +182,6 @@ class DiscoveryWorkflow(WorkflowBase):
             self.bm25Process = configCollection["bm25Process"]
         if configCollection.keyExists("matchChunks"): 
             self.matchChunks = configCollection["matchChunks"]
-        if configCollection.keyExists("vectorize"): 
-            self.vectorize = configCollection["vectorize"]
         if configCollection.keyExists("verify"): 
             self.verify = configCollection["verify"]
         if configCollection.keyExists("returnResults"): 
@@ -193,6 +206,25 @@ class DiscoveryWorkflow(WorkflowBase):
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]
 
+        # search configuration
+        if configCollection.keyExists("searchSemanticOriginal"):
+            self.searchSemanticOriginal = configCollection["searchSemanticOriginal"]
+        if configCollection.keyExists("searchBM25sOriginal"):
+            self.searchBM25sOriginal = configCollection["searchBM25sOriginal"]
+        if configCollection.keyExists("searchSemanticMulti"): 
+            self.searchSemanticMulti = configCollection["searchSemanticMulti"]
+        if configCollection.keyExists("searchBM25sMulti"):
+            self.searchBM25sMulti = configCollection["searchBM25sMulti"]
+        if configCollection.keyExists("searchSemanticRewrite"): 
+            self.searchSemanticRewrite = configCollection["searchSemanticRewrite"]
+        if configCollection.keyExists("searchBM25sRewrite"): 
+            self.searchBM25sRewrite = configCollection["searchBM25sRewrite"]
+        if configCollection.keyExists("searchSemanticHyDE"):
+            self.searchSemanticHyDE = configCollection["searchSemanticHyDE"]
+        if configCollection.keyExists("searchBM25sHyDE"):
+            self.searchBM25sHyDE = configCollection["searchBM25sHyDE"]
+
+        # retrieval configuration
         if configCollection.keyExists("semanticRetrieveNumber"): 
             self.semanticRetrieveNumber = configCollection["semanticRetrieveNumber"]
         if configCollection.keyExists("semanticMaxCutItemDistance"):
@@ -203,6 +235,10 @@ class DiscoveryWorkflow(WorkflowBase):
             self.bm25sMinCutOffScore = configCollection["bm25sMinCutOffScore"]
         if configCollection.keyExists("rrfCutOffValue"):
             self.rrfCutOffValue = configCollection["rrfCutOffValue"]
+        if configCollection.keyExists("rrfOutlierZScoreThreshold"):
+            self.rrfOutlierZScoreThreshold   = configCollection["rrfOutlierZScoreThreshold"]
+        if configCollection.keyExists("outputNumber"):
+            self.outputNumber = configCollection["outputNumber"]
 
         self.stats = {}
 
@@ -298,7 +334,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def loadJSON(self, inputFile : str) -> str :
         """
-        Load text from JSON file
+        Load text from JSON file via DataFrame
         
         :param inputFile: file name
         :type inputFile: str
@@ -309,99 +345,11 @@ class DiscoveryWorkflow(WorkflowBase):
         with open(inputFile, "r" , encoding="utf-8", errors="ignore") as JsonIn:
             docs = json.load(JsonIn)
 
-        try:
-            dataframe = pd.DataFrame.from_dict(docs)
-            print(dataframe)
-        except ValueError as e:
-            dataframe = pd.DataFrame.from_dict(docs, orient="index")
+        dataFrame = pd.DataFrame([docs])
 
-        pd.set_option('display.max_colwidth', None)
-        dataframe = str(dataframe)
-        dataframe = self.processText(dataframe)
+        strOut = dataFrame.to_string(header = False, justify = "left")
 
-        return dataframe
-
-
-
-
-    def vectorize(self, allTopicMatches : AllTopicMatches)  -> tuple[int, int]:
-        """
-        Add all chunks to vector database.
-        
-        :param allTopicMatches: chunks to add
-        :type allTopicMatches: AllTopicMatches
-        :return: tuple of accepted and rejected chunks
-        :rtype: tuple[int, int]
-        """
-
-        accepted = 0
-        rejected = 0
-
-        if not self.initRAGcomponents():
-            self.fails.append(f"vectorize: RAG database failed to initialize")
-            return accepted, rejected            
-
-        for topic in allTopicMatches.topic_dict.keys():
-            matchingChunks = allTopicMatches.topic_dict[topic]
-            if len(matchingChunks.chunk_list):
-
-                # ChromaDB does not accept table names with spaces
-                collectionName = topic.replace(" ", "_")
-
-                chromaCollection = self.openOrCreateCollection(collectionName = collectionName, createFlag = True)        
-                if not chromaCollection:
-                    return 0, 0
-
-                ids : list[str] = []
-                docs : list[str] = []
-                docMetadata : list[str] = []
-                embeddings = []
-
-                for chunkInfo in matchingChunks.chunk_list:
-                    chunkInfo = ChunkInfo.model_validate(chunkInfo)
-
-                    recordHash = hash(chunkInfo.chunk)
-                    uniqueId = str(chunkInfo.uuid)
-                    queryResult = chromaCollection.get(ids=[uniqueId])
-                    if (len(queryResult["ids"])) :
-
-                        existingRecord = ChunkInfo.model_validate_json(queryResult["documents"][0])
-                        existingHash = hash(existingRecord.chunk)
-
-                        if recordHash == existingHash:
-                            rejected += 1
-        #                    msg = f"Skip {uniqueId}"
-        #                    self.workerSnapshot(msg)
-                            continue
-                        else:
-                            accepted += 1
-                            msg = f"Replacing {uniqueId}"
-                            self.workerSnapshot(msg)
-                            chromaCollection.delete(ids=[uniqueId])
-                    else:
-                        accepted += 1
-                        msg = f"Adding {uniqueId}"
-                        self.workerSnapshot(msg)
-
-                    vectorSource = chunkInfo.model_dump_json()
-
-                    ids.append(uniqueId)
-                    docs.append(vectorSource)
-                    metadataDict = {}
-                    metadataDict["recordType"] = type(chunkInfo).__name__
-                    metadataDict["document"] = chunkInfo.docName
-                    docMetadata.append( metadataDict )
-#                    embeddings.append(self.embeddingFunction([vectorSource])[0])
-
-                if len(ids):
-                    chromaCollection.add(
-#                        embeddings=embeddings,
-                        documents=docs,
-                        ids=ids,
-                        metadatas=docMetadata
-                    )
-
-        return accepted, rejected
+        return strOut
 
 
     def formFileList(self) -> List[str]:
@@ -491,13 +439,17 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         outStrings = []
+        idx = 0
         for ident in rrfScores.scoresDict.keys():
             identifierQueryResults = rrfScores.scoresDict[ident]
-            if identifierQueryResults.score < self.rrfCutOffValue:
+            if identifierQueryResults.rrfRank < self.rrfCutOffValue:
                 break
-            msg = f"{identifierQueryResults.score:.4f} {ident}]\n\t{identifierQueryResults.chunk}"
+            msg = f"{identifierQueryResults.rrfRank:.4f} {ident}]\n\t{identifierQueryResults.chunk}"
             print(msg)
             outStrings.append(msg)
+            idx += 1
+            if (idx >= self.outputNumber):
+                break
 
         return outStrings
 
@@ -630,6 +582,26 @@ class DiscoveryWorkflow(WorkflowBase):
         return accepted, rejected
 
 
+    def dumpOutliersForOneQuery(self, queryService : QueryService, oneQueryResultList : OneQueryResultList, upperFlag : bool):
+
+        outlierIdentifiers = queryService.getOutliersIQR(oneQueryResultList = oneQueryResultList, upper = upperFlag)
+        if len(outlierIdentifiers):
+            print(f"OUTLIERS by IQR=====")
+            for ident in outlierIdentifiers:
+                print(f"{ident}")
+        else:
+            print(f"NO OUTLIERS by IQR=====")
+            # use Z Score as a fallback
+            outlierIdentifiers = queryService.getOutliersZScore(oneQueryResultList = oneQueryResultList, threshold = self.rrfOutlierZScoreThreshold)
+            if len(outlierIdentifiers):
+                print(f"OUTLIERS by Z Score=====")
+                for ident in outlierIdentifiers:
+                    print(f"{ident}")
+            else:
+                print(f"NO OUTLIERS=====")
+
+
+
     def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllQueryResults :
         """
         match chunks against known topics
@@ -658,56 +630,156 @@ class DiscoveryWorkflow(WorkflowBase):
 
         model = self.createOpenAIModel()
 
-#        queryTexts, usage = queryService.multiQuery(queryTexts, model)
-#        self.addUsage(usage)
+        queryTexts = ["outdated third-party software"]
 
-#        fullQueryList = []
-#        for item in queryTexts:
-#            fullQueryList.append(item)
-#            hyde_text, usage = queryService.hydeQuery(item, model)
-#            fullQueryList.append(hyde_text)
-#            self.addUsage(usage)
-#        queryTexts = fullQueryList
+        # semantic search for original query
+        if self.searchSemanticOriginal:
+            oneQueryResultList = queryService.semanticQuery(
+                query = queryTexts, 
+                chromaCollection = chromaCollection, 
+                queryLabel = "semantic original",
+                maxRetrieveNumber = self.semanticRetrieveNumber,
+                maxCutItemDistance = self.semanticMaxCutItemDistance
+            )
+            allQueryResults.listQueryResults.append(oneQueryResultList)
 
-#        queryTexts, usage = QueryService.rewriteQuery(self, queryTexts, model)
-#        self.addUsage(usage)
+#            self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
-#        print(f"==HyDE===\n{queryTexts}\n=======")
-#        print(self.totalUsageFormat())
+        # bm25s search for original query
+        if self.searchBM25sOriginal:
+            tokenList = queryService.tokenizeQuery(query = queryTexts)
+            bm25sFolder = self.dataFolder + self.bm25IndexFolder
+            oneQueryResultList = queryService.bm25sQuery(
+                query = tokenList, 
+                folderName=bm25sFolder, 
+                queryLabel = "bm25s original", 
+                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                bm25sMinCutOffScore = self.bm25sMinCutOffScore
+            )
+            allQueryResults.listQueryResults.append(oneQueryResultList)
 
-#        processedFullQueryList = []
-#        for item in fullQueryList:
-#            item = item.strip()
-#            item = item.lower()
-#            item = anyascii(item)
-#            item = " ".join(item.split())
-#            processedFullQueryList.append(item)
-#        queryTexts = processedFullQueryList
-#
-#        print(f"==ReWrite===\n{queryTexts}\n=======")
-#        print(self.totalUsageFormat())
+ #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
-        semanticQueryResultList = queryService.semanticQuery(
-            query = queryTexts, 
-            chromaCollection = chromaCollection, 
-            queryLabel = "semantic result",
-            maxRetrieveNumber = self.semanticRetrieveNumber,
-            maxCutItemDistance = self.semanticMaxCutItemDistance)
-        allQueryResults.listQueryResults.append(semanticQueryResultList)
+        # semantic search for multi query
+        multiQueryTexts = []
+        if self.searchSemanticMulti:
+            multiQueryTexts, usage = queryService.multiQuery(queryTexts, model)
+            self.addUsage(usage)
+            oneQueryResultList = queryService.semanticQuery(
+                query = multiQueryTexts, 
+                chromaCollection = chromaCollection, 
+                queryLabel = "semantic multi",
+                maxRetrieveNumber = self.semanticRetrieveNumber,
+                maxCutItemDistance = self.semanticMaxCutItemDistance
+            )
+            allQueryResults.listQueryResults.append(oneQueryResultList)
 
-        tokenList = queryService.tokenizeQuery(query = queryTexts, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
-#        tokenList = queryService.tokenizeQuery(query = queryTexts, tokenizerTypes = TOKENIZERTYPES.STOPWORDSEN)
+  #          self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
-        bm25sFolder = self.dataFolder + self.bm25IndexFolder
-        bm25sQueryResultList = queryService.bm25sQuery(
-            query = tokenList, 
-            folderName=bm25sFolder, 
-            queryLabel = "BM25S results", 
-            bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-            bm25sMinCutOffScore = self.bm25sMinCutOffScore)
-        allQueryResults.listQueryResults.append(bm25sQueryResultList)
+        # bm25s search for multi query
+        if self.searchBM25sMulti:
+            if not self.searchSemanticMulti:
+                multiQueryTexts, usage = queryService.multiQuery(queryTexts, model)
+                self.addUsage(usage)
+            multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
+            bm25sFolder = self.dataFolder + self.bm25IndexFolder
+            oneQueryResultList = queryService.bm25sQuery(
+                query = multiTokenList, 
+                folderName=bm25sFolder, 
+                queryLabel = "bm25s multi", 
+                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            allQueryResults.listQueryResults.append(oneQueryResultList)
+
+   #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
+
+        # semantic search for rewrite query
+        rewriteQueryTexts = []
+        if self.searchSemanticRewrite:
+            rewriteQueryTexts, usage = queryService.rewriteQuery(queryTexts, model)
+            self.addUsage(usage)
+            oneQueryResultList = queryService.semanticQuery(
+                query = rewriteQueryTexts, 
+                chromaCollection = chromaCollection, 
+                queryLabel = "semantic rewrite",
+                maxRetrieveNumber = self.semanticRetrieveNumber,
+                maxCutItemDistance = self.semanticMaxCutItemDistance)
+            allQueryResults.listQueryResults.append(oneQueryResultList)
+
+   #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
+
+        # bm25s search for rewrite query
+        if self.searchBM25sRewrite:
+            if not self.searchSemanticRewrite:
+                rewriteQueryTexts, usage = queryService.rewriteQuery(queryTexts, model)
+                self.addUsage(usage)
+            rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
+            bm25sFolder = self.dataFolder + self.bm25IndexFolder
+            oneQueryResultList = queryService.bm25sQuery(
+                query = rewriteTokenList, 
+                folderName=bm25sFolder, 
+                queryLabel = "bm25s rewrite", 
+                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            allQueryResults.listQueryResults.append(oneQueryResultList)
+
+   #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
+
+        # search for semantic HyDE query
+        hydeQueryTexts = []
+        if self.searchSemanticHyDE:
+            hydeQueryTexts, usage = queryService.hydeQuery(queryTexts, model)
+            self.addUsage(usage)
+            oneQueryResultList = queryService.semanticQuery(
+                query = hydeQueryTexts, 
+                chromaCollection = chromaCollection, 
+                queryLabel = "semantic hyde",
+                maxRetrieveNumber = self.semanticRetrieveNumber,
+                maxCutItemDistance = self.semanticMaxCutItemDistance)
+            allQueryResults.listQueryResults.append(oneQueryResultList)
+
+   #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
+
+        # search for bm25s HyDE query
+        if self.searchBM25sHyDE:
+            if self.searchSemanticHyDE:
+                hydeQueryTexts, usage = queryService.hydeQuery(queryTexts, model)
+                self.addUsage(usage)
+            hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
+            bm25sFolder = self.dataFolder + self.bm25IndexFolder
+            oneQueryResultList = queryService.bm25sQuery(
+                query = hydeTokenList, 
+                folderName=bm25sFolder, 
+                queryLabel = "bm25s hyde", 
+                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            allQueryResults.listQueryResults.append(oneQueryResultList)
+
+   #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
+
+        # we expect RRF dataset to be skewed to the left with a few right outliers, choose IQR as a default method.
+        #
+        outlierDictIQR = queryService.getOutliersIQRFromRRF(allQueryResults)
+        if len(outlierDictIQR):
+            print(f"OUTLIERS by IQR=====")
+            for ident in outlierDictIQR.keys():
+                print(f"{outlierDictIQR[ident]}")
+        else:
+            # use Z Score as a fallback
+            outlierDictZScore = queryService.getOutliersZScoreFromRRF(allQueryResults, self.rrfOutlierZScoreThreshold)
+            if len(outlierDictZScore):
+                print(f"OUTLIERS by Z Score=====")
+                for ident in outlierDictZScore.keys():
+                    print(f"{outlierDictZScore[ident]}")
+            else:
+                # fallback on highest RRF rank
+                outlierDictHighest = queryService.getOutliersHighest(allQueryResults, 2)
+                if len(outlierDictHighest):
+                    print(f"OUTLIERS top=====")
+                    for ident in outlierDictHighest.keys():
+                        print(f"{outlierDictHighest[ident]}")
 
         return allQueryResults
 
@@ -836,7 +908,7 @@ class DiscoveryWorkflow(WorkflowBase):
             allQueryResults = self.matchChunksPhase(queryTexts = knownTopics, queryService = queryService)
 
             msgList = self.outputRRFInfo(allQueryResults.rrfScores)
-            self.workerSnapshot(msgList)
+#            self.workerSnapshot(msgList)
 
             endTime = time.time()
             self.updateStats([("Time Matching", endTime - startTime)])
@@ -895,70 +967,6 @@ class DiscoveryWorkflow(WorkflowBase):
 
         for chunk in chunks:
             self.workerSnapshot(str(chunk))
-
-
-
-
-        # ---------------matchChunks -----------------
-
-        if "matchChunks" in self.context and self.context["matchChunks"]:
-
-            startTime = time.time()
-            result = True
-            if 'chunksList' not in locals():
-                # if this is a separate step - read list of chunks
-                result, fileContentOrError = OpenFile.open(filePath = self.context['chunksListRaw'], readContent = True)
-                if not result:
-                    msg = f"matchChunks: {fileContentOrError} - perform 'parseChunks' action first"
-                    self.workerSnapshot(msg)
-                else:
-                    chunksList = json.loads(fileContentOrError)
-
-            if result:
-
-                matchResults, runSingleUsage = self.matchAllChunks(chunksList, knownTopics)
-
-                allTopicMatches = AllTopicMatches(topic_dict = {})
-                for topic in knownTopics:
-                    matchingChunks = MatchingChunks(topic = topic, chunk_list =[])
-                    allTopicMatches.topic_dict[topic] = matchingChunks
-
-                for topic in matchResults.keys():
-                    if topic in allTopicMatches.topic_dict.keys():
-                        matchingChunks = allTopicMatches.topic_dict[topic]
-                        for chunk in matchResults[topic]:
-                            chunkInfo = ChunkInfo(uuid = uuid4(), docName = self.context['inputFileName'], chunk = chunk)
-                            matchingChunks.chunk_list.append(chunkInfo)
-
-                with open(self.context["matchJSON"], "w", encoding="utf-8", errors="ignore") as jsonOut:
-                    jsonOut.writelines(allTopicMatches.model_dump_json(indent=2))
-
-                self.addUsage(runSingleUsage)
-                endTime = time.time()
-                msg = f"matchChunks: {self.usageFormat(runSingleUsage)} Time: {(endTime - startTime):.2f} seconds"
-                self.workerSnapshot(msg)
-
-
-        # ------------vectorize----------------------
-
-        if "vectorize" in self.context and self.context["vectorize"]:
-
-            startTime = time.time()
-            result = True
-            if 'allTopicMatches' not in locals():
-                # if this is a separate step - read match file
-                result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
-                if not result:
-                    msg = f"vectorize: {fileContentOrError} - perform 'matchChunks' action first"
-                    self.workerSnapshot(msg)
-                else:
-                    allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
-
-            if result:
-                accepted, rejected = self.vectorize(allTopicMatches)
-                endTime = time.time()
-                msg = f"vectorize: accepted {accepted}  rejected {rejected}. Time: {(endTime - startTime):.2f} seconds"
-                self.workerSnapshot(msg)
 
 
         # ------------verify----------------------
@@ -1033,39 +1041,6 @@ class DiscoveryWorkflow(WorkflowBase):
                 
                 if result:
                     return counts, allTopicMatches
-
-
-        # -------------- clear ---------------
-
-        if "clear" in self.context and self.context["clear"]:
-
-            startTime = time.time()
-            OpenFile.remove(self.context["rawtext"])
-            OpenFile.remove(self.context["chunksListRaw"])
-            OpenFile.remove(self.context["matchJSON"])
-            endTime = time.time()
-            msg = f"clear: Time: {(endTime - startTime):.2f} seconds"
-            self.workerSnapshot(msg)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
         # ---------------completed ---------------

@@ -82,7 +82,7 @@ class OneQueryResultList(BaseModel):
 class IdentifierQueryResults(BaseModel):
     """represents unique identifier and list of query results from multiple queries"""
     identifier: str = Field(default = "", description="unique identifier")
-    score : float = Field(default = 0.0, description="RRF score")
+    rrfRank : float = Field(default = 0.0, description="RRF rank")
     chunk: str = Field( default = "", description="chunk of text in document")
 
 

@@ -15,10 +15,60 @@ from openai import Model
 import chromadb
 from chromadb import Collection
 
+import numpy as np
+
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
 from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, RRFScores, IdentifierQueryResults, AllQueryResults
 
 
+#----------------------StatsOnList--------------------------------------------
+
+class StatsOnList(BaseModel) :
+    """represents statistics of data set"""
+    length : float = Field(default=0, description="length of dataset")
+    min : float = Field(default=0, description="minimum value in the dataset") 
+    max : float = Field(default=0, description="maximum value in the dataset") 
+    avg : float = Field(default=0, description="average value in the dataset") 
+    mean : float = Field(default=0, description="mean value in the dataset") 
+    median : float = Field(default=0, description="median value in the dataset") 
+    range : float = Field(default=0, description="range of values in the dataset") 
+    q1 : float = Field(default=0, description="1st quartile of the dataset") 
+    q2 : float = Field(default=0, description="2nd quartile of the dataset") 
+    q3 : float = Field(default=0, description="3nd quartile of the dataset") 
+
+
+    def makeStatsOnList(self, scoresForStats) :
+        """
+        Calculate stats on the list of float
+        
+        :param scoresForStats: list of float
+        """
+
+        if not len(scoresForStats):
+            return
+
+        a1F = np.array(scoresForStats, dtype=np.float32)
+
+        self.length = len(a1F)
+        self.min = np.min(a1F)
+        self.max = np.max(a1F)
+        self.avg = np.average(a1F)
+        self.mean = np.mean(a1F)
+        self.median = np.median(a1F)
+        self.range = np.max(a1F)-np.min(a1F)
+        self.q1, self.q2, self.q3 = np.quantile(a1F, [0.25, 0.5, 0.75])
+
+    def find_outliers_zscore(self, scoresForStats, threshold=3):
+        mean_val = np.mean(scoresForStats)
+        std_dev = np.std(scoresForStats)
+        z_scores = [(y - mean_val) / std_dev for y in scoresForStats]
+        # Identify outliers using absolute z-score
+        outliers = [y for y, z_score in zip(scoresForStats, z_scores) if np.abs(z_score) > threshold]
+        # Filter non-outlier data (optional)
+        # clean_data = data[np.abs(z_scores) <= threshold] 
+        return outliers
+
+#----------------------QueryService--------------------------------------------
 
 
 class QueryService(BaseModel):
@@ -46,28 +96,32 @@ class QueryService(BaseModel):
 
         oneQueryResultList = OneQueryResultList(
             query ={'searchType' : SEARCH.SEMANTIC, 'query' : query },
-            label = queryLabel        
+            label = queryLabel
         )
 
         queryResult = chromaCollection.query(query_texts = query, n_results = maxRetrieveNumber)
 
-        resultIdx = -1
+        print(f"SEMANTIC=====\n'{queryLabel}' : {query}\n===================")
 
+        resultIdx = -1
         for distFloat in queryResult["distances"][0]:
-            resultIdx += 1
+            resultIdx += 1                              # index starts from 0
             if (distFloat > maxCutItemDistance) :
                 break
 
-#            self.printOneQueryResult(queryResult, resultIdx)
-
             oneQueryResultList.appendQueryChunkResult(
                 score = distFloat,
-                rank = resultIdx,
+                rank = resultIdx + 1,                   # rank starts from 1
                 chunk = queryResult["documents"][0][resultIdx],
                 chunkID = queryResult["metadatas"][0][resultIdx]["chunkid"],
                 document = queryResult["metadatas"][0][resultIdx]["document"],
                 searchTypeName = SEARCH.SEMANTIC.value
             )
+
+#            print(f"Rank:{resultIdx+1}   score: {distFloat}    doc: {queryResult["metadatas"][0][resultIdx]["document"]}   chunk ID: {queryResult["metadatas"][0][resultIdx]["chunkid"]}")
+#            print(f"chunk:\n{queryResult["documents"][0][resultIdx]}")
+#            print(f"----------------------")
+
         return oneQueryResultList
 
 
@@ -97,6 +151,8 @@ class QueryService(BaseModel):
             label = queryLabel        
         )
 
+        print(f"BM25S=========\n'{queryLabel}' : {query}\n===================")
+
         retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
 
         max_items = bm25sRetrieveNumber
@@ -116,19 +172,23 @@ class QueryService(BaseModel):
             chunkText = docN[1].strip()
             oneQueryResultList.appendQueryChunkResult(
                 score = score,
-                rank = rankIdx,
+                rank = rankIdx + 1,                     # rank starts from 1
                 chunk = chunkText,
                 chunkID = chunkID,
                 document = documentName,
                 searchTypeName = SEARCH.BM25S.value
             )
+
+#            print(f"Rank:{rankIdx+1}  score: {score}    doc: {documentName}   chunk ID: {chunkID}")
+#            print(f"chunk:\n{chunkText}")
+#            print(f"----------------------")
+
         return oneQueryResultList
 
 
     def rrfReRanking(self, allQueryResults : AllQueryResults) -> AllQueryResults:
         """
         Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results.
-        RRF rank is used as dict key. It is rounded to 6 digits
         
         :param allQueryResults: query results
         :type allQueryResults: AllQueryResults
@@ -142,8 +202,6 @@ class QueryService(BaseModel):
             for key in item.result_dict:
                 setKeys.add(key)
 
-        # print(f"RRF: semantic: {len(allQueryResults.listQueryResults[0].result_dict)}  bm25s: {len(allQueryResults.listQueryResults[1].result_dict)}  unique keys : {len(setKeys)}")
-
         scoresDict = dict[str, IdentifierQueryResults]()
 
         # calculate rank for issue access all query runs
@@ -151,44 +209,28 @@ class QueryService(BaseModel):
             identifierQueryResults = IdentifierQueryResults(
                 identifier = ident,
             )
-            finalScore = 0.0
+            finalRank = 0.0
             for item in allQueryResults.listQueryResults:               # item : OneQueryResultList
                 if ident in item.result_dict.keys():
                     oneQueryChunkResult = item.result_dict[ident]        # OneQueryChunkResult
-                    finalScore += 1/(60 + oneQueryChunkResult.score)
-                    if oneQueryChunkResult.searchTypeName == SEARCH.SEMANTIC.value:
-                        identifierQueryResults.chunk = oneQueryChunkResult.chunk
-            identifierQueryResults.score = finalScore
+                    finalRank += 1/(60 + oneQueryChunkResult.rank)
+                    identifierQueryResults.chunk = oneQueryChunkResult.chunk
+            identifierQueryResults.rrfRank = finalRank
             scoresDict[ident] = identifierQueryResults
 
         # sort descending by rank
-        scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[1].score, reverse=True)}
+        scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[1].rrfRank, reverse=True)}
 
         allQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
 
-        # print(f"=====\n{allQueryResults.rrfScores.model_dump_json(indent=2)}\n================")
+#        print(f"=====\n{allQueryResults.rrfScores.model_dump_json(indent=2)}\n================")
 
         return allQueryResults
 
 
-
-    def printOneQueryResult(self, queryResult, resultIdx) :
-        print(f"----{resultIdx}------------")
-        dist = queryResult["distances"][0][resultIdx]
-#        docType = type(queryResult["documents"][0][resultIdx])
-        doc = queryResult["documents"][0][resultIdx]
-#        metaType = type(queryResult["metadatas"][0][resultIdx])
-        meta = queryResult["metadatas"][0][resultIdx]
-        print(f"distance: {dist}")
-#        print(f"doc type: {docType}")
-        print(f"doc: {doc}")
-#        print(f"metadata type:{metaType}")
-        print(f"metadata: {meta}")
-
-
-    def hydeQuery(self, query : List[str], model : Model) -> tuple[str, RunUsage]:
+    def hydeQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
         """ Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. Throws exceptions on LLM errors.
 
             :param query: query for semantic search
@@ -196,7 +238,7 @@ class QueryService(BaseModel):
             :param model: OpenAI model instance
             :type model: Model
             :return: tuple of results and run usage
-            :rtype: tuple[str, RunUsage]
+            :rtype: tuple[List[str], RunUsage]
 
         """
 
@@ -208,7 +250,12 @@ class QueryService(BaseModel):
             retries = 3)
         userPrompt = query
         result = agentHyDE.run_sync(userPrompt)
-        return result.output, result.usage()
+        resOutput: List[str] = []
+        if type(result.output) == str:
+            resOutput.append(result.output)
+        if type(result.output) == list:
+            resOutput = result.output
+        return resOutput, result.usage()
 
 
     def multiQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
@@ -219,7 +266,7 @@ class QueryService(BaseModel):
         :param model: OpenAI model instance
         :type model: Model
         :return: tuple of results and run usage
-        :rtype: tuple[str, RunUsage]
+        :rtype: tuple[List[str], RunUsage]
         """
 
         # Prompt for generating multiple queries
@@ -237,12 +284,24 @@ class QueryService(BaseModel):
             retries = 3)
         userPrompt = query
         result = agentMultipleQ.run_sync(userPrompt)
-        return result.output, result.usage()
+        resOutput: List[str] = []
+        if type(result.output) == str:
+            resOutput.append(result.output)
+        if type(result.output) == list:
+            resOutput = result.output
+        return resOutput, result.usage()
 
 
-    def rewriteQuery(self, query : List[str], model : Model) -> tuple[str, RunUsage]:
+    def rewriteQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
         """
         Rewrite the query for semantic search.  Throws exceptions on LLM errors.
+        
+        :param query: query for semantic search
+        :type query: List[str]
+        :param model: OpenAI model instance
+        :type model: Model
+        :return: tuple of results and run usage
+        :rtype: tuple[List[str], RunUsage]
         """
         # Query rewriting prompt
         systemPrompt = """You are a query rewriting expert. The user's original query didn't retrieve relevant documents.
@@ -252,7 +311,7 @@ class QueryService(BaseModel):
             - Add synonyms or related terms
             - Rephrase to target likely document content
             - Consider the retrieval failure and adjust accordingly.
-            Output only the query, do not include additional information.
+            Output only the query, do not include additional information. Format output as a list of strings.
 
             Original query is supplied in user prompt.
             """
@@ -263,30 +322,206 @@ class QueryService(BaseModel):
             retries = 3)
         userPrompt = query
         result = agentRewriteQ.run_sync(userPrompt)
-        return result.output, result.usage()
+        resOutput: List[str] = []
+        if type(result.output) == str:
+            resOutput.append(result.output)
+        if type(result.output) == list:
+            resOutput = result.output
+        return resOutput, result.usage()
 
 
-    def tokenizeQuery(self, query : List[str], tokenizerTypes: TOKENIZERTYPES) -> List[str]:
+    def tokenizeQuery(self, query : List[str]) -> List[str]:
         """
         create list of tokens from the query for BM25S search.
 
         :param query: query for semantic search
         :type query: List[str]
-        :param tokenizerTypes: flags for tokenizer
-        :type tokenizerTypes: TOKENIZERTYPES
         :return: List of token strings
         :rtype: List[str]
         """
 
-        if TOKENIZERTYPES.STOPWORDSEN in tokenizerTypes:
-            stopwords = "english"
-        else:
-            stopwords = None
-
-        if TOKENIZERTYPES.STEMMER in tokenizerTypes:
-            stemmer=Stemmer.Stemmer("english")
-        else:
-            stemmer = None
-
-        query_tokens = bm25s.tokenize(texts = query, return_ids=False, stopwords=stopwords, stemmer=stemmer)
+        query_tokens = bm25s.tokenize(texts = query, return_ids=False, stopwords="english")
         return query_tokens
+
+
+    def getOutliersZScore(self, oneQueryResultList : OneQueryResultList, threshold : float = 3.0) -> List[str]:
+        """
+        Make list of scores from oneQueryResultList. Round scores to 10.
+        Sort the list in ascending order. Calculate Z scores
+        Return list of identifiers for outlier chunks.
+
+        :param oneQueryResultList: one query results
+        :type oneQueryResultList: OneQueryResultList
+        :param threshold: Z Score threshold - how many standard deviations away the value is
+        :type threshold: float
+        :return: list of of outlier identifiers
+        :rtype: List[str]
+        """
+
+        inData: List[float] = []
+        for ident in oneQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+            inData.append(round(oneQueryChunkResult.score, 10))
+
+        inData = sorted(inData)
+        
+        mean_val = np.mean(inData)
+        std_dev = np.std(inData)
+        z_scores = [(y - mean_val) / std_dev for y in inData]
+        # Identify upper outliers using z-score
+        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
+
+        outList : List[str] = []
+        for ident in oneQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+            key = round(oneQueryChunkResult.score, 10)
+            if key in outliers:
+                outList.append(ident)
+
+        return outList
+
+
+    def getOutliersZScoreFromRRF(self, allQueryResults : AllQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
+        """
+        Select outliers in array of RRF ranks by Z Score calculation
+
+        :param allQueryResults: all query results
+        :type allQueryResults: AllQueryResults
+        :param threshold: Z Score threshold - how many standard deviations away the value is
+        :type threshold: float
+        :return: dict of outliers, key is ident, value is IdentifierQueryResults object
+        :rtype: Dict[str, IdentifierQueryResults]
+        """
+
+        inData: List[float] = []
+        for ident in allQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+            inData.append(round(identifierQueryResults.rrfRank, 10))
+        
+        inData = sorted(inData)
+        
+        mean_val = np.mean(inData)
+        std_dev = np.std(inData)
+
+        z_scores = [(y - mean_val) / std_dev for y in inData]
+
+        # Identify upper outliers using z-score
+        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
+        outDict : Dict[str, IdentifierQueryResults] = {}
+        for ident in allQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+            key= round(identifierQueryResults.rrfRank, 10)
+            if key in outliers:
+                outDict[ident] = identifierQueryResults
+
+        return outDict
+
+
+    def getOutliersIQR(self, oneQueryResultList : OneQueryResultList, upper : bool = True) -> List[str]:
+        """
+        Make list of scores from oneQueryResultList. Round scores to 10.
+        Sort the list in ascending order. Calculate Interquartile Range (IQR).
+        Return list of identifiers for outlier chunks.
+        Return outlier values higher than upper fence if 'upper' flag is set.
+        Return outlier values lower than lower fence if 'upper' flag is not set.
+
+        :param oneQueryResultList: one query results
+        :type oneQueryResultList: OneQueryResultList
+        :param upper: return outliers higher than upperFence or lower than lowerFence
+        :type upper: bool
+        :return: list of of outlier identifiers
+        :rtype: List[str]
+        """
+
+        inData: List[float] = []
+        for ident in oneQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+            inData.append(round(oneQueryChunkResult.score, 10))
+
+        inData = sorted(inData)
+
+        print(f"=====\n{inData}\n==========")
+
+        data = np.array(inData)
+        q1 = np.percentile(data, 25)
+        q3 = np.percentile(data, 75)
+        iqr = q3 - q1
+        upperFence = q3 + (1.5 * iqr)
+        lowerFence = q1 - (1.5 * iqr)
+        print(f"q1={q1}  q3={q3}  iqr={iqr}  upperFence={upperFence}  lowerFence={lowerFence}")
+
+        outlierScores: List[float] = []
+        for val in inData:
+            if upper:
+                if val > upperFence:
+                    outlierScores.append(val)
+            else:
+                if val < lowerFence:
+                    outlierScores.append(val)
+        
+        outList : List[str] = []
+        for val in outlierScores:
+            for ident in oneQueryResultList.result_dict.keys():
+                oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+                if round(oneQueryChunkResult.score, 10) == val:
+                    outList.append(ident)    
+                    break
+        return outList
+
+
+    def getOutliersIQRFromRRF(self, allQueryResults : AllQueryResults) -> Dict[str, IdentifierQueryResults]:
+        """
+        Select outliers in array of RRF ranks by Interquartile Range (IQR) and Quartile Deviation
+
+        :param allQueryResults: all query results
+        :type allQueryResults: AllQueryResults
+        :return: dict of outliers, key is ident, value is IdentifierQueryResults object
+        :rtype: Dict[str, IdentifierQueryResults]
+        """
+
+        inData: List[float] = []
+        for ident in allQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+            inData.append(round(identifierQueryResults.rrfRank, 10))
+        
+        inData = sorted(inData)
+
+        data = np.array(inData)
+        q1 = np.percentile(data, 25)
+        q3 = np.percentile(data, 75)
+        iqr = q3 - q1
+        upperFence = q3 + (1.5 * iqr)
+
+        outDict : Dict[str, IdentifierQueryResults] = {}
+        for ident in allQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+            val = round(identifierQueryResults.rrfRank, 10)
+            if val > upperFence:
+                outDict[ident] = identifierQueryResults
+
+        return outDict
+
+
+    def getOutliersHighest(self, allQueryResults : AllQueryResults, topResults : int = 1) -> Dict[str, IdentifierQueryResults]:
+        """
+        Select highest RRF rank outliers
+
+        :param allQueryResults: all query results
+        :type allQueryResults: AllQueryResults
+        :param topResults: number of top RRF rank results
+        :type topResults: int
+        :return: dict of outliers, key is ident, value is IdentifierQueryResults object
+        :rtype: Dict[str, IdentifierQueryResults]
+        """
+
+        outDict : Dict[str, IdentifierQueryResults] = {}
+        idx = 0
+        for ident in allQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+            outDict[ident] = identifierQueryResults
+            idx += 1
+            if idx >= topResults:
+                break
+       
+        return outDict
+

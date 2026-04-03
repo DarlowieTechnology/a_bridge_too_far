@@ -187,7 +187,6 @@ def main():
     context["makeRawVector"] = False
     context["bm25Process"] = False
     context["matchChunks"] = True
-    context["vectorize"] = False
     context["verify"] = False
     context["returnResults"] = False
     context["clear"] = False
@@ -203,11 +202,25 @@ def main():
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48
+
+    # search configuration
+    context["searchSemanticOriginal"] = True
+    context["searchBM25sOriginal"] = True
+    context["searchSemanticMulti"] = True
+    context["searchBM25sMulti"] = True
+    context["searchSemanticRewrite"] = True
+    context["searchBM25sRewrite"] = True
+    context["searchSemanticHyDE"] = True
+    context["searchBM25sHyDE"] = True
+
+    # retrieval configuration
     context["semanticRetrieveNumber"] = 10
-    context["semanticMaxCutItemDistance"] = 0.4
+    context["semanticMaxCutItemDistance"] = 1.0
     context["bm25sRetrieveNumber"] = 10
     context["bm25sMinCutOffScore"] = 0.001
     context["rrfCutOffValue"] = 0.000001
+    context["rrfOutlierZScoreThreshold"] = 1.5
+    context["outputNumber"] = 5
 
     configCollection = ConfigCollection(context)
 

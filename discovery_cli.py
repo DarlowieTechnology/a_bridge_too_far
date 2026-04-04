@@ -192,10 +192,10 @@ def main():
     context["clear"] = False
 
     # text extraction configuration
-    context["stripWhiteSpace"] = False
-    context["convertToLower"] = False
-    context["convertToASCII"] = False
-    context["singleSpaces"] = False
+    context["stripWhiteSpace"] = True
+    context["convertToLower"] = True
+    context["convertToASCII"] = True
+    context["singleSpaces"] = True
 
     # other app-specific configuration
     context["documentFolder"] = "documents"

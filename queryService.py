@@ -101,7 +101,7 @@ class QueryService(BaseModel):
 
         queryResult = chromaCollection.query(query_texts = query, n_results = maxRetrieveNumber)
 
-        print(f"SEMANTIC=====\n'{queryLabel}' : {query}\n===================")
+#        print(f"SEMANTIC=====\n'{queryLabel}' : {query}\n===================")
 
         resultIdx = -1
         for distFloat in queryResult["distances"][0]:
@@ -151,7 +151,7 @@ class QueryService(BaseModel):
             label = queryLabel        
         )
 
-        print(f"BM25S=========\n'{queryLabel}' : {query}\n===================")
+#        print(f"BM25S=========\n'{queryLabel}' : {query}\n===================")
 
         retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
 
@@ -344,90 +344,17 @@ class QueryService(BaseModel):
         return query_tokens
 
 
-    def getOutliersZScore(self, oneQueryResultList : OneQueryResultList, threshold : float = 3.0) -> List[str]:
+    def getOutliersForQuery(self, oneQueryResultList : OneQueryResultList, threshold : float = 3.0, upper : bool = True) -> List[str]:
         """
         Make list of scores from oneQueryResultList. Round scores to 10.
-        Sort the list in ascending order. Calculate Z scores
+        Sort the list in ascending order. Calculate IQR and Z scores
         Return list of identifiers for outlier chunks.
 
         :param oneQueryResultList: one query results
         :type oneQueryResultList: OneQueryResultList
         :param threshold: Z Score threshold - how many standard deviations away the value is
         :type threshold: float
-        :return: list of of outlier identifiers
-        :rtype: List[str]
-        """
-
-        inData: List[float] = []
-        for ident in oneQueryResultList.result_dict.keys():
-            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
-            inData.append(round(oneQueryChunkResult.score, 10))
-
-        inData = sorted(inData)
-        
-        mean_val = np.mean(inData)
-        std_dev = np.std(inData)
-        z_scores = [(y - mean_val) / std_dev for y in inData]
-        # Identify upper outliers using z-score
-        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
-
-        outList : List[str] = []
-        for ident in oneQueryResultList.result_dict.keys():
-            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
-            key = round(oneQueryChunkResult.score, 10)
-            if key in outliers:
-                outList.append(ident)
-
-        return outList
-
-
-    def getOutliersZScoreFromRRF(self, allQueryResults : AllQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
-        """
-        Select outliers in array of RRF ranks by Z Score calculation
-
-        :param allQueryResults: all query results
-        :type allQueryResults: AllQueryResults
-        :param threshold: Z Score threshold - how many standard deviations away the value is
-        :type threshold: float
-        :return: dict of outliers, key is ident, value is IdentifierQueryResults object
-        :rtype: Dict[str, IdentifierQueryResults]
-        """
-
-        inData: List[float] = []
-        for ident in allQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
-            inData.append(round(identifierQueryResults.rrfRank, 10))
-        
-        inData = sorted(inData)
-        
-        mean_val = np.mean(inData)
-        std_dev = np.std(inData)
-
-        z_scores = [(y - mean_val) / std_dev for y in inData]
-
-        # Identify upper outliers using z-score
-        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
-        outDict : Dict[str, IdentifierQueryResults] = {}
-        for ident in allQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
-            key= round(identifierQueryResults.rrfRank, 10)
-            if key in outliers:
-                outDict[ident] = identifierQueryResults
-
-        return outDict
-
-
-    def getOutliersIQR(self, oneQueryResultList : OneQueryResultList, upper : bool = True) -> List[str]:
-        """
-        Make list of scores from oneQueryResultList. Round scores to 10.
-        Sort the list in ascending order. Calculate Interquartile Range (IQR).
-        Return list of identifiers for outlier chunks.
-        Return outlier values higher than upper fence if 'upper' flag is set.
-        Return outlier values lower than lower fence if 'upper' flag is not set.
-
-        :param oneQueryResultList: one query results
-        :type oneQueryResultList: OneQueryResultList
-        :param upper: return outliers higher than upperFence or lower than lowerFence
+        :param upper: IQR upper or lower fence
         :type upper: bool
         :return: list of of outlier identifiers
         :rtype: List[str]
@@ -440,15 +367,24 @@ class QueryService(BaseModel):
 
         inData = sorted(inData)
 
-        print(f"=====\n{inData}\n==========")
-
         data = np.array(inData)
         q1 = np.percentile(data, 25)
         q3 = np.percentile(data, 75)
         iqr = q3 - q1
         upperFence = q3 + (1.5 * iqr)
         lowerFence = q1 - (1.5 * iqr)
-        print(f"q1={q1}  q3={q3}  iqr={iqr}  upperFence={upperFence}  lowerFence={lowerFence}")
+
+        mean_val = np.mean(inData)
+        std_dev = np.std(inData)
+        z_scores = [(y - mean_val) / std_dev for y in inData]
+        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
+
+        outList : List[str] = []
+        for ident in oneQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+            key = round(oneQueryChunkResult.score, 10)
+            if key in outliers:
+                outList.append(ident)
 
         outlierScores: List[float] = []
         for val in inData:
@@ -459,7 +395,6 @@ class QueryService(BaseModel):
                 if val < lowerFence:
                     outlierScores.append(val)
         
-        outList : List[str] = []
         for val in outlierScores:
             for ident in oneQueryResultList.result_dict.keys():
                 oneQueryChunkResult = oneQueryResultList.result_dict[ident]
@@ -469,12 +404,14 @@ class QueryService(BaseModel):
         return outList
 
 
-    def getOutliersIQRFromRRF(self, allQueryResults : AllQueryResults) -> Dict[str, IdentifierQueryResults]:
+    def getOutliersFromRRF(self, allQueryResults : AllQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
         """
-        Select outliers in array of RRF ranks by Interquartile Range (IQR) and Quartile Deviation
+        Select outliers in array of RRF ranks by Interquartile Range (IQR) and Z Score
 
         :param allQueryResults: all query results
         :type allQueryResults: AllQueryResults
+        :param threshold: Z Score threshold - how many standard deviations away the value is
+        :type threshold: float
         :return: dict of outliers, key is ident, value is IdentifierQueryResults object
         :rtype: Dict[str, IdentifierQueryResults]
         """
@@ -491,37 +428,21 @@ class QueryService(BaseModel):
         q3 = np.percentile(data, 75)
         iqr = q3 - q1
         upperFence = q3 + (1.5 * iqr)
+        
+        mean_val = np.mean(inData)
+        std_dev = np.std(inData)
+        z_scores = [(y - mean_val) / std_dev for y in inData]
+        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
 
         outDict : Dict[str, IdentifierQueryResults] = {}
         for ident in allQueryResults.rrfScores.scoresDict.keys():
             identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
             val = round(identifierQueryResults.rrfRank, 10)
             if val > upperFence:
+                identifierQueryResults.outlierIQR = True
+            if val in outliers:
+                identifierQueryResults.outlierZScore = True
+            if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
                 outDict[ident] = identifierQueryResults
 
         return outDict
-
-
-    def getOutliersHighest(self, allQueryResults : AllQueryResults, topResults : int = 1) -> Dict[str, IdentifierQueryResults]:
-        """
-        Select highest RRF rank outliers
-
-        :param allQueryResults: all query results
-        :type allQueryResults: AllQueryResults
-        :param topResults: number of top RRF rank results
-        :type topResults: int
-        :return: dict of outliers, key is ident, value is IdentifierQueryResults object
-        :rtype: Dict[str, IdentifierQueryResults]
-        """
-
-        outDict : Dict[str, IdentifierQueryResults] = {}
-        idx = 0
-        for ident in allQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
-            outDict[ident] = identifierQueryResults
-            idx += 1
-            if idx >= topResults:
-                break
-       
-        return outDict
-

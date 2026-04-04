@@ -444,12 +444,12 @@ class DiscoveryWorkflow(WorkflowBase):
             identifierQueryResults = rrfScores.scoresDict[ident]
             if identifierQueryResults.rrfRank < self.rrfCutOffValue:
                 break
-            msg = f"{identifierQueryResults.rrfRank:.4f} {ident}]\n\t{identifierQueryResults.chunk}"
-            print(msg)
-            outStrings.append(msg)
             idx += 1
             if (idx >= self.outputNumber):
+                print(f"{identifierQueryResults.model_dump(mode = 'python')}")
                 break
+            else:
+                print(f"{identifierQueryResults.model_dump(mode = 'python')},")
 
         return outStrings
 
@@ -584,22 +584,11 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def dumpOutliersForOneQuery(self, queryService : QueryService, oneQueryResultList : OneQueryResultList, upperFlag : bool):
 
-        outlierIdentifiers = queryService.getOutliersIQR(oneQueryResultList = oneQueryResultList, upper = upperFlag)
+        outlierIdentifiers = queryService.getOutliersForQuery(oneQueryResultList = oneQueryResultList, upper = upperFlag)
         if len(outlierIdentifiers):
-            print(f"OUTLIERS by IQR=====")
+            print(f"OUTLIERS=====")
             for ident in outlierIdentifiers:
                 print(f"{ident}")
-        else:
-            print(f"NO OUTLIERS by IQR=====")
-            # use Z Score as a fallback
-            outlierIdentifiers = queryService.getOutliersZScore(oneQueryResultList = oneQueryResultList, threshold = self.rrfOutlierZScoreThreshold)
-            if len(outlierIdentifiers):
-                print(f"OUTLIERS by Z Score=====")
-                for ident in outlierIdentifiers:
-                    print(f"{ident}")
-            else:
-                print(f"NO OUTLIERS=====")
-
 
 
     def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllQueryResults :
@@ -630,7 +619,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         model = self.createOpenAIModel()
 
-        queryTexts = ["outdated third-party software"]
+        queryTexts = ["sql injection"]
 
         # semantic search for original query
         if self.searchSemanticOriginal:
@@ -758,29 +747,7 @@ class DiscoveryWorkflow(WorkflowBase):
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
-
-        # we expect RRF dataset to be skewed to the left with a few right outliers, choose IQR as a default method.
-        #
-        outlierDictIQR = queryService.getOutliersIQRFromRRF(allQueryResults)
-        if len(outlierDictIQR):
-            print(f"OUTLIERS by IQR=====")
-            for ident in outlierDictIQR.keys():
-                print(f"{outlierDictIQR[ident]}")
-        else:
-            # use Z Score as a fallback
-            outlierDictZScore = queryService.getOutliersZScoreFromRRF(allQueryResults, self.rrfOutlierZScoreThreshold)
-            if len(outlierDictZScore):
-                print(f"OUTLIERS by Z Score=====")
-                for ident in outlierDictZScore.keys():
-                    print(f"{outlierDictZScore[ident]}")
-            else:
-                # fallback on highest RRF rank
-                outlierDictHighest = queryService.getOutliersHighest(allQueryResults, 2)
-                if len(outlierDictHighest):
-                    print(f"OUTLIERS top=====")
-                    for ident in outlierDictHighest.keys():
-                        print(f"{outlierDictHighest[ident]}")
-
+        queryService.getOutliersFromRRF(allQueryResults, self.rrfOutlierZScoreThreshold)
         return allQueryResults
 
 
@@ -908,6 +875,7 @@ class DiscoveryWorkflow(WorkflowBase):
             allQueryResults = self.matchChunksPhase(queryTexts = knownTopics, queryService = queryService)
 
             msgList = self.outputRRFInfo(allQueryResults.rrfScores)
+#            print(msgList)
 #            self.workerSnapshot(msgList)
 
             endTime = time.time()

@@ -84,6 +84,8 @@ class IdentifierQueryResults(BaseModel):
     identifier: str = Field(default = "", description="unique identifier")
     rrfRank : float = Field(default = 0.0, description="RRF rank")
     chunk: str = Field( default = "", description="chunk of text in document")
+    outlierIQR: bool = Field( default = False, description="outlier by IQR")
+    outlierZScore: bool = Field( default = False, description="outlier by Z Score")
 
 
 class RRFScores(BaseModel):

@@ -148,11 +148,11 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Chunk size is invalid')
         if not self.chunkOverlap in range(0, 65):
             raise ValueError(f'Chunk overlap is invalid')
-        if not self.semanticRetrieveNumber in range(0, 513):
+        if not self.semanticRetrieveNumber in range(0, 2049):
             raise ValueError(f'Number of semantic search items is invalid')
         if not (self.semanticMaxCutItemDistance >= 0 and self.semanticMaxCutItemDistance <= 1.0):
             raise ValueError(f'Maximum distance of semantic search items is invalid')
-        if not self.bm25sRetrieveNumber in range(0, 513):
+        if not self.bm25sRetrieveNumber in range(0, 2049):
             raise ValueError(f'Number of bm25s search items is invalid')
         if not (self.bm25sMinCutOffScore >= 0):
             raise ValueError(f'bm25s score cut off value is invalid')
@@ -619,7 +619,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         model = self.createOpenAIModel()
 
-        queryTexts = ["sql injection"]
+        queryTexts = ["iam roles excessive permissions"]
 
         # semantic search for original query
         if self.searchSemanticOriginal:

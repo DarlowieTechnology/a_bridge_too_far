@@ -219,7 +219,7 @@ def main():
     context["bm25sRetrieveNumber"] = 10
     context["bm25sMinCutOffScore"] = 0.001
     context["rrfCutOffValue"] = 0.000001
-    context["rrfOutlierZScoreThreshold"] = 1.5
+    context["rrfOutlierZScoreThreshold"] = 3
     context["outputNumber"] = 5
 
     configCollection = ConfigCollection(context)

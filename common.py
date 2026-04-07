@@ -258,6 +258,7 @@ class ConfigCollection(object):
     If TOML file is not found the application terminates.
     TOML configuration file is in ./ directory for CLI
     TOML configuration file is in ../ directory for webapp
+    TOML configuration file is in ../a_bridge_too_far directory for test data
     """
 
     configName = 'default.toml'
@@ -276,12 +277,17 @@ class ConfigCollection(object):
                 self._conf = tomli.load(fp)
         except Exception as e:
             try:
-                self.configName = "../" + self.configName
-                with open(self.configName, mode="rb") as fp:
+                configName = "../" + self.configName
+                with open(configName, mode="rb") as fp:
                     self._conf = tomli.load(fp)
             except Exception as e:
-                logger.debug(f"***ERROR: Cannot open config file {self.configName}, exception {e}")
-                sys.exit("Program terminates")
+                try:
+                    configName = "../a_bridge_too_far/" + self.configName
+                    with open(configName, mode="rb") as fp:
+                        self._conf = tomli.load(fp)
+                except Exception as e:
+                    logger.debug(f"***ERROR: Cannot open config file {self.configName}, exception {e}")
+                    sys.exit("Program terminates")
         # read ENV
         if 'OLLAMA_API_KEY' in os.environ:
             self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']

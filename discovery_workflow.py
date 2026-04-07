@@ -77,15 +77,14 @@ knownTopics = [
 ]
 
 
-
 class DiscoveryWorkflow(WorkflowBase):
 
     # app specific configuration
-    documentFolder : str = Field(default = "documents/", description="Source document folder")
-    dataFolder : str = Field(default = "discoverydata/", description="Intermediate data folder")
-    bm25IndexFolder : str = Field(default = "__combined.bm25/", description="bm25 index folder")
-    bm25CorpusFileName : str = Field(default = "corpus.jsonl", description="bm25 corpus file")
-    fileExtensions : List[str] = Field(default = ["*.txt"], description="List of source file allowed file name extensions")
+    documentFolder : str = Field(default = "", description="Source document folder")
+    dataFolder : str = Field(default = "", description="Intermediate data folder")
+    bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
+    bm25CorpusFileName : str = Field(default = "", description="bm25 corpus file")
+    fileExtensions : List[str] = Field(default = [], description="List of source file allowed file name extensions")
     chunkSize : int = Field(default = 512, description="Chunk size for source documents")
     chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
 
@@ -199,9 +198,10 @@ class DiscoveryWorkflow(WorkflowBase):
             self.singleSpaces = configCollection["singleSpaces"]
 
         # app-specific required configuration
-        self.documentFolder = configCollection["DISCOVdocumentFolder"]
-        self.dataFolder = configCollection["DISCOVdataFolder"]
-        self.bm25IndexFolder = configCollection["DISCOVbm25IndexFolder"]
+        self.documentFolder = configCollection["documentFolder"]
+        self.dataFolder = configCollection["dataFolder"]
+        self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
         self.fileExtensions = configCollection["fileExtensions"]
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]
@@ -248,7 +248,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
     def processText(self, textIn : str) -> str:
         """
-        Process text per flags (strip, lower, conver to ASCII, single space)
+        Process text per flags (strip, lower, convert to ASCII, single space)
         
         :param textIn: text to process
         :type textIn: str

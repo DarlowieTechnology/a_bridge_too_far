@@ -19,6 +19,10 @@
 
 context = {
 
+    # Global
+
+    "GLOBALdataFolder" : "../testdata/",     # root data folder
+
     # Generator app settings
 
     "GENERArag_activity_cutoff" : 0.3,       # cut off distance for activity table match
@@ -35,8 +39,11 @@ context = {
     # Indexer app settings
 
     "INDEXEjira_url": "https://darlowie-security.atlassian.net",   # Jira Cloud API
-    "INDEXEjira_max_results" : 1000,  # maximum number of Jira records to export
+    "INDEXEjira_max_results" : 999,  # maximum number of Jira records to export
     "INDEXEjira_export": False,  # Perform Jira export
+    "INDEXEdataFolder" : "indexerdocuments/",          # Interim data folder
+    "INDEXEbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
+    "INDEXEbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
     
     # Indexer CLI settings
 
@@ -50,9 +57,10 @@ context = {
 
     # Discovery app settings
 
-    "DISCOVdocumentFolder" : "documents/",          # folder for source documents
+    "DISCOVdocumentFolder" : "discoverydocuments/",          # folder for source documents
     "DISCOVdataFolder" : "discoverydata/",          # Interim data folder
     "DISCOVbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
+    "DISCOVbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
 
     # Discovery CLI settings
 

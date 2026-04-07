@@ -65,15 +65,12 @@ class ReportFinding(BaseModel):
 
     def __ne__(self, other):
         return not self.__eq__(other)
-    
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.title + self.risk + self.impact + self.exploitability + self.identifier
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+
+    def stringToHash(self) -> str:
+        return self.title + self.risk + self.impact + self.exploitability + self.identifier
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
 
 
@@ -121,15 +118,12 @@ class ReportFindingWithStatus(BaseModel):
 
     def __ne__(self, other):
         return not self.__eq__(other)
-    
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.title + self.risk + self.impact + self.exploitability + self.identifier + self.status
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+
+    def stringToHash(self) -> str:
+        return self.title + self.risk + self.impact + self.exploitability + self.identifier + self.status
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
 
     
@@ -169,14 +163,11 @@ class ReportIssue(BaseModel):
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.identifier + self.title + self.risk
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+    def stringToHash(self) -> str:
+        return self.identifier + self.title + self.risk
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
 
 
@@ -217,16 +208,12 @@ class ReportIssueCD(BaseModel):
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.identifier + self.title + self.risk + self.description
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+    def stringToHash(self):
+        return self.identifier + self.title + self.risk + self.description
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
-
 
 
 class IssueDescription(BaseModel):
@@ -259,14 +246,11 @@ class IssueDescription(BaseModel):
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.identifier + self.title + self.risk
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+    def stringToHash(self) -> str:
+        return self.identifier + self.title + self.risk
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
 
 
@@ -312,16 +296,12 @@ class ISECIssue(BaseModel):
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.title + self.vulnClass + self.severity + self.difficulty + self.identifier
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+    def stringToHash(self) -> str:
+        return self.title + self.vulnClass + self.severity + self.difficulty + self.identifier
 
     # bm25s tokenization - identifier and title
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.title])
-
 
 
 class JiraIssueRAG(BaseModel):
@@ -343,14 +323,11 @@ class JiraIssueRAG(BaseModel):
     progress: int = Field(..., description="Issue progress")
     worklog: list[str] = Field(..., description="List of worklogs for issue")
 
-    def __hash__(self):
-        hashFunc = hashlib.sha256()
-        strVal = self.identifier + self.project_key + self.project_name + self.status_category_key + self.priority_name + self.issue_updated + self.status_name + self.summary + self.progress + "|".join(self.worklog)
-        hashFunc.update(strVal.encode('utf-8'))
-        return hashFunc.hexdigest()
+    def stringToHash(self) -> str:
+        return self.identifier + self.project_key + self.project_name + self.status_category_key + self.priority_name + self.issue_updated + self.status_name + self.summary + self.progress + "|".join(self.worklog)
 
     # join all fields for bm25s tokenization
-    def bm25s(self):
+    def bm25s(self) -> str:
         return "\n".join([self.identifier, self.summary, self.project_key, self.project_name, self.status_category_key, 
                     self.priority_name, self.issue_updated, self.status_name,
                     self.progress, "|".join(self.worklog)])

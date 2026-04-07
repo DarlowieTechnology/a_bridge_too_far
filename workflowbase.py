@@ -84,7 +84,7 @@ class WorkflowBase(BaseModel):
 
     def configure(self, configCollection : ConfigCollection) :
 
-        self.logger = logging.getLogger(configCollection["DISCLIsession_key"])
+        self.logger = logging.getLogger(configCollection["session_key"])
 
         self.globalProvider = configCollection["GLOBALllm_Provider"]
         self.embeddingLLM = configCollection["GLOBALllm_Embed"]

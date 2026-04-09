@@ -9,6 +9,7 @@
 #   - prefix INDEXE - specific to Indexer app
 #   - prefix IDXCLI - specific to Indexer CLI version
 #   - prefix IDXWEB - specific to Indexer web version
+#   - prefix JEXCLI - specific to Jira Export CLI version
 #   - prefix QUERY  - specific to Query app
 #   - prefix QUECLI - specific to Query CLI version
 #   - prefix QUEWEB - specific to Query web version
@@ -49,6 +50,12 @@ context = {
 
     "IDXCLIsession_key": "INDEXER",   # session name for Indexer CLI
     "IDXCLIstatus_FileName": "status.INDEXER.json",  # status file name for Indexer CLI
+
+    # Jira Export CLI settings
+
+    "JEXCLIdataFolder" : "indexerdocuments/jiraexport/",          # Interim data folder
+    "JEXCLIsession_key": "JIRAEXPORT",   # session name for Jira Export CLI
+    "JEXCLIstatus_FileName": "status.JIRAEXPORT.json",  # status file name for Jira Export CLI
 
     # Query CLI settings
 

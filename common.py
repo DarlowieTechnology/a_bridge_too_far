@@ -295,8 +295,8 @@ class ConfigCollection(object):
             self._conf['gemini_key'] = os.environ['gemini_key']
         if 'mistral_key' in os.environ:
             self._conf['mistral_key'] = os.environ['mistral_key']
-        self._conf["Jira_api_token"] = os.environ['Jira_api_token']
-        self._conf["Jira_user"] = os.environ['Jira_user']
+        self._conf["jira_api_token"] = os.environ['Jira_api_token']
+        self._conf["jira_user"] = os.environ['Jira_user']
         self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
         if 'LMSTUDIO_API_KEY' in os.environ:
             self._conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']

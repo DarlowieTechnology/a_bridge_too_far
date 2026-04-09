@@ -1,18 +1,20 @@
 #
 # Indexer workflow class used by Django app and command line
 #
-from typing import List, Dict
+from typing import List, Dict, Any
 from typing_extensions import Self
 from logging import Logger
+import threading
 import json
 import re
 import time
 from pathlib import Path
 import hashlib
+from pprint import pprint
 
 from pydantic import BaseModel, ValidationError, Field, model_validator
 import pydantic_ai
-from pydantic_ai import Agent
+from pydantic_ai import Agent, AgentRunResult
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.usage import RunUsage
@@ -21,8 +23,6 @@ import chromadb
 from chromadb import Collection, ClientAPI
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-
-from jira import JIRA
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
 
@@ -35,10 +35,10 @@ import bm25s
 from anyascii import anyascii
 
 
-
 # local
-from common import COLLECTION, RecordCollection, ConfigCollection, DebugUtils
+from common import COLLECTION, RecordCollection, ConfigCollection, DebugUtils, OpenFile
 from workflowbase import WorkflowBase 
+from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
@@ -60,7 +60,8 @@ class IndexerWorkflow(WorkflowBase):
     INDEXEjira_url : str = Field(default = "", description="Jira API URL")
     INDEXEjira_max_results : int = Field(default = 999, description="maximum number of Jira items to retrieve")
     INDEXEjira_export : bool = Field(default = False, description="perform Jira export")
-    Jira_user : str = Field(default = "", description="Jira API user name")
+    jira_user : str = Field(default = "", description="Jira API user name")
+    jira_api_token: str = Field(default = "", description="Jira API token")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text")
@@ -81,6 +82,10 @@ class IndexerWorkflow(WorkflowBase):
     issueTemplate : str = Field(default = "", description="issue template name")
     extractPattern : str = Field(default = "", description="issue field extract regexp pattern")
     assignList : List[str] = Field(default = [], description="list of issue fields to assign")
+
+    corpus : List[str] = Field(default = [], description="corpus for bm25s")
+
+    stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
 
     @model_validator(mode='after')
@@ -130,8 +135,10 @@ class IndexerWorkflow(WorkflowBase):
         if configCollection.keyExists("inputFileBaseName"):
             self.inputFileBaseName = configCollection["inputFileBaseName"]
 
-        self.bm25IndexFolder = configCollection["bm25IndexFolder"]
-        self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
+        if configCollection.keyExists("bm25IndexFolder"):
+            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        if configCollection.keyExists("bm25CorpusFileName"):
+            self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
 
         if configCollection.keyExists("INDEXEjira_url"):
             self.INDEXEjira_url = configCollection["INDEXEjira_url"]
@@ -139,8 +146,10 @@ class IndexerWorkflow(WorkflowBase):
             self.INDEXEjira_max_results = configCollection["INDEXEjira_max_results"]
         if configCollection.keyExists("INDEXEjira_export"):
             self.INDEXEjira_export = configCollection["INDEXEjira_export"]
-        if configCollection.keyExists("Jira_user"):
-            self.Jira_user = configCollection["Jira_user"]
+        if configCollection.keyExists("jira_user"):
+            self.jira_user = configCollection["jira_user"]
+        if configCollection.keyExists("jira_api_token"):
+            self.jira_api_token = configCollection["jira_api_token"]
 
         if configCollection.keyExists("stripWhiteSpace"):
             self.stripWhiteSpace = configCollection["stripWhiteSpace"]
@@ -175,6 +184,24 @@ class IndexerWorkflow(WorkflowBase):
 
         # manually call model validator
         self.indexerWorkflow_verify_configuration()
+
+
+    def updateStats(self, keyValList : List[tuple[str, int]]) :
+        """
+        Update internal statistics. Attempt to update first, create key second.
+        
+        :param keyValList:  list of stats tuples (key-val)
+        :type keyValList: List[tuple[str, int]]
+        :return: None
+        :rtype: None
+        """
+
+        for key, value in keyValList:
+            try:
+                prevVal = self.stats[key]
+                self.stats[key] = prevVal + value
+            except Exception:
+                self.stats[key] = value
 
 
     def processText(self, textIn : str) -> str:
@@ -246,13 +273,12 @@ class IndexerWorkflow(WorkflowBase):
         return docs
 
 
-    def loadDocumentPhase(self) -> int: 
+    def loadDocumentPhase(self): 
         """
         Load document and store it as plain text
-
-        :return: Length of extracted text 
-        :rtype: int
         """
+
+        startTime = time.time()
 
         textCombined = self.loadPDFPyPDFLoader(self.inputFileName)
         if not textCombined:
@@ -261,7 +287,9 @@ class IndexerWorkflow(WorkflowBase):
         with open(self.rawTextFromDoc, "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
 
-        return len(textCombined)
+        endTime = time.time()
+
+        self.updateStats([("Time for loadDocument phase", endTime - startTime), ("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF length", len(textCombined))])
 
 
     def preprocessReportRawTextPhase(self, rawText : str) -> dict[str, str] :
@@ -312,10 +340,16 @@ class IndexerWorkflow(WorkflowBase):
 
         # process last match only if it is not a terminator 
         if match.group("TERMINATORGROUP"):
+
+            self.updateStats([ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
+
             return dictIssues    
 
         end = len(rawText)
         dictIssues[prevMatch.group(0)] = rawText[start:end]
+
+        self.updateStats([ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
+
         return dictIssues
 
 
@@ -340,15 +374,17 @@ class IndexerWorkflow(WorkflowBase):
             for i in range(len(self.assignList)) :
                 attrName = self.assignList[i]
                 setattr(oneIssue, attrName, match.group(attrName))
+
+            self.updateStats([ ("Issues parsed with fallback regexp", 1) ])
+
             return oneIssue
         else:
             msg = f"regexp parser produced no match"
             self.workerError(msg)
-            return None
 
-        msg = f"regexp parser not configured"
-        self.workerError(msg)
-        return None
+            self.updateStats([ ("Issues failed to parse", 1) ])
+
+            return None
 
 
     def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, RunUsage] :
@@ -378,13 +414,15 @@ class IndexerWorkflow(WorkflowBase):
                     system_prompt = systemPrompt)
         try:
 
-            result = agent.run_sync(prompt)
+            result : AgentRunResult = agent.run_sync(prompt)
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
             for attr in oneIssue.__dict__:
                 if oneIssue.__dict__[attr]:
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
-            runUsage = result.usage()
+            runUsage : RunUsage = result.usage()
+
+            self.updateStats([ ("Issues parsed with LLM", 1) ])
 
             return oneIssue, runUsage
         
@@ -399,16 +437,16 @@ class IndexerWorkflow(WorkflowBase):
         return self.parseFallback(docs, ClassTemplate), None
 
 
-    def parseAllIssuesPhase(self, listText: Dict[str, str], ClassTemplate : BaseModel) -> RecordCollection :
+    def parseAllIssuesPhase(self, listText: Dict[str, str], ClassTemplate : BaseModel) -> tuple[ RecordCollection, RunUsage ] :
         """
-        Extracts ClassTemplate instances in the dict of pages using LLM. ClassTemplate is based on Pydantic BaseModel.
+        Extract ClassTemplate instances using LLM. Fallback on regexp.
         
         Args:
             dictText (Dict[str, str]) - dict of pages
             ClassTemplate (BaseModel) - issue template
 
         Returns:
-            RecordCollection
+            tuple of RecordCollection and RunUsage
         """
 
         recordCollection = RecordCollection(
@@ -416,11 +454,9 @@ class IndexerWorkflow(WorkflowBase):
             finding_dict = {}
         )
 
-        totalUsage = RunUsage()
-        totalStartTime = time.time()
+        usageForPhase = RunUsage()
 
         for item in listText.keys():
-            startOneIssue = time.time()
 
             oneIssue, usageStats = self.parseIssueOllama(listText[item], ClassTemplate)
             if not oneIssue:
@@ -428,94 +464,16 @@ class IndexerWorkflow(WorkflowBase):
 
             recordCollection[item] = oneIssue
 
-            endOneIssue = time.time()
             if usageStats:
-                msg = f"Record: <b>{item}</b>. Usage: {self.usageFormat(usageStats)}. Time: {(endOneIssue - startOneIssue):9.2f} seconds."
                 self.addUsage(usageStats)
-                totalUsage += usageStats
-            else:
-                msg = f"Record: <b>{item}</b>. {(endOneIssue - startOneIssue):9.2f} seconds."
-                self.workerSnapshot(msg)
+                usageForPhase += usageStats
 
-        totalEndTime = time.time()
-        msg = f"Total usage: {self.usageFormat(totalUsage)}. Total time {(totalEndTime - totalStartTime):9.2f} seconds."
-        self.workerSnapshot(msg)
-
-        return recordCollection
+        return recordCollection, usageForPhase
 
     
-    def jiraExportPhase(self, ClassTemplate : BaseModel) -> RecordCollection :
-        """
-        Export issues from Jira project
-        Transform to smaller records
-        Write as final JSON for vectorization
-
-        Args:
-            ClassTemplate (BaseModel) - issue template
-
-        Returns:
-            RecordCollection - all items
-        """
-
-        # Connect to Jira
-        try:
-            jira = JIRA(server=self.INDEXEjira_url, basic_auth=(self.jira_user, self.jira_api_token))
-        except Exception as e:
-            msg = f"Jira API exception: {e}"
-            self.workerError(msg)
-            return 0
-        if not jira:
-            msg = f"Jira REST API connection error"
-            self.workerError(msg)
-            return 0
-
-        jql_query = f'project = {self.inputFileName}'
-        recordCollection = RecordCollection(finding_dict = {})
-
-        # Fetch issues from Jira
-        # default maxResults is 50, we need more than that
-        issues = jira.search_issues(jql_query, maxResults=self.INDEXEjira_max_results, json_result = True)
-        for val in issues["issues"]:
-            issueTemplate = ClassTemplate(
-                identifier = val["key"],
-                project_key = val["fields"]["project"]["key"],
-                project_name = val["fields"]["project"]["name"],
-                status_category_key = val["fields"]["statusCategory"]["key"],
-                priority_name = val["fields"]["priority"]["name"],
-                issue_updated = val["fields"]["updated"],
-                status_name = val["fields"]["status"]["name"],
-                summary = val["fields"]["summary"],
-                progress = val["fields"]["progress"]["progress"],
-                worklog = val["fields"]["worklog"]["worklogs"]
-            )
-            recordCollection.finding_dict[val["key"]] = issueTemplate
-
-        self.writeFinalJSON(recordCollection)
-        return recordCollection
 
 
-    def bm25sAddReportToCorpusPhase(self, corpus : list[str], issues: RecordCollection, ClassTemplate : BaseModel) -> List[str] :
-        """
-        Add each issue to corpus
-
-        Args:
-            corpus - list of strings to add to
-            issues (RecordCollection) - issues extracted from data source 
-            ClassTemplate (BaseModel) - description of structured data
-        
-        Returns:
-            updated corpus
-        """
-
-        for key in issues.finding_dict:
-            issue = issues.finding_dict[key]
-            reportItem = ClassTemplate.model_validate(issue)
-            issueText = reportItem.bm25s()
-            corpus.append(issueText)
-
-        return corpus
-
-
+    @staticmethod
     def bm25sProcessCorpusPhase(self, corpus : list[str], folderName: str) -> List[List[str]] :
         """
         Tokenize corpus
@@ -539,22 +497,28 @@ class IndexerWorkflow(WorkflowBase):
         return corpus_tokens
 
 
-    def vectorizeFinalJSONPhase(self, recordCollection : RecordCollection, ClassTemplate : BaseModel) -> tuple[int, int] :
+    def vectorizeFinalJSONPhase(self, ClassTemplate : BaseModel) :
         """
         Add all structured records to vector database.
         Before vectorization improve English text
         1. Lowercase
         2. Drop stop words
-
-        
+       
         Args:
-            recordCollection (RecordCollection) - all items to add 
             ClassTemplate (BaseModel) - issue template
 
-        Returns:
-            accepted (int) - number of records accepted to database (new or updated)
-            rejected (int) - number of records rejected from database (existing)
         """
+
+        startTime = time.time()
+
+        # read final JSON into record collection
+        result, fileContentOrError = OpenFile.open(filePath = self.finalJSON, readContent = True)
+        if not result:
+            msg = f"vectorizeFinalJSONPhase: {fileContentOrError} - perform 'parseIssues' action first"
+            self.workerSnapshot(msg)
+            return
+        else:
+            recordCollection = RecordCollection.model_validate_json(fileContentOrError)
 
         accepted = 0
         rejected = 0
@@ -632,49 +596,101 @@ class IndexerWorkflow(WorkflowBase):
                 metadatas=docMetadata
             )
 
-        return accepted, rejected
+        endTime = time.time()
+        self.updateStats([ ("Time for vectorizeFinalJSON phase", endTime - startTime),  ("Accepted", accepted), ("Rejected", rejected) ])
 
 
-    def writeFinalJSON(self, recordCollection : RecordCollection) :
+    def rawTextFromDocumentPhase(self) :
         """
-        Write final version of JSON as a result of LLM text comprehension.
-        This JSON can be vectorized
-        
+        Perform conversion of raw text to raw JSON
+
         Args:
-            recordCollection (RecordCollection) - all items
-
+        
         Returns:
-            None
         """
 
+        startTime = time.time()
+
+        result, fileContentOrError = OpenFile.open(filePath = self.rawTextFromDoc, readContent = True)
+        if not result:
+            msg = f"preprocess: {fileContentOrError} - perform 'loadDocument' phase first"
+            print(msg)
+            return
+        else:
+            textCombined = fileContentOrError
+
+        dictIssues = self.preprocessReportRawTextPhase(textCombined)
+
+        with open(self.rawJSON, "w", encoding='utf8', errors='ignore') as jsonOut:
+            jsonOut.writelines(json.dumps(dictIssues, indent=2))
+
+        endTime = time.time()
+        self.updateStats([ ("Time for rawTextFromDocument phase", endTime - startTime),  ("Number of potential records", len(dictIssues)) ])
+
+
+
+    def finalJSONfromRawPhase(self, issueTemplate : BaseModel) :
+        """
+        Perform conversion of raw JSON to final JSON
+
+        Args:
+            issueTemplate (BaseModel) - description of structured data
+        
+        Returns:
+        """
+
+        startTime = time.time()
+
+        # read raw JSON into dict
+        result, fileContentOrError = OpenFile.open(filePath = self.rawJSON, readContent = True)
+        if not result:
+            msg = f"finalJSONfromRawPhase: {fileContentOrError} - perform 'rawTextFromDocument' phase first"
+            self.workerSnapshot(msg)
+            return
+        else:
+            dictRawIssues : Dict[str, str] = json.loads(fileContentOrError)
+
+        recordCollection, totalUsage = self.parseAllIssuesPhase(dictRawIssues, issueTemplate)
         with open(self.finalJSON, "w", encoding='utf8', errors='ignore') as jsonOut:
             jsonOut.writelines(recordCollection.model_dump_json(indent=2))
 
-        return
-
-        jsonOut.writelines('\n"report": {recordCollection.report}\n')
-        jsonOut.writelines('{\n"finding_dict": {\n')
-        idx = 0
-        for key in recordCollection.finding_dict:
-            jsonOut.writelines(f'"{key}" : ')
-            jsonOut.writelines(recordCollection.finding_dict[key].model_dump_json(indent=2))
-            idx += 1
-            if (idx < len(recordCollection.finding_dict)):
-                jsonOut.writelines(',\n')
-        jsonOut.writelines('}\n}\n')
+        endTime = time.time()
+        self.updateStats([ ("Time for finalJSONfromRaw phase", endTime - startTime),  ("Total issues", recordCollection.objectCount()), ("finalJSONfromRaw phase LLM usage", f"{self.usageFormat(usage = totalUsage, insertHTML = False)}" ) ])
 
 
-    def threadWorker(self, issueTemplate : BaseModel, corpus : list[str]):
+    def prepareBM25corpusPhase(self, issueTemplate : BaseModel) :
         """
-        Workflow to read, parse, vectorize records
-        
+        Add issues from one document to BM25s corpus
+
         Args:
-            issueTemplate (BaseModel) - issue template
-            global corpus for BM25
+            issueTemplate (BaseModel) - description of structured data
         
         Returns:
-            None
         """
+
+        startTime = time.time()
+
+        # read final JSON into record collection
+        result, fileContentOrError = OpenFile.open(filePath = self.finalJSON, readContent = True)
+        if not result:
+            msg = f"prepareBM25corpusPhase: {fileContentOrError} - perform 'finalJSONfromRaw' phase first"
+            self.workerSnapshot(msg)
+            return
+        else:
+            recordCollection = RecordCollection.model_validate_json(fileContentOrError)
+
+        for key in recordCollection.finding_dict:
+            issue = recordCollection.finding_dict[key]
+            reportItem = issueTemplate.model_validate(issue)
+            issueText = reportItem.bm25s()
+            self.corpus.append(issueText)
+
+        endTime = time.time()
+        self.updateStats([ ("Time for prepareBM25corpus phase", endTime - startTime) ])
+
+
+
+    def threadWorker(self, issueTemplate : BaseModel) :
 
         totalStart = time.time()
 
@@ -691,126 +707,89 @@ class IndexerWorkflow(WorkflowBase):
         if self.INDEXEjira_export :
 
             startTime = totalStart
-
             recordCollection = self.jiraExportPhase(issueTemplate)
-            accepted, rejected = self.vectorize(recordCollection, issueTemplate)
-
+            self.vectorize(recordCollection, issueTemplate)
             endTime = time.time()
-            msg = f"Processed {recordCollection.objectCount()}, accepted {accepted}  rejected {rejected}."
-            self.workerSnapshot(msg)
-
-            totalEnd = time.time()
-            msg = f"Processing completed. Total time {(totalEnd - totalStart):9.2f} seconds."
-            self.workerSnapshot(msg)
+            self.updateStats([ ("Time for Jira export", endTime - startTime) ])
             return
 
-        # ---------------stage read pdf ---------------
+        # ---------------loadDocument phase ---------------
         if self.loadDocument :
-            startTime = totalStart
+            self.loadDocumentPhase()
 
-            textCombined = self.loadDocumentPhase(self.inputFileName)
-            with open(self.rawTextFromDoc, "w" , encoding="utf-8", errors="ignore") as rawOut:
-                rawOut.write(textCombined)
-            endTime = time.time()
-
-            inputFileBaseName = str(Path(self.inputFileName).name)
-            msg = f"Read input document {self.inputFileBaseName}. Time: {(endTime - startTime):9.2f} seconds"
-            self.workerSnapshot(msg)
-
-        # ---------------stage preprocess raw text ---------------
+        # ---------------phase rawTextFromDocument ---------------
         if self.rawTextFromDocument :
-            startTime = time.time()
+            self.rawTextFromDocumentPhase()
 
-            if 'textCombined' not in locals():
-                # if this is a separate step - read extracted text file
-                with open(self.rawTextFromDoc, "r", encoding='utf8', errors='ignore') as txtIn:
-                    textCombined = txtIn.read()
-                msg = f"Read raw text from file {self.inputFileBaseName}."
-                self.workerSnapshot(msg)
+        # ---------------phase finalJSONfromRaw ---------------
 
-            dictRawIssues = self.preprocessReportRawTextPhase(textCombined)
-            with open(self.rawJSON, "w", encoding="utf-8", errors="ignore") as jsonOut:
-                jsonOut.writelines(json.dumps(dictRawIssues, indent=2))
-            endTime = time.time()
-
-            rawTextFromDocBaseName = str(Path(self.rawTextFromDoc).name)
-            msg = f"Preprocessed raw text {rawTextFromDocBaseName}. Found {len(dictRawIssues)} potential issues. Time: {(endTime - startTime):9.2f} seconds"
-            self.workerSnapshot(msg)
-
-        # ---------------stage create final JSON ---------------
         if self.finalJSONfromRaw :
-            startTime = time.time()
+            self.finalJSONfromRawPhase(issueTemplate = issueTemplate)
 
-            if 'dictRawIssues' not in locals():
-                # if this is a separate step - read raw JSON into record collection
-                with open(self.rawJSON, "r", encoding='utf8', errors='ignore') as jsonIn:
-                    dictRawIssues = json.load(jsonIn)
-                msg = f"Read {len(dictRawIssues)} raw records from file {self.inputFileBaseName}."
-                self.workerSnapshot(msg)
-
-            recordCollection = self.parseAllIssuesPhase(self.inputFileName, dictRawIssues, issueTemplate)
-            self.writeFinalJSON(recordCollection)
-
-            endTime = time.time()
-
-            finalJSONBaseName = str(Path(self.finalJSON).name)
-            msg = f"Found {recordCollection.objectCount()} records. Wrote final JSON: <b>{finalJSONBaseName}</b>. {(endTime - startTime):9.2f} seconds"
-            self.workerSnapshot(msg)
-
-        # ---------------stage bm25s preparation ---------------
+        # ---------------phase prepareBM25corpus ---------------
         if self.prepareBM25corpus :
-
-            startTime = time.time()
-
-            if 'recordCollection' not in locals():
-                # if this is a separate step - read final JSON into record collection
-                with open(self.finalJSON, "r", encoding='utf8', errors='ignore') as txtIn:
-                    textStr = txtIn.read()
-                recordCollection = RecordCollection.model_validate_json(textStr)
-                msg = f"Read {recordCollection.objectCount()} records from file {self.inputFileBaseName}."
-                self.workerSnapshot(msg)
-
-            corpus = self.bm25sAddReportToCorpusPhase(corpus, recordCollection, issueTemplate)
-
-            endTime = time.time()
-
-            msg = f"Added {recordCollection.objectCount()} records to BM25 corpus. {(endTime - startTime):9.2f} seconds"
-            self.workerSnapshot(msg)
-
-        # ---------------stage bm25s completion ---------------
-        if self.completeBM25database :
-
-            startTime = time.time()
-
-            folderName = self.bm25IndexFolder
-            self.bm25sProcessCorpusPhase(corpus, folderName)
-
-            endTime = time.time()
-
-            msg = f"Created BM25 database in {folderName}. {(endTime - startTime):9.2f} seconds"
-            self.workerSnapshot(msg)
+            self.prepareBM25corpusPhase(issueTemplate = issueTemplate)
 
 
         # ---------------stage vectorizeFinalJSON --------------
         if self.vectorizeFinalJSON :
-
-            startTime = time.time()
-
-            if 'recordCollection' not in locals():
-                # if this is a separate step - read final JSON into record collection
-                with open(self.finalJSON, "r", encoding='utf8', errors='ignore') as txtIn:
-                    textStr = txtIn.read()
-                recordCollection = RecordCollection.model_validate_json(textStr)
-                self.workerSnapshot(msg)
-
-            accepted, rejected = self.vectorizeFinalJSONPhase(recordCollection, issueTemplate)
-
-            endTime = time.time()
-            msg = f"Processed {recordCollection.objectCount()}, accepted {accepted} rejected {rejected}."
-            self.workerSnapshot(msg)
+            self.vectorizeFinalJSONPhase(issueTemplate)
 
         # ---------------stage completed ---------------
 
         totalEnd = time.time()
-        msg = f"Processing completed. Usage: {self.totalUsageFormat()}. Total time {(totalEnd - totalStart):9.2f} seconds."
-        self.workerSnapshot(msg)
+        self.updateStats([ ("Total time", totalEnd - totalStart), ("Total usage", self.totalUsageFormat(insertHTML = False) ) ])
+
+        print(f"{pprint(self.stats)}")
+
+
+    @staticmethod
+    def threadWorkerStatic(self, context : Dict[str, Any], fileList : List[str]):
+        """
+        Workflow to read, parse, vectorize records
+        
+        Args:
+            issueTemplate (BaseModel) - issue template
+            fileList (List[str]) - list of file to process
+        
+        Returns:
+            None
+        """
+        corpus : List[str] = []
+
+        # read template description
+        documentJSONName = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + "documents.json"
+
+        with open(documentJSONName, "r", encoding='utf8') as JsonIn:
+            dictDocuments = json.load(JsonIn)
+
+        for fileName in fileList:
+
+            context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + fileName
+            context["rawTextFromDoc"] = context["inputFileName"] + ".raw.txt"
+            context["rawJSON"] = context["inputFileName"] + ".raw.json"
+            context["finalJSON"] = context["inputFileName"] + ".json"
+            context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
+            
+            # raw text parsing support
+            inputFileBaseName = ["inputFileBaseName"]
+            context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+            context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+            context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
+            context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
+
+            configCollection = ConfigCollection(context)
+            indexerWorkflow = IndexerWorkflow()
+            indexerWorkflow.configure(configCollection)
+
+            issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
+
+            thread = threading.Thread( target=indexerWorkflow.threadWorker, args=(issueTemplate))
+            thread.start()
+            thread.join()
+
+        if context["completeBM25database"] :
+            folderName = context["bm25IndexFolder"]
+            IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = folderName)
+
+

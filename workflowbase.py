@@ -347,27 +347,38 @@ class WorkflowBase(BaseModel):
             self.usage += newUsage
 
 
-    def totalUsageFormat(self) -> str:
+    def totalUsageFormat(self, insertHTML : bool) -> str:
         """
         Return current usage formatted as string
         
+        Args:
+            InsertHTML (bool) - insert bold tags for HTML page
         :return: usage as string
         :rtype: str
         """
         requestLabel = 'requests' if self.usage.requests > 1 else 'request'
-        return f"<b>{self.usage.requests}</b> {requestLabel}, <b>{self.usage.input_tokens}>/b> input tokens, <b>{self.usage.output_tokens}</b> output tokens"
+        if insertHTML:
+            return f"<b>{self.usage.requests}</b> {requestLabel}, <b>{self.usage.input_tokens}>/b> input tokens, <b>{self.usage.output_tokens}</b> output tokens"
+        else:
+            return f"{self.usage.requests} {requestLabel}, {self.usage.input_tokens}> input tokens, {self.usage.output_tokens} output tokens"
 
-
-    def usageFormat(self, usage : RunUsage) -> str:
+    def usageFormat(self, usage : RunUsage, insertHTML : bool) -> str:
         """
         Return usage formatted as string
+
+        Args:
+            usage (runUsage) - usage object
+            InsertHTML (bool) - insert bold tags for HTML page
         
         :return: usage as string
         :rtype: str
         """
         if usage:
             requestLabel = 'requests' if usage.requests > 1 else 'request'
-            return f"<b>{usage.requests}</b> {requestLabel}, <b>{usage.input_tokens}</b>, input tokens <b>{usage.output_tokens}</b> output tokens"
+            if insertHTML:
+                return f"<b>{usage.requests}</b> {requestLabel}, <b>{usage.input_tokens}</b>, input tokens <b>{usage.output_tokens}</b> output tokens"
+            else:
+                return f"{usage.requests} {requestLabel}, {usage.input_tokens} input tokens, {usage.output_tokens} output tokens"
         else:
             return f""
 

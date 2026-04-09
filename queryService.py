@@ -214,7 +214,6 @@ class QueryService(BaseModel):
                 if ident in item.result_dict.keys():
                     oneQueryChunkResult = item.result_dict[ident]        # OneQueryChunkResult
                     finalRank += 1/(60 + oneQueryChunkResult.rank)
-                    identifierQueryResults.chunk = oneQueryChunkResult.chunk
             identifierQueryResults.rrfRank = finalRank
             scoresDict[ident] = identifierQueryResults
 

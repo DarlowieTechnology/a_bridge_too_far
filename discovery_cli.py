@@ -15,7 +15,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import COLLECTION, ConfigCollection, RecordCollection, AllTopicMatches
+from common import ConfigCollection
 from discovery_workflow import DiscoveryWorkflow
 
 

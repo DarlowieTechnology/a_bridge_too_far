@@ -37,67 +37,47 @@ def testRun(context : Dict[str, Any], logger : Logger, fileList : List[str]):
     
     """
 
-    if context["INDEXEjira_export"] :
+    corpus : List[str] = []
 
-        context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + fileList[0]
+    # read template description
+    documentJSONName = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + "documents.json"
+    with open(documentJSONName, "r", encoding='utf8') as JsonIn:
+        dictDocuments = json.load(JsonIn)
+
+    for fileName in fileList:
+
+        context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + fileName
         context["rawTextFromDoc"] = context["inputFileName"] + ".raw.txt"
         context["rawJSON"] = context["inputFileName"] + ".raw.json"
         context["finalJSON"] = context["inputFileName"] + ".json"
-        context["inputFileBaseName"] = "jira:SCRUM"
-        context["issueTemplate"] = "JiraIssueRAG"
+        context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
+        
+        # raw text parsing support
+        inputFileBaseName = context["inputFileBaseName"]
+
+        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
+        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
+        context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
+        context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
 
         configCollection = ConfigCollection(context)
         indexerWorkflow = IndexerWorkflow()
         indexerWorkflow.configure(configCollection)
 
         issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-        exportedIssues = indexerWorkflow.jiraExportPhase(issueTemplate)
-        msg = f"Exported {exportedIssues} Jira issues."
-        indexerWorkflow.workerSnapshot(msg)
+        if indexerWorkflow.loadDocument :
+            indexerWorkflow.loadDocumentPhase()
+        if indexerWorkflow.rawTextFromDocument :
+            indexerWorkflow.rawTextFromDocumentPhase()
+        if indexerWorkflow.finalJSONfromRaw :
+            indexerWorkflow.finalJSONfromRawPhase(issueTemplate = issueTemplate)
+        if indexerWorkflow.prepareBM25corpus :
+            corpus = indexerWorkflow.prepareBM25corpusPhase(issueTemplate, corpus)
         if indexerWorkflow.vectorizeFinalJSON :
             indexerWorkflow.vectorizeFinalJSONPhase(issueTemplate)
-    else:
-        corpus : List[str] = []
 
-        # read template description
-        documentJSONName = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + "documents.json"
-        with open(documentJSONName, "r", encoding='utf8') as JsonIn:
-            dictDocuments = json.load(JsonIn)
-
-        for fileName in fileList:
-
-            context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + fileName
-            context["rawTextFromDoc"] = context["inputFileName"] + ".raw.txt"
-            context["rawJSON"] = context["inputFileName"] + ".raw.json"
-            context["finalJSON"] = context["inputFileName"] + ".json"
-            context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
-            
-            # raw text parsing support
-            inputFileBaseName = context["inputFileBaseName"]
-
-            context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-            context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-            context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
-            context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
-
-            configCollection = ConfigCollection(context)
-            indexerWorkflow = IndexerWorkflow()
-            indexerWorkflow.configure(configCollection)
-
-            issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
-            if indexerWorkflow.loadDocument :
-                indexerWorkflow.loadDocumentPhase()
-            if indexerWorkflow.rawTextFromDocument :
-                indexerWorkflow.rawTextFromDocumentPhase()
-            if indexerWorkflow.finalJSONfromRaw :
-                indexerWorkflow.finalJSONfromRawPhase(issueTemplate = issueTemplate)
-            if indexerWorkflow.prepareBM25corpus :
-                corpus = indexerWorkflow.prepareBM25corpusPhase(issueTemplate, corpus)
-            if indexerWorkflow.vectorizeFinalJSON :
-                indexerWorkflow.vectorizeFinalJSONPhase(issueTemplate)
-
-        if indexerWorkflow.completeBM25database :
-            IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = context["bm25IndexFolder"])
+    if indexerWorkflow.completeBM25database :
+        IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = context["bm25IndexFolder"])
 
 
     msg = f"{pprint(indexerWorkflow.stats)}"

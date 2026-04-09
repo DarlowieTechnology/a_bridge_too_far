@@ -703,16 +703,6 @@ class IndexerWorkflow(WorkflowBase):
         msg = f"Final JSON file: <b>{self.finalJSON}</b>"
         self.workerSnapshot(msg)
 
-        # ---------------stage Jira export
-        if self.INDEXEjira_export :
-
-            startTime = totalStart
-            recordCollection = self.jiraExportPhase(issueTemplate)
-            self.vectorize(recordCollection, issueTemplate)
-            endTime = time.time()
-            self.updateStats([ ("Time for Jira export", endTime - startTime) ])
-            return
-
         # ---------------loadDocument phase ---------------
         if self.loadDocument :
             self.loadDocumentPhase()

@@ -8,10 +8,16 @@ import json
 import threading
 
 # local
+
+sys.path.append("../testdata")
+
+
 import darlowie
-from common import QUERYTYPES, TOKENIZERTYPES
+from common import QUERYTYPES, TOKENIZERTYPES, ConfigCollection
+from indexerQueryTests import TESTSET, TestSetCollection
+
 from query_workflow import QueryWorkflow
-from testQueries import TESTSET, TestSetCollection
+
 
 
 def testRun(context : dict, logger: Logger, queryWorkflow : QueryWorkflow) :
@@ -61,6 +67,13 @@ def main():
 #    context["querytransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.BM25SORIG
 
 
+    # other app-specific configuration
+    context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + context["QUERYbm25IndexFolder"]
+    context["bm25CorpusFileName"] = context["QUERYbm25CorpusFileName"]
+
+
+
+
     context['cutIssueDistance'] = 0.5       # distance cut-off for semantic matches
     context['semanticRetrieveNum'] = 1000   # maximum number of semantic items to retrieve
 
@@ -79,14 +92,16 @@ def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger(context["QUECLIsession_key"])
 
+    configCollection = ConfigCollection(context)
 
-    queryWorkflow = QueryWorkflow(context, logger) 
+    queryWorkflow = QueryWorkflow()
+    queryWorkflow.configure(configCollection)
 
-#    testRun(context=context, logger=logger, queryWorkflow=queryWorkflow)
+    testRun(context=context, logger=logger, queryWorkflow=queryWorkflow)
 
-    thread = threading.Thread( target=queryWorkflow.threadWorker)
-    thread.start()
-    thread.join()
+#    thread = threading.Thread( target=queryWorkflow.threadWorker)
+#    thread.start()
+#    thread.join()
 
 if __name__ == "__main__":
     main()

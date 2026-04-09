@@ -52,28 +52,17 @@ class OneQueryResultList(BaseModel, Generic[QueryResultT]):
     query : Union[ QuerySemantic, QueryBM25s ] = Field(default = [], description="query used in search", discriminator='searchType')
     label : str = Field( "", description="unique label of search run")
 
-
-#    def appendQueryChunkResult(self, score : float, rank : int, chunk : str, chunkID: int, document : str, searchTypeName : str) :
-    def appendQueryChunkResult(self, identifier: str, queryResult : QueryResultT) :
+    def appendQueryResult(self, identifier: str, queryResult : QueryResultT) :
 #        identifier = document + "--" + str(chunkID)
         self.result_dict[identifier] = queryResult
-#        (
-#            score = score,
-#            rank = rank,
-#            chunk = chunk,
-#            chunkID = chunkID,
-#            document = document,
-#            searchTypeName = searchTypeName
-#        )
 
 
 #--------------------AllQueryResults-------------------------------------
 
 class IdentifierQueryResults(BaseModel):
-    """represents unique identifier and list of query results from multiple queries"""
+    """represents unique identifier, RRF score, outlier info for one item"""
     identifier: str = Field(default = "", description="unique identifier")
     rrfRank : float = Field(default = 0.0, description="RRF rank")
-    chunk: str = Field( default = "", description="chunk of text in document")
     outlierIQR: bool = Field( default = False, description="outlier by IQR")
     outlierZScore: bool = Field( default = False, description="outlier by Z Score")
 
@@ -83,14 +72,8 @@ class RRFScores(BaseModel):
     scoresDict : Dict[str, IdentifierQueryResults] = Field(default={}, description="RRF ranks in descending order")
 
 
-class AllQueryResults(BaseModel):
+class AllQueryResults(BaseModel, Generic[QueryResultT]):
     """represents collection of all query results for Discovery"""
-    listQueryResults: List[OneQueryResultList] = Field(default=None, description="List of OneQueryResultList - all result")
-    rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
-
-
-class AllQueryResultsIndexer(BaseModel):
-    """represents collection of all query results for Indexer"""
-    listQueryResults: List[OneIndexerQueryResultList] = Field(default=None, description="List of OneIndexerQueryResultList - all result")
+    listQueryResults: List[OneQueryResultList[QueryResultT] ] = Field(default=None, description="List of OneQueryResultList")
     rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
 

@@ -1,9 +1,11 @@
 #
 # Query workflow class used by Django app and command line
 #
+import sys
 import json
 from logging import Logger
 from typing import List
+from typing_extensions import Self
 from pathlib import Path
 import time
 import re
@@ -14,7 +16,7 @@ from chromadb import Collection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, model_validator
 import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -32,23 +34,46 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, OneResultList
-from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, AllQueryResults
+from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, ConfigCollection
+from resultsQueryClasses import SEARCH, OneQueryResultList, AllQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
 
-from testQueries import TestQuery, TestSetCollection
+sys.path.append("../testdata")
+
+from indexerQueryTests import TESTSET, TestSetCollection
 
 
 class QueryWorkflow(WorkflowBase):
 
-    def __init__(self, context : dict, logger : Logger):
-        """
-        Args:
-            context (dict)
-            logger (Logger) - can originate in CLI or Django app
-        """
-        super().__init__(context=context, logger=logger, createCollection=False)
+    query : str = Field(default = "", description="List of queries for this workflow")
+    querytransforms : QUERYTYPES = Field(default = "", description="List of query transformation flags")
+    bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
+    bm25CorpusFileName : str = Field(default = "", description="bm25 corpus file")
+
+
+
+    @model_validator(mode='after')
+    def queryWorkflow_verify_configuration(self) -> Self:
+        if not Path(self.dataFolder + self.bm25IndexFolder).is_dir:
+            raise ValueError(f'bm25 index folder is invalid')
+
+
+
+    def configure(self, configCollection : ConfigCollection) :
+
+        # call base class configuration first
+        super().configure(configCollection)
+
+        if configCollection.keyExists("query"): 
+            self.query = configCollection["query"]
+        if configCollection.keyExists("querytransforms"): 
+            self.querytransforms = configCollection["querytransforms"]
+        if configCollection.keyExists("bm25IndexFolder"): 
+            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        if configCollection.keyExists("bm25CorpusFileName"):
+            self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
+
 
 
     def startup(self) -> bool:
@@ -64,13 +89,13 @@ class QueryWorkflow(WorkflowBase):
 
 
     def getQuery(self) -> str :
-        return self.context["query"]
+        return self.query
 
     def getQueryTransform(self) -> QUERYTYPES :
-        return self.context["querytransforms"]
+        return self.querytransforms
     
     def getBM25SFolder(self) -> str :
-        return self.context["bm25IndexFolder"]
+        return self.bm25IndexFolder
 
     def getRRFTopResults(self) -> int :
         return self.context["rrfTopResults"]

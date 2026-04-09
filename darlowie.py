@@ -57,6 +57,13 @@ context = {
     "JEXCLIsession_key": "JIRAEXPORT",   # session name for Jira Export CLI
     "JEXCLIstatus_FileName": "status.JIRAEXPORT.json",  # status file name for Jira Export CLI
 
+    # Query app settings
+
+    "QUERYdataFolder" : "indexerdocuments/",          # Interim data folder
+    "QUERYbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
+    "QUERYbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
+
+
     # Query CLI settings
 
     "QUECLIsession_key": "QUERY",   # session name  for Query CLI

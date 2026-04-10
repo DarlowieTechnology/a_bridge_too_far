@@ -121,7 +121,7 @@ class DiscoveryWorkflow(WorkflowBase):
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 1.5, description="Threshold for outlier z-score")
-    outputNumber : int = Field(default = 1, description="Minimum number of items to return")
+    outputNumber : int = Field(default = 1, description="Maximum number of items to return")
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 

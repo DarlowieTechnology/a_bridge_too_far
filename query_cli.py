@@ -8,14 +8,8 @@ import json
 import threading
 
 # local
-
-sys.path.append("../testdata")
-
-
 import darlowie
 from common import QUERYTYPES, TOKENIZERTYPES, ConfigCollection
-from indexerQueryTests import TESTSET, TestSetCollection
-
 from query_workflow import QueryWorkflow
 
 
@@ -35,18 +29,10 @@ def testRun(queryWorkflow : QueryWorkflow) :
 
     allQueryResults = queryWorkflow.performQueries()
 
-    testQuery = TestSetCollection().getCurrentTest()
-    for item in allQueryResults.listQueryResults:
-        msg = testQuery.outputRunInfo(item, item.label)
-        queryWorkflow.workerSnapshot(msg)
-
-    msg = testQuery.outputRRFInfo(allQueryResults.rrfScores, queryWorkflow.outputNumber)
-    queryWorkflow.workerSnapshot(msg)
-
-    score = testQuery.calculateOverallScore(allQueryResults, queryWorkflow.outputNumber) * 100
-    msg = f"Overall score: {score:.4f} %"
-    queryWorkflow.workerSnapshot(msg)
-    
+    # output results files
+    print(f"Query result are written in file: {queryWorkflow.outputFileName}")
+    with open(queryWorkflow.outputFileName, "w") as jsonOut:
+        jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
 
 def main():
@@ -60,7 +46,6 @@ def main():
 
 #    context['query'] = "xss issues"
     context['query'] = "credentials issues"
-    TestSetCollection().setCurrentTest(TESTSET.CREDS)
 
     context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
 #    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.BM25SORIG
@@ -69,9 +54,6 @@ def main():
     # other app-specific configuration
     context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + context["QUERYbm25IndexFolder"]
     context["bm25CorpusFileName"] = context["QUERYbm25CorpusFileName"]
-
-
-
 
     context['semanticMaxCutItemDistance'] = 0.5       # distance cut-off for semantic matches
     context['semanticRetrieveNumber'] = 1000   # maximum number of semantic items to retrieve
@@ -83,6 +65,7 @@ def main():
     context['bm25sRetrieveNumber'] = 50        # maximum number of bm25s items to retrieve
     
     context['outputNumber'] = 50
+    context['outputFileName'] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
 
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled

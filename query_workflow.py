@@ -35,13 +35,9 @@ from anyascii import anyascii
 
 # local
 from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, ConfigCollection
-from resultsQueryClasses import SEARCH, OneIndexerQueryResult, OneIndexerQueryResultList, AllIndexerQueryResults
+from resultsQueryClasses import SEARCH, OneIndexerQueryResult, IdentifierQueryResults, RRFScores, OneIndexerQueryResultList, AllIndexerQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
-
-sys.path.append("../testdata")
-
-from indexerQueryTests import TESTSET, TestSetCollection
 
 
 class QueryWorkflow(WorkflowBase):
@@ -57,6 +53,7 @@ class QueryWorkflow(WorkflowBase):
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
     outputNumber : int = Field(default = 1, description="Maximum number of items to return")
+    outputFileName : str = Field(default = "", description="File name for results")
     queryPreprocessFlag : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
     queryCompressFlag : bool = Field(default = True, description="Call Telegraphic Semantic Compression (TSC) after every query transform")
 
@@ -85,6 +82,9 @@ class QueryWorkflow(WorkflowBase):
             raise ValueError(f'Number of bm25s search items is invalid')
         if not self.outputNumber in range(1, 100):
             raise ValueError(f'output number is invalid')
+        if not Path(self.outputFileName).is_file:
+            raise ValueError(f'Output file name is invalid')
+
         return Self
 
 
@@ -115,6 +115,8 @@ class QueryWorkflow(WorkflowBase):
             self.bm25sRetrieveNumber = configCollection["bm25sRetrieveNumber"]
         if configCollection.keyExists("outputNumber"):
             self.outputNumber = configCollection["outputNumber"]
+        if configCollection.keyExists("outputFileName"):
+            self.outputFileName = configCollection["outputFileName"]
         if configCollection.keyExists("queryPreprocess"):
             self.queryPreprocessFlag = configCollection["queryPreprocess"]
         if configCollection.keyExists("queryCompress"):
@@ -508,18 +510,24 @@ class QueryWorkflow(WorkflowBase):
     #    queryWorkflow.workerSnapshot(msg)
         
         # calculate rank for issue access all query runs
-        rrfScores = {}
+        scoresDict : Dict[str, IdentifierQueryResults] = {}
         for ident in list(setKeys):
-            finalRank = 0
+            finalRank : float = 0.0
             oneQueryAppResult = None
             for item in allQueryResults.listQueryResults:
                 if ident in item.result_dict:
                     oneQueryAppResult = item.result_dict[ident]
                     finalRank += 1/(60 + oneQueryAppResult.rank)
-            rrfScores[ident] = [finalRank, oneQueryAppResult]
-        # sort descending by rank
-        rrfScores = dict(sorted(rrfScores.items(), key=lambda item: item[1][0], reverse=True))
-        allQueryResults.rrfScores = rrfScores
+            identifierQueryResults = IdentifierQueryResults(
+                identifier = ident,
+                rrfRank = finalRank
+            )
+            scoresDict[ident] = identifierQueryResults
+        # sort descending by RRF rank
+        scoresDict = dict(sorted(scoresDict.items(), key=lambda item: item[1].rrfRank, reverse=True))
+        allQueryResults.rrfScores = RRFScores(
+            scoresDict = scoresDict
+        )
         return allQueryResults
 
 
@@ -696,20 +704,9 @@ class QueryWorkflow(WorkflowBase):
 
         allQueryResults = self.performQueries()
 
-        testQuery = TestSetCollection().getCurrentTest()
-        for item in allQueryResults.result_lists:
-            msg = testQuery.outputRunInfo(item, item.label)
-            self.workerSnapshot(msg)
-
-        msgList = testQuery.outputRRFInfo(allQueryResults.rrfScores, self.outputNumber)
-        self.workerResult(msgList)
-
-        score = testQuery.calculateOverallScore(allQueryResults, self.outputNumber) * 100
-        msg = f"Overall score: <b>{score:.4f} %</b>"
-        msgList = []
-        msgList.append(" ")
-        msgList.append(msg)
-        self.workerResult(msgList)
+        # output results files
+        with open(self.outputFileName, "w") as jsonOut:
+            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
         msg = f"Processing completed."
         self.workerSnapshot(msg)

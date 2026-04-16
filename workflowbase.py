@@ -84,6 +84,7 @@ class WorkflowBase(BaseModel):
 
     def configure(self, configCollection : ConfigCollection) :
 
+        logging.basicConfig(stream=sys.stdout, level=configCollection["GLOBALloggerLevel"])
         self.logger = logging.getLogger(configCollection["session_key"])
 
         self.globalProvider = configCollection["GLOBALllm_Provider"]
@@ -93,6 +94,8 @@ class WorkflowBase(BaseModel):
         self.globalURL = configCollection["GLOBALllm_URL"]
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
             self.globalAPIkey = configCollection['gemini_key']
+
+        self.globalRAGDatapath = configCollection["GLOBALdataFolder"] + configCollection["GLOBALrag_Datapath"]
 
         # manually call model validator
         self.WorkflowBase_verify_configuration()
@@ -191,7 +194,6 @@ class WorkflowBase(BaseModel):
         """
         try:
             chromaClient = chromadb.PersistentClient(
-#                path=self.getAbsPath("GLOBALrag_datapath"),
                 path=self.globalRAGDatapath,
                 settings=Settings(anonymized_telemetry=False),
                 tenant=DEFAULT_TENANT,

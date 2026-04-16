@@ -26,45 +26,37 @@ from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
 
-def testRun(context : Dict[str, Any], logger : Logger, fileList : List[str]):
+def testRun(context : Dict[str, Any], fileList : List[str]):
     """ 
     Test for indexer phases
     
     Args:
         indexerWorkflow (IndexerWorkflow) - workflow object
-        logger (Logger) - app logger
         fileList(List[str]) = list of files to process
     
     """
 
-    corpus : List[str] = []
+    # configuration of base class
+    context["statusFileName"] = context["IDXCLIstatus_FileName"]
+    context["session_key"] = context["IDXCLIsession_key"]
 
-    # read template description
-    documentJSONName = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + "documents.json"
-    with open(documentJSONName, "r", encoding='utf8') as JsonIn:
-        dictDocuments = json.load(JsonIn)
+    # bm25s index is common for all source documents
+    corpus : List[str] = []
 
     for fileName in fileList:
 
-        context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + fileName
-        context["rawTextFromDoc"] = context["inputFileName"] + ".raw.txt"
-        context["rawJSON"] = context["inputFileName"] + ".raw.json"
-        context["finalJSON"] = context["inputFileName"] + ".json"
-        context["inputFileBaseName"] = str(Path(context["inputFileName"]).name)
+        context["inputFileBaseName"] = fileName
+        context["interimFolder"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"]
+        context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + fileName
+        context["rawTextFromDoc"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.txt"
+        context["rawJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.json"
+        context["finalJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".json"
         
-        # raw text parsing support
-        inputFileBaseName = context["inputFileBaseName"]
-
-        context["issuePattern"] = dictDocuments[inputFileBaseName]["pattern"]
-        context["issueTemplate"] = dictDocuments[inputFileBaseName]["templateName"]
-        context["extractPattern"] = dictDocuments[inputFileBaseName]["extract"]
-        context["assignList"] = dictDocuments[inputFileBaseName]["assign"]
-
         configCollection = ConfigCollection(context)
         indexerWorkflow = IndexerWorkflow()
         indexerWorkflow.configure(configCollection)
 
-        issueTemplate = ParserClassFactory.factory(context["issueTemplate"])
+        issueTemplate = ParserClassFactory.factory(indexerWorkflow.issueTemplateName)
         if indexerWorkflow.loadDocument :
             indexerWorkflow.loadDocumentPhase()
         if indexerWorkflow.rawTextFromDocument :
@@ -77,8 +69,8 @@ def testRun(context : Dict[str, Any], logger : Logger, fileList : List[str]):
             indexerWorkflow.vectorizeFinalJSONPhase(issueTemplate)
 
     if indexerWorkflow.completeBM25database :
-        IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = context["bm25IndexFolder"])
-
+        folderName = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEbm25IndexFolder"]
+        IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = folderName)
 
     msg = f"{pprint(indexerWorkflow.stats)}"
     indexerWorkflow.workerSnapshot(msg)
@@ -89,11 +81,6 @@ def main():
 
     context = darlowie.context
 
-    context["statusFileName"] = context["IDXCLIstatus_FileName"]
-    context["session_key"] = context["IDXCLIsession_key"]
-
-    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
-    logger = logging.getLogger(context["IDXCLIsession_key"])
 
     # test list - only process data sources from this list
     fileList = [
@@ -111,38 +98,25 @@ def main():
         "Refinery-CMS.pdf"
     ]
 
-    if context["INDEXEjira_export"]:
+    # stages
+    context["loadDocument"] = True
+    context["rawTextFromDocument"] = True
+    context["finalJSONfromRaw"] = True
+    context["prepareBM25corpus"] = True
+    context["completeBM25database"] = True
+    context["vectorizeFinalJSON"] = True
 
-        testRun(context = context, logger=logger, fileList = ["SCRUM"])
+    # text extraction from PDF
+    context["stripWhiteSpace"] = True
+    context["convertToLower"] = True
+    context["convertToASCII"] = True
+    context["singleSpaces"] = True
 
-#        thread = threading.Thread( target=IndexerWorkflow.threadWorkerStatic, args=(context, fileList))
-#        thread.start()
-#        thread.join()
+#    testRun(context=context, fileList = fileList)
 
-    else:
-
-        context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["INDEXEdataFolder"] + context["INDEXEbm25IndexFolder"]
-        context["bm25CorpusFileName"] = context["INDEXEbm25CorpusFileName"]
-
-        # stages
-        context["loadDocument"] = True
-        context["rawTextFromDocument"] = True
-        context["finalJSONfromRaw"] = True
-        context["prepareBM25corpus"] = True
-        context["completeBM25database"] = False
-        context["vectorizeFinalJSON"] = False
-
-        # text extraction from PDF
-        context["stripWhiteSpace"] = True
-        context["convertToLower"] = True
-        context["convertToASCII"] = True
-        context["singleSpaces"] = True
-
-        testRun(context=context, logger=logger, fileList = fileList)
-
-#            thread = threading.Thread( target=IndexerWorkflow.threadWorkerStatic, args=(context, fileList))
-#            thread.start()
-#            thread.join()
+    thread = threading.Thread( target=IndexerWorkflow.threadWorkerStatic, args=(context, fileList))
+    thread.start()
+    thread.join()
 
 
 if __name__ == "__main__":

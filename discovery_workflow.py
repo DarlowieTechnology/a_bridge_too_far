@@ -125,7 +125,6 @@ class DiscoveryWorkflow(WorkflowBase):
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
-
     @model_validator(mode='after')
     def discoveryWorkflow_verify_configuration(self) -> Self:
 
@@ -197,11 +196,12 @@ class DiscoveryWorkflow(WorkflowBase):
         if configCollection.keyExists("singleSpaces"): 
             self.singleSpaces = configCollection["singleSpaces"]
 
-        # app-specific required configuration
-        self.documentFolder = configCollection["documentFolder"]
-        self.dataFolder = configCollection["dataFolder"]
-        self.bm25IndexFolder = configCollection["bm25IndexFolder"]
-        self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
+        # app-specific paths configuration
+        self.documentFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"]
+        self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVdataFolder"]
+        self.bm25IndexFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVbm25IndexFolder"]
+        self.bm25CorpusFileName = configCollection["DISCOVbm25CorpusFileName"]
+        
         self.fileExtensions = configCollection["fileExtensions"]
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]

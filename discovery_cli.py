@@ -198,10 +198,6 @@ def main():
     context["singleSpaces"] = True
 
     # other app-specific configuration
-    context["documentFolder"] = context["DISCOVdocumentFolder"]
-    context["dataFolder"] = context["DISCOVdataFolder"]
-    context["bm25IndexFolder"] = context["DISCOVbm25IndexFolder"]
-    context["bm25CorpusFileName"] = context["DISCOVbm25CorpusFileName"]
     context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48

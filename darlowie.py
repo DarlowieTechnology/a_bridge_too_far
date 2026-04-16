@@ -17,12 +17,21 @@
 #   - prefix DISCLI - specific to Discovery CLI version
 #   - prefix DISWEB - specific to Discovery web version
 
+import logging
+
 
 context = {
 
     # Global
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
+    "GLOBALloggerLevel" : logging.WARN,      # WARN or INFO
+    "GLOBALllm_Provider" : "ollama",
+    "GLOBALllm_Embed" : "nomic-embed-text:latest",
+    "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
+    "GLOBALllm_Version" : "gpt-oss:120b-cloud",
+    "GLOBALllm_URL" : "http://localhost:11434/v1",
+    "GLOBALrag_Datapath" : "chromadb",
 
     # Generator app settings
 
@@ -40,11 +49,9 @@ context = {
     # Indexer app settings
 
     "INDEXEjira_url": "https://darlowie-security.atlassian.net",   # Jira Cloud API
-    "INDEXEjira_max_results" : 999,  # maximum number of Jira records to export
-    "INDEXEjira_export": False,  # Perform Jira export
-    "INDEXEdataFolder" : "indexerdocuments/",          # Interim data folder
+    "INDEXEdocumentFolder" : "indexerdocuments/",   # folder for indexer source documents
+    "INDEXEdataFolder" : "indexerdata/",            # indexer interim data folder
     "INDEXEbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
-    "INDEXEbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
     
     # Indexer CLI settings
 
@@ -53,16 +60,16 @@ context = {
 
     # Jira Export CLI settings
 
-    "JEXCLIdataFolder" : "indexerdocuments/jiraexport/",          # Interim data folder
+    "JEXCLIdocumentFolder" : "indexerdocuments/",    # jira export source document folder
+    "JEXCLIdataFolder" : "jiraexport/",  # jira export interim data folder
     "JEXCLIsession_key": "JIRAEXPORT",   # session name for Jira Export CLI
     "JEXCLIstatus_FileName": "status.JIRAEXPORT.json",  # status file name for Jira Export CLI
+    "JEXCLIjira_max_results" : 999,  # maximum number of Jira records to export
 
     # Query app settings
 
     "QUERYdataFolder" : "indexerdocuments/",          # Interim data folder
     "QUERYbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
-    "QUERYbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
-
 
     # Query CLI settings
 
@@ -74,7 +81,6 @@ context = {
     "DISCOVdocumentFolder" : "discoverydocuments/",          # folder for source documents
     "DISCOVdataFolder" : "discoverydata/",          # Interim data folder
     "DISCOVbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
-    "DISCOVbm25CorpusFileName" : "corpus.jsonl",    # name of corpus file
 
     # Discovery CLI settings
 

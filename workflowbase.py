@@ -58,7 +58,6 @@ class WorkflowBase(BaseModel):
     embeddingFunction : OllamaEmbeddingFunction = Field(default = None, description="ChromaDB embedding Function") 
     collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections") 
     usage : RunUsage = Field(default = None, description="LLM usage object")
-    stage : str = Field(default = "", description="Stage of workflow") 
     statusLog : List[str] = Field(default = [], description="Status log of workflow") 
     statusFileName : str = Field(default = "", description="Name of status log file") 
     resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
@@ -309,8 +308,8 @@ class WorkflowBase(BaseModel):
                 embedding_function=self.embeddingFunction,
                 name=collectionName
             )
-#            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
-#            self.workerSnapshot(msg)
+            msg = f"Opened collections {collectionName} with {chromaCollection.count()} documents."
+            self.workerSnapshot(msg)
         except chromadb.errors.NotFoundError as e:
             if createFlag:
                 try:

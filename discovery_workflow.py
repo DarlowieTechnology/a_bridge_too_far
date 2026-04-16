@@ -55,7 +55,7 @@ from anyascii import anyascii
 
 # local
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneQueryResultList, IdentifierQueryResults, RRFScores, AllQueryResults
+from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneChunkQueryResultList, IdentifierQueryResults, RRFScores, AllChunkQueryResults
 from queryService import QueryService
 from workflowbase import WorkflowBase 
 
@@ -70,12 +70,6 @@ acceptedMimeTypes = [
     "text/plain"
 ]
 
-knownTopics = [
-#    "pipe engineering",
-#    "penetration test results",
-    "medical notes"
-]
-
 
 class DiscoveryWorkflow(WorkflowBase):
 
@@ -83,7 +77,6 @@ class DiscoveryWorkflow(WorkflowBase):
     documentFolder : str = Field(default = "", description="Source document folder")
     dataFolder : str = Field(default = "", description="Intermediate data folder")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
-    bm25CorpusFileName : str = Field(default = "", description="bm25 corpus file")
     fileExtensions : List[str] = Field(default = [], description="List of source file allowed file name extensions")
     chunkSize : int = Field(default = 512, description="Chunk size for source documents")
     chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
@@ -105,6 +98,7 @@ class DiscoveryWorkflow(WorkflowBase):
     clear : bool = Field(default = False, description="Clear Intermediate data")
 
     # search configuration
+    knownTopics : List[str] = Field(default = [], description="List of known topics to use in queries")
     searchSemanticOriginal : bool = Field(default = True, description="Perform original semantic query")
     searchBM25sOriginal : bool = Field(default = True, description="Perform original bm25s query")
     searchSemanticMulti : bool = Field(default = True, description="Perform semantic query on multi transform")
@@ -146,6 +140,7 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Chunk size is invalid')
         if not self.chunkOverlap in range(0, 65):
             raise ValueError(f'Chunk overlap is invalid')
+        
         if not self.semanticRetrieveNumber in range(0, 2049):
             raise ValueError(f'Number of semantic search items is invalid')
         if not (self.semanticMaxCutItemDistance >= 0 and self.semanticMaxCutItemDistance <= 1.0):
@@ -200,13 +195,14 @@ class DiscoveryWorkflow(WorkflowBase):
         self.documentFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"]
         self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVdataFolder"]
         self.bm25IndexFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVbm25IndexFolder"]
-        self.bm25CorpusFileName = configCollection["DISCOVbm25CorpusFileName"]
         
         self.fileExtensions = configCollection["fileExtensions"]
         self.chunkSize = configCollection["chunkSize"]
         self.chunkOverlap = configCollection["chunkOverlap"]
 
         # search configuration
+        self.knownTopics = configCollection["knownTopics"]
+
         if configCollection.keyExists("searchSemanticOriginal"):
             self.searchSemanticOriginal = configCollection["searchSemanticOriginal"]
         if configCollection.keyExists("searchBM25sOriginal"):
@@ -482,6 +478,9 @@ class DiscoveryWorkflow(WorkflowBase):
             textCombined = self.loadPDFPyPDFLoader(inputFileName)
             if not textCombined:
                 textCombined = self.loadPDFpymupdf4llm(inputFileName)
+                self.updateStats([("pymupdf4llm", 1)])
+            else:
+                self.updateStats([("PyPDFLoader", 1)])
             self.updateStats([("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF Length", len(textCombined))])
 
         if mime_type in ["application/json"]:
@@ -492,11 +491,26 @@ class DiscoveryWorkflow(WorkflowBase):
             textCombined = self.loadText(inputFileName)
             self.updateStats([("Files", 1), ("Length", len(textCombined)), ("Other text", 1), ("Other text Length", len(textCombined))])
 
-        fullOutputFileName = dataFolder + "/" + outputFileName
+        fullOutputFileName = dataFolder + outputFileName
         with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
 
         return len(textCombined)
+
+
+    def loadDocumentPhaseAllFiles(self, inputFileList : List[str]) : 
+        """
+        For all files load document from one of various formats and store it as plain text
+
+        :param inputFileList: source files to add
+        :type List[str]
+        :return: 
+        :rtype: 
+        """
+        for inputFileName in inputFileList:
+            fullInputFileName = self.documentFolder + inputFileName
+            intermediateDataFolder = self.dataFolder + inputFileName + "-data"
+            self.loadDocumentPhase(fullInputFileName, intermediateDataFolder, "raw.txt")
 
 
     def parseChunksPhase(self, docs : str) -> List[str] :
@@ -514,6 +528,33 @@ class DiscoveryWorkflow(WorkflowBase):
 
         self.updateStats([("Chunks", len(texts))])
         return texts
+
+
+    def parseChunksPhaseAllFiles(self, inputFileList : List[str]) :
+        """
+        for all files split text into chunks using text splitter object
+        
+        :param inputFileList: source files to add
+        :type List[str]
+        :return: 
+        :rtype: 
+        """
+        for inputFileName in inputFileList:
+
+            # read raw text into string
+            rawTextFileName = self.dataFolder + inputFileName + "-data/raw.txt"
+            result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
+            if not result:
+                msg = f"parseChunks: {fileContentOrError} - perform 'loadDocument' phase first"
+                self.workerSnapshot(msg)
+                return
+            else:
+                chunksList = self.parseChunksPhase(fileContentOrError)
+                chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+
+                with open(chunkListFileName, "w" , encoding="utf-8", errors="ignore") as jsonOut:
+                    jsonOut.writelines(json.dumps(chunksList, indent=2))
+
 
 
     def makeRawVectorPhase(self, doc : List[str], inputFileName : str) -> tuple[int, int]:
@@ -578,20 +619,119 @@ class DiscoveryWorkflow(WorkflowBase):
                 metadatas=docMetadata
             )
 
-        self.updateStats([("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
         return accepted, rejected
 
 
-    def dumpOutliersForOneQuery(self, queryService : QueryService, oneQueryResultList : OneQueryResultList, upperFlag : bool):
+    def makeRawVectorPhaseAllFiles(self, inputFileList : List[str]) -> tuple[int, int]:
+        """
+        For all files add chunks to raw vector database. 
+        
+        :param inputFileList: source files to add
+        :type List[str]
+        :return: Tuple of accepted and rejected chunks
+        :rtype: tuple[int, int]
+        """
 
-        outlierIdentifiers = queryService.getOutliersForQuery(oneQueryResultList = oneQueryResultList, upper = upperFlag)
+        acceptedTotal = 0
+        rejectedTotal = 0
+
+        for inputFileName in inputFileList:
+
+            # read list of chunks
+            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
+            if not result:
+                msg = f"makeRawVector: {fileContentOrError} - perform 'parseChunks' phase first"
+                self.workerSnapshot(msg)
+            else:
+                chunksList = json.loads(fileContentOrError)
+                accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
+                acceptedTotal += accepted
+                rejectedTotal += rejected
+
+        return acceptedTotal, rejectedTotal
+
+
+    def bm25ProcessPhaseAllFiles(self, inputFileList : List[str]) :
+        """
+        For all files create corpus of chunks.
+        Each record contains <FILE_NAME>--<CHUNKID>\n<CHUNK>
+        Tokenize corpus for bm25 search
+        
+        :param inputFileList: source file to process
+        :type List[str]
+        :return: 
+        :rtype: 
+        """
+
+        # make bm25 index folder if does not exist
+        Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
+
+        # Load spaCy English model
+        nlp = spacy.load("en_core_web_sm")
+
+        corpus : List[str] = []
+
+        for inputFileName in inputFileList:
+
+            startFileTime = time.time()
+
+            # read list of chunks
+            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
+            if not result:
+                msg = f"bm25Process: {fileContentOrError} - perform 'parseChunks' phase first"
+                self.workerSnapshot(msg)
+                return
+            else:
+                chunksList = json.loads(fileContentOrError)
+                chunkId = 0
+                for chunk in chunksList:
+                    chunk = self.compressText(chunk, nlp)
+                    outText = str(inputFileName) + '--' + str(chunkId) + "\n" + chunk
+                    corpus.append(outText)
+                    chunkId += 1
+
+        # stemmer = Stemmer.Stemmer("english")
+        # corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
+
+        corpus_tokens = bm25s.tokenize(corpus, stopwords="en")
+        retriever = bm25s.BM25(corpus=corpus)
+        retriever.index(corpus_tokens)
+        retriever.save(self.bm25IndexFolder)
+
+
+    def clearPhaseAllFiles(self, inputFileList : List[str]) :
+        """
+        For all source files remove interim files.
+        
+        :param inputFileList: source file to process
+        :type List[str]
+        :return: 
+        :rtype: 
+        """
+        for inputFileName in inputFileList:
+            rawTextFileName = self.dataFolder + inputFileName + "-data/raw.txt"
+            OpenFile.remove(rawTextFileName)
+            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            OpenFile.remove(chunkListFileName)
+
+        result, fileNameListOrError = OpenFile.readListOfFileNames(self.dataFolder + self.bm25IndexFolder, "*.*")
+        if result:
+            for fileName in fileNameListOrError:
+                OpenFile.remove(fileName)
+
+
+    def dumpOutliersForOneQuery(self, queryService : QueryService, oneChunkQueryResultList : OneChunkQueryResultList, upperFlag : bool):
+
+        outlierIdentifiers = queryService.getOutliersForQuery(oneQueryResultList = oneChunkQueryResultList, upper = upperFlag)
         if len(outlierIdentifiers):
             print(f"OUTLIERS=====")
             for ident in outlierIdentifiers:
                 print(f"{ident}")
 
 
-    def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllQueryResults :
+    def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllChunkQueryResults :
         """
         match chunks against known topics
         
@@ -600,10 +740,10 @@ class DiscoveryWorkflow(WorkflowBase):
         :param queryService: Query service object
         :type queryService: QueryService
         :return: collection of all results
-        :rtype: AllQueryResults
+        :rtype: AllChunkQueryResults
         """
 
-        allQueryResults = AllQueryResults(
+        allQueryResults = AllChunkQueryResults(
             listQueryResults = [],
             rrfScores = RRFScores(
                 scoresDict = {}
@@ -618,8 +758,6 @@ class DiscoveryWorkflow(WorkflowBase):
             return {}
 
         model = self.createOpenAIModel()
-
-        queryTexts = ["iam roles excessive permissions"]
 
         # semantic search for original query
         if self.searchSemanticOriginal:
@@ -637,10 +775,13 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for original query
         if self.searchBM25sOriginal:
             tokenList = queryService.tokenizeQuery(query = queryTexts)
-            bm25sFolder = self.dataFolder + self.bm25IndexFolder
+
+            # make bm25 index folder if does not exist
+            Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
+
             oneQueryResultList = queryService.bm25sQuery(
                 query = tokenList, 
-                folderName=bm25sFolder, 
+                folderName=self.bm25IndexFolder, 
                 queryLabel = "bm25s original", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore
@@ -671,10 +812,9 @@ class DiscoveryWorkflow(WorkflowBase):
                 multiQueryTexts, usage = queryService.multiQuery(queryTexts, model)
                 self.addUsage(usage)
             multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
-            bm25sFolder = self.dataFolder + self.bm25IndexFolder
             oneQueryResultList = queryService.bm25sQuery(
                 query = multiTokenList, 
-                folderName=bm25sFolder, 
+                folderName = self.bm25IndexFolder, 
                 queryLabel = "bm25s multi", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
@@ -703,10 +843,9 @@ class DiscoveryWorkflow(WorkflowBase):
                 rewriteQueryTexts, usage = queryService.rewriteQuery(queryTexts, model)
                 self.addUsage(usage)
             rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
-            bm25sFolder = self.dataFolder + self.bm25IndexFolder
             oneQueryResultList = queryService.bm25sQuery(
                 query = rewriteTokenList, 
-                folderName=bm25sFolder, 
+                folderName = self.bm25IndexFolder, 
                 queryLabel = "bm25s rewrite", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
@@ -735,10 +874,9 @@ class DiscoveryWorkflow(WorkflowBase):
                 hydeQueryTexts, usage = queryService.hydeQuery(queryTexts, model)
                 self.addUsage(usage)
             hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
-            bm25sFolder = self.dataFolder + self.bm25IndexFolder
             oneQueryResultList = queryService.bm25sQuery(
                 query = hydeTokenList, 
-                folderName=bm25sFolder, 
+                folderName = self.bm25IndexFolder, 
                 queryLabel = "bm25s hyde", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
@@ -764,7 +902,6 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         totalStart = time.time()
-        self.stage = "started"
 
         fileList = self.formFileList()
 
@@ -778,101 +915,36 @@ class DiscoveryWorkflow(WorkflowBase):
 
         if self.loadDocument:
             startTime = time.time()
-            for inputFileName in fileList:
-                intermediateDataFolder = self.dataFolder + "/" + str(inputFileName) + "-data"
-                self.loadDocumentPhase(inputFileName, intermediateDataFolder, "raw.txt")
-            endTime = time.time()
-            self.updateStats([("Time Load Documents", endTime - startTime)])
+            self.loadDocumentPhaseAllFiles(inputFileList = fileList)
+            self.updateStats([("Time Load Documents", time.time() - startTime)])
 
         # ---------------parseChunks ---------------
 
         if self.parseChunks:
             startTime = time.time()
-            for inputFileName in fileList:
-
-                # read raw text into string
-                rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
-                result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
-                if not result:
-                    msg = f"parseChunks: {fileContentOrError} - perform 'loadDocument' action first"
-                    self.workerSnapshot(msg)
-                else:
-                    chunksList = self.parseChunksPhase(fileContentOrError)
-                    chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
-
-                    with open(chunkListFileName, "w" , encoding="utf-8", errors="ignore") as jsonOut:
-                        jsonOut.writelines(json.dumps(chunksList, indent=2))
-            endTime = time.time()
-            self.updateStats([("Time Chunking", endTime - startTime)])
+            self.parseChunksPhaseAllFiles(inputFileList = fileList)
+            self.updateStats([("Time Chunking", time.time() - startTime)])
 
         # ------------makeRawVector----------------------
 
         if self.makeRawVector:
             startTime = time.time()
-            for inputFileName in fileList:
-
-                # read list of chunks
-                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
-                result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
-                if not result:
-                    msg = f"matchChunks: {fileContentOrError} - perform 'parseChunks' action first"
-                    self.workerSnapshot(msg)
-                else:
-                    chunksList = json.loads(fileContentOrError)
-                    accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
-            endTime = time.time()
-            self.updateStats([("Time Vectorizing", endTime - startTime)])
+            accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
+            self.updateStats([("Time Vectorizing", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
 
         # ------------bm25Process----------------------
 
         if self.bm25Process:
             startTime = time.time()
-
-            # make bm25 index folder if does not exist
-            Path(self.dataFolder + self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
-
-            # Load spaCy English model
-            nlp = spacy.load("en_core_web_sm")
-
-            corpus = []
-            for inputFileName in fileList:
-
-                startFileTime = time.time()
-
-                # read list of chunks
-                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
-                result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
-                if not result:
-                    msg = f"bm25Process: {fileContentOrError} - perform 'parseChunks' action first"
-                    self.workerSnapshot(msg)
-                else:
-                    chunksList = json.loads(fileContentOrError)
-                    chunkId = 0
-                    for chunk in chunksList:
-                        chunk = self.compressText(chunk, nlp)
-                        outText = str(inputFileName) + '--' + str(chunkId) + "\n" + chunk
-                        corpus.append(outText)
-                        chunkId += 1
-                print(f"{inputFileName}   {time.time() - startFileTime}  added {len(chunksList)} chunks")
-
-
-            # stemmer = Stemmer.Stemmer("english")
-            # corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
-
-            corpus_tokens = bm25s.tokenize(corpus, stopwords="en")
-            retriever = bm25s.BM25(corpus=corpus)
-            retriever.index(corpus_tokens)
-            retriever.save(self.dataFolder + self.bm25IndexFolder)
-
-            endTime = time.time()
-            self.updateStats([("Time bm25Process", endTime - startTime)])
+            self.bm25ProcessPhaseAllFiles(inputFileList = fileList)
+            self.updateStats([("Time bm25Process", time.time() - startTime)])
 
         # --------------matchChunks------------------
 
         if self.matchChunks:
             startTime = time.time()
             queryService = QueryService()
-            allQueryResults = self.matchChunksPhase(queryTexts = knownTopics, queryService = queryService)
+            allQueryResults = self.matchChunksPhase(queryTexts = self.knownTopics, queryService = queryService)
 
             msgList = self.outputRRFInfo(allQueryResults.rrfScores)
 #            print(msgList)
@@ -885,29 +957,15 @@ class DiscoveryWorkflow(WorkflowBase):
 
         if self.clear:
             startTime = time.time()
+            self.clearPhaseAllFiles(inputFileList = fileList)
+            self.updateStats([("Time Clearing", time.time() - startTime)])
 
-            for inputFileName in fileList:
-                rawTextFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.txt"
-                OpenFile.remove(rawTextFileName)
-                chunkListFileName = self.dataFolder + "/" + str(inputFileName) + "-data/raw.chunks.txt"
-                OpenFile.remove(chunkListFileName)
 
-            result, fileNameListOrError = OpenFile.readListOfFileNames(self.dataFolder + self.bm25IndexFolder, "*.*")
-            if result:
-                for fileName in fileNameListOrError:
-                    OpenFile.remove(fileName)
-
-            endTime = time.time()
-            self.updateStats([("Time Clearing", endTime - startTime)])
-
-        totalEnd = time.time()
-        self.updateStats([("Time Total", totalEnd - totalStart)])
+        self.updateStats([("Time Total", time.time() - totalStart)])
 
         msg = f"{pprint(self.stats)}"
         self.workerSnapshot(msg)
         return
-
-
 
 
 
@@ -955,7 +1013,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     # if this is a separate step - read match file
                     result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
                     if not result:
-                        msg = f"verify: {fileContentOrError} - perform 'matchChunks' action first"
+                        msg = f"verify: {fileContentOrError} - perform 'matchChunks' phase first"
                         self.workerSnapshot(msg)
                     else:
                         allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
@@ -1002,7 +1060,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 # if this is a separate step - read match file
                 result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
                 if not result:
-                    msg = f"returnResults: {fileContentOrError} - perform 'matchChunks' action first"
+                    msg = f"returnResults: {fileContentOrError} - perform 'matchChunks' phase first"
                     self.workerSnapshot(msg)
                 else:
                     allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
@@ -1020,6 +1078,5 @@ class DiscoveryWorkflow(WorkflowBase):
             jsonOut.writelines(json.dumps(self.getFails(), indent=2))
 
         totalEnd = time.time()
-        self.stage = "completed"
         msg = f"Workflow completed. {self.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
         self.workerSnapshot(msg)

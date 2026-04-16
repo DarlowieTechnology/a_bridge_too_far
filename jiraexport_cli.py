@@ -82,7 +82,7 @@ def main():
     context["statusFileName"] = context["JEXCLIstatus_FileName"]
     context["session_key"] = context["JEXCLIsession_key"]
 
-    logging.basicConfig(stream=sys.stdout, level=logging.WARN)
+    logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
     logger = logging.getLogger(context["JEXCLIsession_key"])
 
     context["inputFileName"] = context["GLOBALdataFolder"] + context["JEXCLIdataFolder"] + "SCRUM"

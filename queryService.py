@@ -18,7 +18,7 @@ from chromadb import Collection
 import numpy as np
 
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryAppResult, OneQueryResultList, RRFScores, IdentifierQueryResults, AllQueryResults
+from resultsQueryClasses import SEARCH, RRFScores, IdentifierQueryResults, OneQueryChunkResult, OneChunkQueryResultList, AllChunkQueryResults
 
 
 #----------------------StatsOnList--------------------------------------------
@@ -74,7 +74,7 @@ class StatsOnList(BaseModel) :
 class QueryService(BaseModel):
 
 
-    def semanticQuery(self, query : List[str], chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : int) -> OneQueryResultList:
+    def semanticQuery(self, query : List[str], chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : int) -> OneChunkQueryResultList:
         """
         Performs semantic query. Returns list of results
         Use maxCutItemDistance value to cut results off
@@ -91,10 +91,10 @@ class QueryService(BaseModel):
         :param maxCutItemDistance: maximum distance of the result
         :type maxCutItemDistance: int
         :return: list of results
-        :rtype: OneQueryResultList
+        :rtype: OneChunkQueryResultList
         """
 
-        oneQueryResultList = OneQueryResultList(
+        oneChunkQueryResultList = OneChunkQueryResultList(
             query ={'searchType' : SEARCH.SEMANTIC, 'query' : query },
             label = queryLabel
         )
@@ -109,7 +109,7 @@ class QueryService(BaseModel):
             if (distFloat > maxCutItemDistance) :
                 break
 
-            oneQueryResultList.appendQueryChunkResult(
+            oneQueryChunkResult = OneQueryChunkResult(
                 score = distFloat,
                 rank = resultIdx + 1,                   # rank starts from 1
                 chunk = queryResult["documents"][0][resultIdx],
@@ -117,15 +117,19 @@ class QueryService(BaseModel):
                 document = queryResult["metadatas"][0][resultIdx]["document"],
                 searchTypeName = SEARCH.SEMANTIC.value
             )
+            oneChunkQueryResultList.appendQueryResult(
+                identifier = queryResult["metadatas"][0][resultIdx]["chunkid"],
+                queryResult = oneQueryChunkResult
+            )
 
 #            print(f"Rank:{resultIdx+1}   score: {distFloat}    doc: {queryResult["metadatas"][0][resultIdx]["document"]}   chunk ID: {queryResult["metadatas"][0][resultIdx]["chunkid"]}")
 #            print(f"chunk:\n{queryResult["documents"][0][resultIdx]}")
 #            print(f"----------------------")
 
-        return oneQueryResultList
+        return oneChunkQueryResultList
 
 
-    def bm25sQuery(self, query : List[List[str]], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneQueryResultList : 
+    def bm25sQuery(self, query : List[List[str]], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneChunkQueryResultList : 
         """
         Perform bm25s query for combined corpus of documents
         data in corpus is encoded as documentFileName + '--' + chunkId + '\n' + chunkText
@@ -143,10 +147,10 @@ class QueryService(BaseModel):
         :param bm25sMinCutOffScore: cut off for bm25s score, items with lower score are discarded
         :type bm25sMinCutOffScore: float
         :return: search result object
-        :rtype: OneQueryResultList
+        :rtype: OneChunkQueryResultList
         """
 
-        oneQueryResultList = OneQueryResultList(
+        oneChunkQueryResultList = OneChunkQueryResultList(
             query ={'searchType' : SEARCH.BM25S, 'query' : query },
             label = queryLabel        
         )
@@ -170,35 +174,40 @@ class QueryService(BaseModel):
             documentName = documentAndID[0]
             chunkID = documentAndID[1]
             chunkText = docN[1].strip()
-            oneQueryResultList.appendQueryChunkResult(
+
+            oneQueryChunkResult = OneQueryChunkResult(
                 score = score,
-                rank = rankIdx + 1,                     # rank starts from 1
+                rank = rankIdx + 1,                   # rank starts from 1
                 chunk = chunkText,
                 chunkID = chunkID,
                 document = documentName,
                 searchTypeName = SEARCH.BM25S.value
+            )
+            oneChunkQueryResultList.appendQueryResult(
+                identifier = chunkID,
+                queryResult = oneQueryChunkResult
             )
 
 #            print(f"Rank:{rankIdx+1}  score: {score}    doc: {documentName}   chunk ID: {chunkID}")
 #            print(f"chunk:\n{chunkText}")
 #            print(f"----------------------")
 
-        return oneQueryResultList
+        return oneChunkQueryResultList
 
 
-    def rrfReRanking(self, allQueryResults : AllQueryResults) -> AllQueryResults:
+    def rrfReRanking(self, allChunkQueryResults : AllChunkQueryResults) -> AllChunkQueryResults:
         """
         Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results.
         
-        :param allQueryResults: query results
-        :type allQueryResults: AllQueryResults
+        :param allChunkQueryResults: query results
+        :type allChunkQueryResults: AllChunkQueryResults
         :return: query results updated with rank
-        :rtype: AllQueryResults
+        :rtype: AllChunkQueryResults
         """
 
         # merge identifiers in the form "document names--chunkID" from all runs into set
         setKeys = set()
-        for item in allQueryResults.listQueryResults:
+        for item in allChunkQueryResults.listQueryResults:
             for key in item.result_dict:
                 setKeys.add(key)
 
@@ -210,7 +219,7 @@ class QueryService(BaseModel):
                 identifier = ident,
             )
             finalRank = 0.0
-            for item in allQueryResults.listQueryResults:               # item : OneQueryResultList
+            for item in allChunkQueryResults.listQueryResults:               # item : OneQueryResultList
                 if ident in item.result_dict.keys():
                     oneQueryChunkResult = item.result_dict[ident]        # OneQueryChunkResult
                     finalRank += 1/(60 + oneQueryChunkResult.rank)
@@ -220,13 +229,13 @@ class QueryService(BaseModel):
         # sort descending by rank
         scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[1].rrfRank, reverse=True)}
 
-        allQueryResults.rrfScores = RRFScores(
+        allChunkQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
 
 #        print(f"=====\n{allQueryResults.rrfScores.model_dump_json(indent=2)}\n================")
 
-        return allQueryResults
+        return allChunkQueryResults
 
 
     def hydeQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
@@ -343,14 +352,14 @@ class QueryService(BaseModel):
         return query_tokens
 
 
-    def getOutliersForQuery(self, oneQueryResultList : OneQueryResultList, threshold : float = 3.0, upper : bool = True) -> List[str]:
+    def getOutliersForQuery(self, oneChunkQueryResultList : OneChunkQueryResultList, threshold : float = 3.0, upper : bool = True) -> List[str]:
         """
         Make list of scores from oneQueryResultList. Round scores to 10.
         Sort the list in ascending order. Calculate IQR and Z scores
         Return list of identifiers for outlier chunks.
 
-        :param oneQueryResultList: one query results
-        :type oneQueryResultList: OneQueryResultList
+        :param oneChunkQueryResultList: one query results
+        :type oneChunkQueryResultList: OneChunkQueryResultList
         :param threshold: Z Score threshold - how many standard deviations away the value is
         :type threshold: float
         :param upper: IQR upper or lower fence
@@ -360,8 +369,8 @@ class QueryService(BaseModel):
         """
 
         inData: List[float] = []
-        for ident in oneQueryResultList.result_dict.keys():
-            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+        for ident in oneChunkQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneChunkQueryResultList.result_dict[ident]
             inData.append(round(oneQueryChunkResult.score, 10))
 
         inData = sorted(inData)
@@ -379,8 +388,8 @@ class QueryService(BaseModel):
         outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
 
         outList : List[str] = []
-        for ident in oneQueryResultList.result_dict.keys():
-            oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+        for ident in oneChunkQueryResultList.result_dict.keys():
+            oneQueryChunkResult = oneChunkQueryResultList.result_dict[ident]
             key = round(oneQueryChunkResult.score, 10)
             if key in outliers:
                 outList.append(ident)
@@ -395,20 +404,20 @@ class QueryService(BaseModel):
                     outlierScores.append(val)
         
         for val in outlierScores:
-            for ident in oneQueryResultList.result_dict.keys():
-                oneQueryChunkResult = oneQueryResultList.result_dict[ident]
+            for ident in oneChunkQueryResultList.result_dict.keys():
+                oneQueryChunkResult = oneChunkQueryResultList.result_dict[ident]
                 if round(oneQueryChunkResult.score, 10) == val:
                     outList.append(ident)    
                     break
         return outList
 
 
-    def getOutliersFromRRF(self, allQueryResults : AllQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
+    def getOutliersFromRRF(self, allChunkQueryResults : AllChunkQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
         """
         Select outliers in array of RRF ranks by Interquartile Range (IQR) and Z Score
 
-        :param allQueryResults: all query results
-        :type allQueryResults: AllQueryResults
+        :param allChunkQueryResults: all query results
+        :type allChunkQueryResults: AllChunkQueryResults
         :param threshold: Z Score threshold - how many standard deviations away the value is
         :type threshold: float
         :return: dict of outliers, key is ident, value is IdentifierQueryResults object
@@ -416,8 +425,8 @@ class QueryService(BaseModel):
         """
 
         inData: List[float] = []
-        for ident in allQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+        for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
             inData.append(round(identifierQueryResults.rrfRank, 10))
         
         inData = sorted(inData)
@@ -438,8 +447,8 @@ class QueryService(BaseModel):
         outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
 
         outDict : Dict[str, IdentifierQueryResults] = {}
-        for ident in allQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allQueryResults.rrfScores.scoresDict[ident]
+        for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
+            identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
             val = round(identifierQueryResults.rrfRank, 10)
             if val > upperFence:
                 identifierQueryResults.outlierIQR = True

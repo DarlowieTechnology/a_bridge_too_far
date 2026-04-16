@@ -269,7 +269,7 @@ class ConfigCollection(object):
         if "logger" in context.keys():
             logger = context["logger"]
         else:
-            logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+            logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
             logger = logging.getLogger("ConfigCollection")
 
         try:

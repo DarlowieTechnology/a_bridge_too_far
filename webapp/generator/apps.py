@@ -17,10 +17,11 @@ class GeneratorConfig(AppConfig):
     generatorWorkflow = None
 
     def ready(self):
-#        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        context = darlowie.context
+
+#        logging.basicConfig(level=context['GLOBALloggerLevel'], format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
         logger = logging.getLogger(__name__)
 
-        context = darlowie.context
 
         self.generatorWorkflow = GeneratorWorkflow(context, logger)

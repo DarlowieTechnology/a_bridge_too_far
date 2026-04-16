@@ -32,7 +32,7 @@ def testRun(context : dict) :
     """
     
     # redirect all logs to console
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
     logger = logging.getLogger(context["GENCLIsession_key"])
 
     generatorWorkflow = GeneratorWorkflow(context, logger)
@@ -212,11 +212,13 @@ def main():
     context["statusFileName"] = context["GENCLIstatus_FileName"]
 
 
+    logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
+    logger = logging.getLogger(context["GENCLIsession_key"])
+
+    generatorWorkflow = GeneratorWorkflow(context, logger)
+
     #testRun(context=context)
 
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    logger = logging.getLogger(context["GENCLIsession_key"])
-    generatorWorkflow = GeneratorWorkflow(context, logger)
     thread = threading.Thread( target=generatorWorkflow.threadWorker, kwargs={})
     thread.start()
     thread.join()

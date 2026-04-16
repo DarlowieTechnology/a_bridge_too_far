@@ -19,11 +19,11 @@ class QueryConfig(AppConfig):
     queryWorkflow = None
 
     def ready(self):
-        #logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-        logger = logging.getLogger(__name__)
-
         context = darlowie.context
+
+        #logging.basicConfig(level=context['GLOBALloggerLevel'], format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
+        logger = logging.getLogger(__name__)
 
         context['status'] = []
         context['results'] = []

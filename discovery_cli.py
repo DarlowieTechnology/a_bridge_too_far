@@ -8,6 +8,7 @@ import mimetypes
 from  uuid import UUID, uuid4
 from typing import List
 import threading
+from pprint import pprint
 
 
 from pydantic_ai.usage import RunUsage
@@ -17,7 +18,7 @@ from anyascii import anyascii
 import darlowie
 from common import ConfigCollection
 from discovery_workflow import DiscoveryWorkflow
-
+from queryService import QueryService
 
 
 
@@ -31,108 +32,149 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         None    
     """
     totalStart = time.time()
-    discoveryWorkflow.stage = "started"
-
 
     fileList = discoveryWorkflow.formFileList()
     fileListEngineering = [
-        "documents/engineering-000.json",
-        "documents/engineering-001.json",
-        "documents/engineering-002.json",
-        "documents/engineering-003.json",
-        "documents/engineering-004.json",
-        "documents/engineering-005.json",
-        "documents/engineering-006.json",
-        "documents/engineering-007.json",
-        "documents/engineering-008.json",
-        "documents/engineering-009.json",
-        "documents/engineering-010.json",
-        "documents/engineering-011.json",
-        "documents/engineering-012.json",
-        "documents/engineering-013.json",
-        "documents/engineering-014.json",
-        "documents/engineering-015.json",
-        "documents/engineering-016.json",
-        "documents/engineering-017.json",
-        "documents/engineering-018.json",
-        "documents/engineering-019.json"
+        "engineering-000.json",
+        "engineering-001.json",
+        "engineering-002.json",
+        "engineering-003.json",
+        "engineering-004.json",
+        "engineering-005.json",
+        "engineering-006.json",
+        "engineering-007.json",
+        "engineering-008.json",
+        "engineering-009.json",
+        "engineering-010.json",
+        "engineering-011.json",
+        "engineering-012.json",
+        "engineering-013.json",
+        "engineering-014.json",
+        "engineering-015.json",
+        "engineering-016.json",
+        "engineering-017.json",
+        "engineering-018.json",
+        "engineering-019.json"
     ]
 
     fileListMedical = [
-        "documents/medresearch-000.txt",
-        "documents/medresearch-001.txt",
-        "documents/medresearch-002.txt",
-        "documents/medresearch-003.txt",
-        "documents/medresearch-004.txt",
-        "documents/medresearch-005.txt",
-        "documents/medresearch-006.txt",
-        "documents/medresearch-007.txt",
-        "documents/medresearch-008.txt",
-        "documents/medresearch-009.txt",
-        "documents/medresearch-010.txt",
-        "documents/medresearch-011.txt",
-        "documents/medresearch-012.txt",
-        "documents/medresearch-013.txt",
-        "documents/medresearch-014.txt",
-        "documents/medresearch-015.txt",
-        "documents/medresearch-016.txt",
-        "documents/medresearch-017.txt",
-        "documents/medresearch-018.txt",
-        "documents/medresearch-019.txt"
+        "medresearch-000.txt",
+        "medresearch-001.txt",
+        "medresearch-002.txt",
+        "medresearch-003.txt",
+        "medresearch-004.txt",
+        "medresearch-005.txt",
+        "medresearch-006.txt",
+        "medresearch-007.txt",
+        "medresearch-008.txt",
+        "medresearch-009.txt",
+        "medresearch-010.txt",
+        "medresearch-011.txt",
+        "medresearch-012.txt",
+        "medresearch-013.txt",
+        "medresearch-014.txt",
+        "medresearch-015.txt",
+        "medresearch-016.txt",
+        "medresearch-017.txt",
+        "medresearch-018.txt",
+        "medresearch-019.txt"
     ]
 
     fileListLLM = [
-        "documents/1904.10509v1.pdf",
-        "documents/1912.02292v1.pdf",
-        "documents/1912.06680v1.pdf",
-        "documents/2005.00341v1.pdf",
-        "documents/2005.14165v4.pdf",
-        "documents/2009.03393v1.pdf",
-        "documents/2102.12092v2.pdf",
-        "documents/2103.00020v1.pdf",
-        "documents/2107.03374v2.pdf",
-        "documents/2110.05448v1.pdf",
-        "documents/2112.10741v3.pdf",
-        "documents/2202.01344v1.pdf",
-        "documents/2212.04356v1.pdf",
-        "documents/2303.01469v2.pdf",
-        "documents/2303.08774v6.pdf",
-        "documents/2305.20050v1.pdf",
-        "documents/2312.09390v1.pdf",
-        "documents/2406.04093v1.pdf",
-        "documents/2410.21276v1.pdf",
-        "documents/2412.16720v1.pdf"
+        "1904.10509v1.pdf",
+        "1912.02292v1.pdf",
+        "1912.06680v1.pdf",
+        "2005.00341v1.pdf",
+        "2005.14165v4.pdf",
+        "2009.03393v1.pdf",
+        "2102.12092v2.pdf",
+        "2103.00020v1.pdf",
+        "2107.03374v2.pdf",
+        "2110.05448v1.pdf",
+        "2112.10741v3.pdf",
+        "2202.01344v1.pdf",
+        "2212.04356v1.pdf",
+        "2303.01469v2.pdf",
+        "2303.08774v6.pdf",
+        "2305.20050v1.pdf",
+        "2312.09390v1.pdf",
+        "2406.04093v1.pdf",
+        "2410.21276v1.pdf",
+        "2412.16720v1.pdf"
     ]
 
     fileListPenTest = [
-        "documents/AWS_Review.pdf",
-        "documents/CD_and_DevOps Review.pdf",
-        "documents/Database Review.pdf",
-        "documents/Firewall Review.pdf",
-        "documents/phpMyAdmin.pdf",
-        "documents/PHP_Code_Review.pdf",
-        "documents/Refinery-CMS.pdf",
-        "documents/WASPT_Report.pdf",
-        "documents/Web App and Ext Infrastructure Report.pdf",
-        "documents/Web App and Infrastructure and Mobile Report.pdf",
-        "documents/Wikimedia.pdf"
+        "AWS_Review.pdf",
+        "CD_and_DevOps Review.pdf",
+        "Database Review.pdf",
+        "Firewall Review.pdf",
+        "phpMyAdmin.pdf",
+        "PHP_Code_Review.pdf",
+        "Refinery-CMS.pdf",
+        "WASPT_Report.pdf",
+        "Web App and Ext Infrastructure Report.pdf",
+        "Web App and Infrastructure and Mobile Report.pdf",
+        "Wikimedia.pdf"
     ]
 
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
-#    fileList = [
-#        "documents/2412.16720v1.pdf"
-#        "documents/AWS_Review.pdf"
-#        "documents/Database Review.pdf", # three 500, Time: 420.24 seconds
-#        "documents/2009.03393v1.pdf"  # five tries, Time: 75.62 seconds - 63 chunks - exceed max retries
-#        "documents/1912.02292v1.pdf"
-#    ]
+    fileList = [
+        "Refinery-CMS.pdf"
+#        "2412.16720v1.pdf"
+#        "AWS_Review.pdf"
+#        "Database Review.pdf"
+#        "2009.03393v1.pdf"
+#        "1912.02292v1.pdf"
+    ]
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
 
     totalCounts = [0] * 4
     chunks = []
+
+    if discoveryWorkflow.loadDocument:
+        startTime = time.time()
+        discoveryWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
+        discoveryWorkflow.updateStats([("Time Load Documents", time.time() - startTime)])
+
+    if discoveryWorkflow.parseChunks:
+        startTime = time.time()
+        discoveryWorkflow.parseChunksPhaseAllFiles(inputFileList = fileList)
+        discoveryWorkflow.updateStats([("Time Chunking", time.time() - startTime)])
+
+    if discoveryWorkflow.makeRawVector:
+        startTime = time.time()
+        accepted, rejected = discoveryWorkflow.makeRawVectorPhaseAllFiles(inputFileList = fileList)
+        discoveryWorkflow.updateStats([("Time Vectorizing", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
+
+    if discoveryWorkflow.bm25Process:
+        startTime = time.time()
+        discoveryWorkflow.bm25ProcessPhaseAllFiles(inputFileList = fileList)
+        discoveryWorkflow.updateStats([("Time bm25Process", time.time() - startTime)])
+
+    if discoveryWorkflow.matchChunks:
+        startTime = time.time()
+        queryService = QueryService()
+        allQueryResults = discoveryWorkflow.matchChunksPhase(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
+
+        msgList = discoveryWorkflow.outputRRFInfo(allQueryResults.rrfScores)
+#        print(msgList)
+#        self.workerSnapshot(msgList)
+        discoveryWorkflow.updateStats([("Time Matching", time.time() - startTime)])
+
+    if discoveryWorkflow.clear:
+        startTime = time.time()
+        discoveryWorkflow.clearPhaseAllFiles(inputFileList = fileList)
+        discoveryWorkflow.updateStats([("Time Clearing", time.time() - startTime)])
+
+    discoveryWorkflow.updateStats([("Time Total", time.time() - totalStart)])
+
+    msg = f"{pprint(discoveryWorkflow.stats)}"
+    discoveryWorkflow.workerSnapshot(msg)
+    return
+
 
     for inputFileName in fileList:
         counts, allTopicMatches = discoveryWorkflow.processOneFile(inputFileName)
@@ -167,19 +209,19 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         jsonOut.writelines(json.dumps(discoveryWorkflow.getFails(), indent=2))
 
     totalEnd = time.time()
-    discoveryWorkflow.stage = "completed"
     msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
 
 
 def main():
 
-    logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
-
     context = darlowie.context
 
+    # configuration of base class
     context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
+    context["session_key"] = context["DISCLIsession_key"]
+
 
     # workflow actions
     context["loadDocument"] = False
@@ -203,6 +245,8 @@ def main():
     context["chunkOverlap"] = 48
 
     # search configuration
+    context["knownTopics"] = ["medical notes"]
+
     context["searchSemanticOriginal"] = True
     context["searchBM25sOriginal"] = True
     context["searchSemanticMulti"] = True
@@ -226,11 +270,11 @@ def main():
     discoverWorkflow = DiscoveryWorkflow()
     discoverWorkflow.configure(configCollection)
 
-#    testRun(discoverWorkflow)
+    testRun(discoverWorkflow)
 
-    thread = threading.Thread( target=discoverWorkflow.threadWorker)
-    thread.start()
-    thread.join()
+#    thread = threading.Thread( target=discoverWorkflow.threadWorker)
+#    thread.start()
+#    thread.join()
 
 
 

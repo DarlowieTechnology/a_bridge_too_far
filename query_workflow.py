@@ -46,7 +46,6 @@ class QueryWorkflow(WorkflowBase):
     query : str = Field(default = "", description="List of queries for this workflow")
     queryTransforms : QUERYTYPES = Field(default = "", description="List of query transformation flags")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
-    bm25CorpusFileName : str = Field(default = "", description="bm25 corpus file")
     semanticMaxCutItemDistance : float = Field(default = 0.5, description = "Maximum distance in semantic search")
     semanticRetrieveNumber : int = Field(default = 512, description = "Number of items retrieved with semantic query")
     queryBM25Options : TOKENIZERTYPES = Field(default = TOKENIZERTYPES.STOPWORDSEN, description = "Options for BM25 query tokenizer")
@@ -65,12 +64,11 @@ class QueryWorkflow(WorkflowBase):
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
-
 #    @model_validator(mode='after')
     def queryWorkflow_verify_configuration(self) -> Self:
         if not Path(self.dataFolder).is_dir:
             raise ValueError(f'Intermediate data folder is invalid')
-        if not Path(self.dataFolder + self.bm25IndexFolder).is_dir:
+        if not Path(self.bm25IndexFolder).is_dir:
             raise ValueError(f'bm25 index folder is invalid')
         if not self.semanticRetrieveNumber in range(0, 2049):
             raise ValueError(f'Number of semantic search items is invalid')
@@ -101,8 +99,6 @@ class QueryWorkflow(WorkflowBase):
             self.queryTransforms = configCollection["queryTransforms"]
         if configCollection.keyExists("bm25IndexFolder"): 
             self.bm25IndexFolder = configCollection["bm25IndexFolder"]
-        if configCollection.keyExists("bm25CorpusFileName"):
-            self.bm25CorpusFileName = configCollection["bm25CorpusFileName"]
         if configCollection.keyExists("semanticMaxCutItemDistance"):
             self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
         if configCollection.keyExists("semanticRetrieveNumber"):

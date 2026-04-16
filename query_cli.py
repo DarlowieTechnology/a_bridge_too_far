@@ -42,7 +42,6 @@ def main():
     context["statusFileName"] = context["QUECLIstatus_FileName"]
     context['session_key'] = context['QUECLIsession_key']
 
-    context["dataFolder"] = context["QUERYdataFolder"]
 
 #    context['query'] = "xss issues"
     context['query'] = "credentials issues"
@@ -52,8 +51,8 @@ def main():
 
 
     # other app-specific configuration
+    context["dataFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"]
     context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + context["QUERYbm25IndexFolder"]
-    context["bm25CorpusFileName"] = context["QUERYbm25CorpusFileName"]
 
     context['semanticMaxCutItemDistance'] = 0.5       # distance cut-off for semantic matches
     context['semanticRetrieveNumber'] = 1000   # maximum number of semantic items to retrieve

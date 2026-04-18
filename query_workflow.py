@@ -1,30 +1,20 @@
 #
 # Query workflow class used by Django app and command line
 #
-import sys
 import json
-from logging import Logger
 from typing import List, Dict
 from typing_extensions import Self
 from pathlib import Path
 import time
 import re
-
-
-import chromadb
-from chromadb import Collection
-from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
-from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
+from pprint import pprint
 
 from pydantic import BaseModel, Field, model_validator
-import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.usage import RunUsage
 
-
-from jira import JIRA
 from openai import OpenAI
 
 import Stemmer
@@ -192,6 +182,7 @@ class QueryWorkflow(WorkflowBase):
         :type useStemmerFlag: bool
         """
 
+        startTokenize = time.time()
         if TOKENIZERTYPES.STOPWORDSEN in tokenizerTypes:
             stopwords = "english"
         else:
@@ -204,6 +195,7 @@ class QueryWorkflow(WorkflowBase):
 
         query_tokens = bm25s.tokenize(query, return_ids=False, stopwords=stopwords, stemmer=stemmer)
         self.queryTokenized = query_tokens
+        self.updateStats(topKey = "Tokenize", keyValList = [("Count", 1), ("Time", time.time() - startTokenize), ("Tokens", len(self.queryTokenized[0]))])
         return query_tokens
 
 
@@ -220,17 +212,14 @@ class QueryWorkflow(WorkflowBase):
         try:
             result = agentHyDE.run_sync(userPrompt)
             self.queryHyDE = result.output
-            self.addUsage(result.usage())
-            endHyDE = time.time()
             if result.usage():
-                msg = f"Query HyDE: Usage: {self.usageFormat(usage = result.usage(), insertHTML = False)}. Time: {(endHyDE - startHyDE):9.2f} seconds."
+                self.addUsage(result.usage())
+                self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
             else:
-                msg = f"Query HyDE: Time: {(endHyDE - startHyDE):9.2f} seconds."
-            self.workerError(msg)
+                self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE)])
             return self.queryHyDE
         except Exception as e:
-            msg = f"LLM exception on HyDE request: {e}"
-            self.workerError(msg)
+            self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
         return ""
 
 
@@ -253,17 +242,15 @@ class QueryWorkflow(WorkflowBase):
         try:
             result = agentMultipleQ.run_sync(userPrompt)
             self.queryMultiple = result.output
-            self.addUsage(result.usage())
-            endMulti = time.time()
             if result.usage():
-                msg = f"Query Multi: Usage: {self.usageFormat(usage = result.usage(), insertHTML = False)}. Time: {(endMulti - startMulti):9.2f} seconds."
+                self.addUsage(result.usage())
+                self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
             else:
-                msg = f"Query Multi: Time: {(endMulti - startMulti):9.2f} seconds."
-            self.workerError(msg)
+                self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti)])
             return self.queryMultiple
         except Exception as e:
-            msg = f"LLM exception on multi query request: {e}"
-            self.workerError(msg)
+            self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
+        return ""
 
 
     def rewriteQuery(self, query : str) -> str:
@@ -290,16 +277,14 @@ class QueryWorkflow(WorkflowBase):
         try:
             result = agentRewriteQ.run_sync(userPrompt)
             self.queryRewrite = result.output
-            self.addUsage(result.usage())
-            endRewrite = time.time()
             if result.usage():
-                msg = f"Query Rewrite: Usage: {self.usageFormat(usage = result.usage(), insertHTML = False)}. Time: {(endRewrite - startRewrite):9.2f} seconds."
+                self.addUsage(result.usage())
+                self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
             else:
-                msg = f"Query Rewrite: Time: {(endRewrite - startRewrite):9.2f} seconds."
+                self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite)])
             return self.queryRewrite
         except Exception as e:
-            msg = f"LLM exception on rewrite query request: {e}"
-            self.workerError(msg)
+            self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
         return ""
 
 
@@ -319,18 +304,16 @@ class QueryWorkflow(WorkflowBase):
         userPrompt = query
         try:
             result = agentPrepBM25s.run_sync(userPrompt)
-            self.addUsage(result.usage())
             self.querybm25sprep = result.output
-            endPrepBM25s = time.time()
             if result.usage():
-                msg = f"Query BM25s Prep: Usage: {self.usageFormat(usage = result.usage(), insertHTML = False)}. Time: {(endPrepBM25s - startPrepBM25s):9.2f} seconds."
+                self.addUsage(result.usage())
+                self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
             else:
-                msg = f"Query BM25s Prep: Time: {(endPrepBM25s - startPrepBM25s):9.2f} seconds."
+                self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s)])
             return self.querybm25sprep
         except Exception as e:
-            msg = f"LLM exception on prepBM25S query request: {e}"
-            self.workerError(msg)
-
+            self.updateStats(topKey = "prepBM25S", keyValList = [("Exception", 1)])
+        return ""
 
 
     def bm25sQuery(self, query : str, folderName : str, queryLabel : str) -> OneIndexerQueryResultList : 
@@ -349,7 +332,7 @@ class QueryWorkflow(WorkflowBase):
         :return: search result object
         :rtype: OneIndexerQueryResultList
         """
-
+        startBM25sQuery = time.time()
         oneIndexerQueryResultList = OneIndexerQueryResultList(
             query ={'searchType' : SEARCH.BM25S, 'query' : query },
             label = queryLabel
@@ -377,6 +360,8 @@ class QueryWorkflow(WorkflowBase):
                     identifier = docN[0].strip(),
                     queryResult = oneIndexerQueryResult
                 )
+
+        self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startBM25sQuery), ("Items", max_items)])
         return oneIndexerQueryResultList
 
 
@@ -395,7 +380,7 @@ class QueryWorkflow(WorkflowBase):
         :return: list of results
         :rtype: OneIndexerQueryResultList
         """
-
+        startVectorQuery = time.time()
         oneIndexerQueryResultList = OneIndexerQueryResultList(
             query ={'searchType' : SEARCH.SEMANTIC, 'query' : [ query ] },
             label = queryLabel
@@ -432,56 +417,10 @@ class QueryWorkflow(WorkflowBase):
                 identifier = oneIssue.identifier,
                 queryResult = oneIndexerQueryResult
             )
+        self.updateStats(topKey = "Vector", keyValList = [("Count", 1), ("Time", time.time() - startVectorQuery), ("Items", resultIdx + 1)])
         return oneIndexerQueryResultList
 
     
-    def getDBJiraMatch(self, issueTemplate : BaseModel) -> ResultWithTypeList :
-        """
-        Query jira item collection and select vectors within cut-off distance
-        
-        Args:
-            issueTemplate - issue from report table
-
-        Returns:
-            ResultWithTypeList
-        """
-
-        jiraWithTypeList = ResultWithTypeList(results_list = [])
-
-        if hasattr(issueTemplate, "identifier"):
-            queryString = issueTemplate.identifier
-        else:
-            msg = f"Jira Query cannot find identifier field"
-            self.workerError(msg)
-            return jiraWithTypeList
-
-        queryResult = self._chromaJiraItems.query(query_texts=[queryString], n_results=1000)
-        cutDist = 0.99
-        resultIdx = -1
-        for distFloat in queryResult["distances"][0] :
-            resultIdx += 1
-            if (distFloat > cutDist) :
-                break
-            # result from RAG issues table has attached typename for the conversion
-            oneResultWithType = OneResultWithType(
-                data = queryResult["documents"][0][0], 
-                parser_typename = queryResult["metadatas"][0][0]["recordType"]
-            )
-            recordHash = hash(oneResultWithType)
-            toAdd = True
-            for existingItem in jiraWithTypeList.results_list:
-                if recordHash == hash(existingItem):
-                    toAdd = False
-                    break
-            if toAdd:
-                jiraWithTypeList.results_list.append(oneResultWithType)
-
-        if not len(jiraWithTypeList.results_list) :
-            msg = f"Jira query {queryString} did not get matches less than {cutDist}"
-            self.workerError(msg)
-        return jiraWithTypeList
-
-
     def rrfReRanking(self, allQueryResults : AllIndexerQueryResults) -> AllIndexerQueryResults:
         """
         Reciprocal Rank Fusion (RRF) re-ranking of semantic and bm25s search results
@@ -491,6 +430,7 @@ class QueryWorkflow(WorkflowBase):
         :return: query results updated with rank
         :rtype: AllQueryResults
         """
+        startRRF = time.time()
 
     #    for item in allQueryResults.result_lists:
     #        msg = f"RRF:  {item.label} matches: {len(item.result_dict)}"    
@@ -509,11 +449,10 @@ class QueryWorkflow(WorkflowBase):
         scoresDict : Dict[str, IdentifierQueryResults] = {}
         for ident in list(setKeys):
             finalRank : float = 0.0
-            oneQueryAppResult = None
             for item in allQueryResults.listQueryResults:
                 if ident in item.result_dict:
-                    oneQueryAppResult = item.result_dict[ident]
-                    finalRank += 1/(60 + oneQueryAppResult.rank)
+                    itemRank = item.result_dict[ident].rank
+                    finalRank += 1/(60 + itemRank)
             identifierQueryResults = IdentifierQueryResults(
                 identifier = ident,
                 rrfRank = finalRank
@@ -524,6 +463,7 @@ class QueryWorkflow(WorkflowBase):
         allQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
+        self.updateStats(topKey = "RRF", keyValList = [("Count", 1), ("Time", time.time() - startRRF), ("Key Set", len(setKeys))])
         return allQueryResults
 
 
@@ -695,6 +635,7 @@ class QueryWorkflow(WorkflowBase):
             None
 
         """
+        totalStart = time.time()
 
         self._llmModel = self.createOpenAIModel()
 
@@ -704,5 +645,5 @@ class QueryWorkflow(WorkflowBase):
         with open(self.outputFileName, "w") as jsonOut:
             jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
-        msg = f"Processing completed."
-        self.workerSnapshot(msg)
+        self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", self.totalUsageFormat(insertHTML = False) ) ])
+        pprint(self.stats)

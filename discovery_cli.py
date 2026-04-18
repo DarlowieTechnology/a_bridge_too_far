@@ -137,22 +137,22 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     if discoveryWorkflow.loadDocument:
         startTime = time.time()
         discoveryWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats([("Time Load Documents", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
 
     if discoveryWorkflow.parseChunks:
         startTime = time.time()
         discoveryWorkflow.parseChunksPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats([("Time Chunking", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "Chunking", keyValList = [("Time", time.time() - startTime)])
 
     if discoveryWorkflow.makeRawVector:
         startTime = time.time()
         accepted, rejected = discoveryWorkflow.makeRawVectorPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats([("Time Vectorizing", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
+        discoveryWorkflow.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
 
     if discoveryWorkflow.bm25Process:
         startTime = time.time()
         discoveryWorkflow.bm25ProcessPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats([("Time bm25Process", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "BM25 Process", keyValList = [("Time", time.time() - startTime)])
 
     if discoveryWorkflow.matchChunks:
         startTime = time.time()
@@ -162,14 +162,14 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         msgList = discoveryWorkflow.outputRRFInfo(allQueryResults.rrfScores)
 #        print(msgList)
 #        self.workerSnapshot(msgList)
-        discoveryWorkflow.updateStats([("Time Matching", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 
     if discoveryWorkflow.clear:
         startTime = time.time()
         discoveryWorkflow.clearPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats([("Time Clearing", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
 
-    discoveryWorkflow.updateStats([("Time Total", time.time() - totalStart)])
+    discoveryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
     msg = f"{pprint(discoveryWorkflow.stats)}"
     discoveryWorkflow.workerSnapshot(msg)

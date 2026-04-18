@@ -36,12 +36,18 @@ def testRun(context : Dict[str, Any], fileList : List[str]):
     
     """
 
-    # configuration of base class
-    context["statusFileName"] = context["IDXCLIstatus_FileName"]
-    context["session_key"] = context["IDXCLIsession_key"]
 
     # bm25s index is common for all source documents
     corpus : List[str] = []
+
+    if indexerWorkflow.loadDocument:
+        startTime = time.time()
+        indexerWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
+        indexerWorkflow.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
+
+    pprint(indexerWorkflow.stats)
+    return
+
 
     for fileName in fileList:
 
@@ -72,39 +78,36 @@ def testRun(context : Dict[str, Any], fileList : List[str]):
         folderName = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEbm25IndexFolder"]
         IndexerWorkflow.bm25sProcessCorpusPhase(corpus=corpus, folderName = folderName)
 
-    msg = f"{pprint(indexerWorkflow.stats)}"
-    indexerWorkflow.workerSnapshot(msg)
-
+    pprint(indexerWorkflow.stats)
 
 
 def main():
 
     context = darlowie.context
 
-
     # test list - only process data sources from this list
     fileList = [
-#        "Architecture Review - Threat Model Report.pdf",
-#        "AWS_Review.pdf",
-#        "CD_and_DevOps Review.pdf",
-#        "Database Review.pdf",
-#        "Firewall Review.pdf",
-#        "phpMyAdmin.pdf",
-#        "PHP_Code_Review.pdf",
-#        "WASPT_Report.pdf",
-#        "Web App and Ext Infrastructure Report.pdf",
-#        "Wikimedia.pdf",
-#        "Web App and Infrastructure and Mobile Report.pdf",
+        "Architecture Review - Threat Model Report.pdf",
+        "AWS_Review.pdf",
+        "CD_and_DevOps Review.pdf",
+        "Database Review.pdf",
+        "Firewall Review.pdf",
+        "phpMyAdmin.pdf",
+        "PHP_Code_Review.pdf",
+        "WASPT_Report.pdf",
+        "Web App and Ext Infrastructure Report.pdf",
+        "Wikimedia.pdf",
+        "Web App and Infrastructure and Mobile Report.pdf",
         "Refinery-CMS.pdf"
     ]
 
     # stages
     context["loadDocument"] = True
-    context["rawTextFromDocument"] = True
-    context["finalJSONfromRaw"] = True
-    context["prepareBM25corpus"] = True
-    context["completeBM25database"] = True
-    context["vectorizeFinalJSON"] = True
+    context["rawTextFromDocument"] = False
+    context["finalJSONfromRaw"] = False
+    context["prepareBM25corpus"] = False
+    context["completeBM25database"] = False
+    context["vectorizeFinalJSON"] = False
 
     # text extraction from PDF
     context["stripWhiteSpace"] = True
@@ -112,11 +115,15 @@ def main():
     context["convertToASCII"] = True
     context["singleSpaces"] = True
 
-#    testRun(context=context, fileList = fileList)
+    # configuration of base class
+    context["statusFileName"] = context["IDXCLIstatus_FileName"]
+    context["session_key"] = context["IDXCLIsession_key"]
 
-    thread = threading.Thread( target=IndexerWorkflow.threadWorkerStatic, args=(context, fileList))
-    thread.start()
-    thread.join()
+    testRun(context=context, fileList = fileList)
+
+#    thread = threading.Thread( target=IndexerWorkflow.threadWorkerStatic, args=(context, fileList))
+#    thread.start()
+#    thread.join()
 
 
 if __name__ == "__main__":

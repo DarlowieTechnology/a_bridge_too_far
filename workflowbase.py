@@ -5,7 +5,7 @@ import sys
 import logging
 from logging import Logger
 import json
-from typing import List
+from typing import List, Dict
 from typing_extensions import Self
 from pathlib import Path
 import tomli
@@ -63,6 +63,9 @@ class WorkflowBase(BaseModel):
     resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
     fails : list[str] = Field(default = [], description="Fails list for workflow") 
 
+    stats : dict[str, dict[str, int]] = Field(default = {}, description="Run statistics")
+
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -108,6 +111,32 @@ class WorkflowBase(BaseModel):
 
         self.usage = RunUsage()
         self.statusFileName = configCollection["statusFileName"]
+
+
+    def updateStats(self, topKey : str, keyValList : List[tuple[str, int]]) :
+        """
+        Update internal statistics. Attempt to update first, create key second.
+        
+        :param topKey:  key for stat record
+        :type topKey: str
+        :param keyValList:  list of stats tuples (key-val)
+        :type keyValList: List[tuple[str, int]]
+        :return: None
+        :rtype: None
+        """
+
+        try:
+            statsForKey = self.stats[topKey]
+        except:
+            self.stats[topKey] = {}
+            statsForKey = self.stats[topKey]
+
+        for key, value in keyValList:
+            try:
+                prevVal = statsForKey[key]
+                statsForKey[key] = prevVal + value
+            except Exception:
+                statsForKey[key] = value
 
 
     def initRAGcomponents(self) -> bool :
@@ -361,7 +390,8 @@ class WorkflowBase(BaseModel):
         if insertHTML:
             return f"<b>{self.usage.requests}</b> {requestLabel}, <b>{self.usage.input_tokens}>/b> input tokens, <b>{self.usage.output_tokens}</b> output tokens"
         else:
-            return f"{self.usage.requests} {requestLabel}, {self.usage.input_tokens}> input tokens, {self.usage.output_tokens} output tokens"
+            return f"{self.usage.requests} {requestLabel}, {self.usage.input_tokens} input tokens, {self.usage.output_tokens} output tokens"
+
 
     def usageFormat(self, usage : RunUsage, insertHTML : bool) -> str:
         """
@@ -382,8 +412,6 @@ class WorkflowBase(BaseModel):
                 return f"{usage.requests} {requestLabel}, {usage.input_tokens} input tokens, {usage.output_tokens} output tokens"
         else:
             return f""
-
-
 
 
 #    def getAbsPath(self, key) -> str:

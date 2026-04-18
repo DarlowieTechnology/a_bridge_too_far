@@ -82,8 +82,6 @@ class IndexerWorkflow(WorkflowBase):
 
     corpus : List[str] = Field(default = [], description="corpus for bm25s")
 
-    stats : Dict[str, int] = Field(default = {}, description="Run statistics")
-
 
     @model_validator(mode='after')
     def indexerWorkflow_verify_configuration(self) -> Self:
@@ -188,23 +186,6 @@ class IndexerWorkflow(WorkflowBase):
         self.indexerWorkflow_verify_configuration()
 
 
-    def updateStats(self, keyValList : List[tuple[str, int]]) :
-        """
-        Update internal statistics. Attempt to update first, create key second.
-        
-        :param keyValList:  list of stats tuples (key-val)
-        :type keyValList: List[tuple[str, int]]
-        :return: None
-        :rtype: None
-        """
-
-        for key, value in keyValList:
-            try:
-                prevVal = self.stats[key]
-                self.stats[key] = prevVal + value
-            except Exception:
-                self.stats[key] = value
-
 
     def processText(self, textIn : str) -> str:
         """
@@ -294,7 +275,16 @@ class IndexerWorkflow(WorkflowBase):
 
         endTime = time.time()
 
-        self.updateStats([("Time for loadDocument phase", endTime - startTime), ("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF length", len(textCombined))])
+        self.updateStats(topKey = "Load Document", keyValList = [("Time", endTime - startTime), ("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF length", len(textCombined))])
+
+
+    def loadDocumentPhaseAllFiles(self, inputFileList : List[str]): 
+        """
+        Load all documents and store as plain text
+        """
+        for inputFileName in inputFileList:
+            self.inputFileName = inputFileName
+            self.loadDocumentPhase()
 
 
     def preprocessReportRawTextPhase(self, rawText : str) -> dict[str, str] :
@@ -346,15 +336,13 @@ class IndexerWorkflow(WorkflowBase):
         # process last match only if it is not a terminator 
         if match.group("TERMINATORGROUP"):
 
-            self.updateStats([ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
-
+            self.updateStats(topKey = "Preprocess", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
             return dictIssues    
 
         end = len(rawText)
         dictIssues[prevMatch.group(0)] = rawText[start:end]
 
-        self.updateStats([ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
-
+        self.updateStats(topKey = "Preprocess", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
         return dictIssues
 
 
@@ -370,8 +358,6 @@ class IndexerWorkflow(WorkflowBase):
             BaseModel
         """
 
-        msg = f"Parse fallback to regexp"
-        self.workerSnapshot(msg)
         compiledExtract = re.compile(self.extractPattern)
         match = re.search(compiledExtract, docs)
         if match:
@@ -380,15 +366,11 @@ class IndexerWorkflow(WorkflowBase):
                 attrName = self.assignList[i]
                 setattr(oneIssue, attrName, match.group(attrName))
 
-            self.updateStats([ ("Issues parsed with fallback regexp", 1) ])
+            self.updateStats(topKey = "Parse", keyValList = [ ("Issues parsed with fallback regexp", 1) ])
 
             return oneIssue
         else:
-            msg = f"regexp parser produced no match"
-            self.workerError(msg)
-
-            self.updateStats([ ("Issues failed to parse", 1) ])
-
+            self.updateStats(topKey = "Parse", keyValList = [ ("Issues failed to parse", 1) ])
             return None
 
 
@@ -427,7 +409,7 @@ class IndexerWorkflow(WorkflowBase):
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].encode("ascii", "ignore").decode("ascii")
             runUsage : RunUsage = result.usage()
 
-            self.updateStats([ ("Issues parsed with LLM", 1) ])
+            self.updateStats(topKey = "Parse", keyValList = [ ("Issues parsed with LLM", 1) ])
 
             return oneIssue, runUsage
         
@@ -601,8 +583,7 @@ class IndexerWorkflow(WorkflowBase):
                 metadatas=docMetadata
             )
 
-        endTime = time.time()
-        self.updateStats([ ("Time for vectorizeFinalJSON phase", endTime - startTime),  ("Accepted", accepted), ("Rejected", rejected) ])
+        self.updateStats(topKey = "Vectorize", keyValList = [ ("Time", time.time() - startTime),  ("Accepted", accepted), ("Rejected", rejected) ])
 
 
     def rawTextFromDocumentPhase(self) :
@@ -629,8 +610,7 @@ class IndexerWorkflow(WorkflowBase):
         with open(self.rawJSON, "w", encoding='utf8', errors='ignore') as jsonOut:
             jsonOut.writelines(json.dumps(dictIssues, indent=2))
 
-        endTime = time.time()
-        self.updateStats([ ("Time for rawTextFromDocument phase", endTime - startTime),  ("Number of potential records", len(dictIssues)) ])
+        self.updateStats(topKey = "Raw JSON", keyValList = [ ("Time", time.time() - startTime),  ("Records", len(dictIssues)) ])
 
 
 
@@ -659,8 +639,7 @@ class IndexerWorkflow(WorkflowBase):
         with open(self.finalJSON, "w", encoding='utf8', errors='ignore') as jsonOut:
             jsonOut.writelines(recordCollection.model_dump_json(indent=2))
 
-        endTime = time.time()
-        self.updateStats([ ("Time for finalJSONfromRaw phase", endTime - startTime),  ("Total issues", recordCollection.objectCount()), ("finalJSONfromRaw phase LLM usage", f"{self.usageFormat(usage = totalUsage, insertHTML = False)}" ) ])
+        self.updateStats(topKey = "Final JSON", keyValList = [ ("Time", time.time() - startTime),  ("Records", recordCollection.objectCount()), ("Input Tokens", totalUsage.input_tokens), ("Output Tokens", totalUsage.output_tokens) ])
 
 
     def prepareBM25corpusPhase(self, issueTemplate : BaseModel, corpus : List[str]) -> List[str] :
@@ -692,8 +671,7 @@ class IndexerWorkflow(WorkflowBase):
             issueText = reportItem.bm25s()
             corpus.append(issueText)
 
-        endTime = time.time()
-        self.updateStats([ ("Time for prepareBM25corpus phase", endTime - startTime) ])
+        self.updateStats(topKey = "Prepare BM25 Corpus", keyValList = [ ("Time", time.time() - startTime) ])
         return corpus
 
 
@@ -735,10 +713,9 @@ class IndexerWorkflow(WorkflowBase):
 
         # ---------------stage completed ---------------
 
-        totalEnd = time.time()
-        self.updateStats([ ("Total time", totalEnd - totalStart), ("Total usage", self.totalUsageFormat(insertHTML = False) ) ])
+        self.updateStats(topKey = "Total", keyValList = [ ("Time", time.time() - totalStart), ("Usage", self.totalUsageFormat(insertHTML = False) ) ])
 
-        print(f"{pprint(self.stats)}")
+        pprint(self.stats)
 
 
     @staticmethod

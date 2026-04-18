@@ -1,11 +1,10 @@
 #
 # query CLI app
 #
-import sys
-import logging
-from logging import Logger
-import json
+import time
 import threading
+from pprint import pprint
+
 
 # local
 import darlowie
@@ -25,6 +24,8 @@ def testRun(queryWorkflow : QueryWorkflow) :
         None
     """
 
+    totalStart = time.time()
+
     queryWorkflow._llmModel = queryWorkflow.createOpenAIModel()
 
     allQueryResults = queryWorkflow.performQueries()
@@ -33,6 +34,11 @@ def testRun(queryWorkflow : QueryWorkflow) :
     print(f"Query result are written in file: {queryWorkflow.outputFileName}")
     with open(queryWorkflow.outputFileName, "w") as jsonOut:
         jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+
+    queryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", queryWorkflow.totalUsageFormat(insertHTML = False) ) ])
+    pprint(queryWorkflow.stats)
+
+
 
 
 def main():

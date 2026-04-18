@@ -364,24 +364,6 @@ class DiscoveryWorkflow(WorkflowBase):
         return completeFileList
 
 
-    def updateStats(self, keyValList : List[tuple[str, int]]) :
-        """
-        Update internal statistics. Attempt to update first, create key second.
-        
-        :param keyValList:  list of stats tuples (key-val)
-        :type keyValList: List[tuple[str, int]]
-        :return: None
-        :rtype: None
-        """
-
-        for key, value in keyValList:
-            try:
-                prevVal = self.stats[key]
-                self.stats[key] = prevVal + value
-            except Exception:
-                self.stats[key] = value
-
-
     def compressText(self, textIn : str, nlp : Language) -> str:
         """
         Perform Telegraphic Semantic Compression (TSC) on the query for semantic search. 
@@ -468,7 +450,7 @@ class DiscoveryWorkflow(WorkflowBase):
         if mime_type not in acceptedMimeTypes:
             msg = f" Error: File type not supported: {mime_type}"
             self.workerSnapshot(msg)
-            self.updateStats([("Files", 1), ("Unknown MIME type", 1)])
+            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
             return 0
 
         # make data path if does not exist
@@ -478,18 +460,18 @@ class DiscoveryWorkflow(WorkflowBase):
             textCombined = self.loadPDFPyPDFLoader(inputFileName)
             if not textCombined:
                 textCombined = self.loadPDFpymupdf4llm(inputFileName)
-                self.updateStats([("pymupdf4llm", 1)])
+                self.updateStats(topKey = "Load Documents", keyValList = [("pymupdf4llm", 1)])
             else:
-                self.updateStats([("PyPDFLoader", 1)])
-            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF Length", len(textCombined))])
+                self.updateStats(topKey = "Load Documents", keyValList = [("PyPDFLoader", 1)])
+            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF Length", len(textCombined))])
 
         if mime_type in ["application/json"]:
             textCombined = self.loadJSON(inputFileName)
-            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("JSON", 1), ("JSON Length", len(textCombined))])
+            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("JSON", 1), ("JSON Length", len(textCombined))])
 
         if mime_type in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
             textCombined = self.loadText(inputFileName)
-            self.updateStats([("Files", 1), ("Length", len(textCombined)), ("Other text", 1), ("Other text Length", len(textCombined))])
+            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Other text", 1), ("Other text Length", len(textCombined))])
 
         fullOutputFileName = dataFolder + outputFileName
         with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
@@ -526,7 +508,7 @@ class DiscoveryWorkflow(WorkflowBase):
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunkSize, chunk_overlap=self.chunkOverlap)
         texts = text_splitter.split_text(docs)
 
-        self.updateStats([("Chunks", len(texts))])
+        self.updateStats(topKey = "Chunking", keyValList = [("Chunks", len(texts))])
         return texts
 
 
@@ -916,28 +898,28 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.loadDocument:
             startTime = time.time()
             self.loadDocumentPhaseAllFiles(inputFileList = fileList)
-            self.updateStats([("Time Load Documents", time.time() - startTime)])
+            self.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
 
         # ---------------parseChunks ---------------
 
         if self.parseChunks:
             startTime = time.time()
             self.parseChunksPhaseAllFiles(inputFileList = fileList)
-            self.updateStats([("Time Chunking", time.time() - startTime)])
+            self.updateStats(topKey = "Chunking", keyValList = [("Time", time.time() - startTime)])
 
         # ------------makeRawVector----------------------
 
         if self.makeRawVector:
             startTime = time.time()
             accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
-            self.updateStats([("Time Vectorizing", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
+            self.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
 
         # ------------bm25Process----------------------
 
         if self.bm25Process:
             startTime = time.time()
             self.bm25ProcessPhaseAllFiles(inputFileList = fileList)
-            self.updateStats([("Time bm25Process", time.time() - startTime)])
+            self.updateStats(topKey = "BM25 Process", keyValList = [("Time", time.time() - startTime)])
 
         # --------------matchChunks------------------
 
@@ -950,21 +932,19 @@ class DiscoveryWorkflow(WorkflowBase):
 #            print(msgList)
 #            self.workerSnapshot(msgList)
 
-            endTime = time.time()
-            self.updateStats([("Time Matching", endTime - startTime)])
+            self.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 
         # -------------- clear ---------------
 
         if self.clear:
             startTime = time.time()
             self.clearPhaseAllFiles(inputFileList = fileList)
-            self.updateStats([("Time Clearing", time.time() - startTime)])
+            self.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
 
 
-        self.updateStats([("Time Total", time.time() - totalStart)])
+        self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
-        msg = f"{pprint(self.stats)}"
-        self.workerSnapshot(msg)
+        pprint(self.stats)
         return
 
 

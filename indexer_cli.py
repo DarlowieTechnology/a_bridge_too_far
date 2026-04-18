@@ -26,7 +26,7 @@ from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
 
-def testRun(context : Dict[str, Any], fileList : List[str]):
+def testRun(indexerWorkflow : IndexerWorkflow, fileList : List[str]):
     """ 
     Test for indexer phases
     
@@ -35,7 +35,6 @@ def testRun(context : Dict[str, Any], fileList : List[str]):
         fileList(List[str]) = list of files to process
     
     """
-
 
     # bm25s index is common for all source documents
     corpus : List[str] = []
@@ -118,6 +117,11 @@ def main():
     # configuration of base class
     context["statusFileName"] = context["IDXCLIstatus_FileName"]
     context["session_key"] = context["IDXCLIsession_key"]
+
+    configCollection = ConfigCollection(context)
+    indexerWorkflow = IndexerWorkflow()
+    indexerWorkflow.configure(configCollection)
+
 
     testRun(context=context, fileList = fileList)
 

@@ -43,22 +43,19 @@ class IndexerWorkflow(WorkflowBase):
 
     session_key : str = Field(default = "", description="logger session name for Indexer CLI")
 
+    globalDataFolder : str = Field(default = "", description="Global data folder")
+    documentFolder : str = Field(default = "", description="Source document folder")
+    dataFolder : str = Field(default = "", description="INDEXER interim data folder")
+
     # file names : Original -> Raw Text -> Raw JSON -> Final JSON
     #
     inputFileName : str = Field(default = "", description="Original document name")
-    interimFolder : str = Field(default = "", description="Interim folder path")
+    interimFolder : str = Field(default = "", description="Full interim folder path")
     rawTextFromDoc : str = Field(default = "", description="Raw text name")
     rawJSON : str = Field(default = "", description="Raw JSON name")
     finalJSON : str = Field(default = "", description="Final JSON name")
 
     inputFileBaseName : str = Field(default = "", description="Base name of original document")
-
-    # Jira configuration
-    INDEXEjira_url : str = Field(default = "", description="Jira API URL")
-    INDEXEjira_max_results : int = Field(default = 999, description="maximum number of Jira items to retrieve")
-    INDEXEjira_export : bool = Field(default = False, description="perform Jira export")
-    jira_user : str = Field(default = "", description="Jira API user name")
-    jira_api_token: str = Field(default = "", description="Jira API token")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text")
@@ -75,6 +72,8 @@ class IndexerWorkflow(WorkflowBase):
     vectorizeFinalJSON : bool = Field(default = False, description="vectorize final JSON")
 
     # raw text parsing support
+    dictDocuments : Dict[str, Any] = Field(default = [], description="Template descriptions")
+
     issuePattern : str = Field(default = "", description="issue regexp pattern")
     issueTemplateName : str = Field(default = "", description="issue template name")
     extractPattern : str = Field(default = "", description="issue field extract regexp pattern")
@@ -86,25 +85,8 @@ class IndexerWorkflow(WorkflowBase):
     @model_validator(mode='after')
     def indexerWorkflow_verify_configuration(self) -> Self:
 
-        # verify access to original document
-        if not Path(self.inputFileName).is_file:
-            raise ValueError(f'Original document file is invalid')
         if not Path(self.interimFolder).is_dir:
-            raise ValueError(f'Interim folder path is invalid')
-        # verify raw text file name
-        if not Path(self.rawTextFromDoc).is_file:
-            raise ValueError(f'Raw text file name is invalid')
-        # verify raw JSON file name
-        if not Path(self.rawJSON).is_file:
-            raise ValueError(f'Raw JSON file name is invalid')
-        # verify final JSON file name
-        if not Path(self.finalJSON).is_file:
-            raise ValueError(f'Final JSON file name is invalid')
-        # verify input file base name
-        if not Path(self.inputFileBaseName).is_file:
-            raise ValueError(f'Base name of original document is invalid')
-        if not self.INDEXEjira_max_results in range(0, 1000):
-            raise ValueError(f'Jira maximum results is invalid')
+            raise ValueError(f'Full interim data folder path is invalid')
 
         return self
 
@@ -114,51 +96,25 @@ class IndexerWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
-        # input file name is required for workflow
-        self.inputFileBaseName = configCollection["inputFileBaseName"]
+        self.globalDataFolder = configCollection["GLOBALdataFolder"]
+        self.documentFolder = configCollection["INDEXEdocumentFolder"]
+        self.dataFolder = configCollection["INDEXEdataFolder"]
+        self.interimFolder = self.globalDataFolder + self.documentFolder + self.dataFolder
 
-        # raw text parsing support
-        # read template description
+        # make interim data folder if does not exist
+        Path(self.interimFolder).mkdir(parents=True, exist_ok=True)
+
+        # template description
         documentJSONName = configCollection["GLOBALdataFolder"] + configCollection["INDEXEdocumentFolder"] + "documents.json"
         result, fileContentOrError = OpenFile.open(filePath = documentJSONName, readContent = True)
         if not result:
-            # threadWorkerStatic is a dual CLI/WebApp function - error output via 
-            msg = f"testRun: {fileContentOrError}"
-            self.workerSnapshot(msg)
-            return
+            raise ValueError(f'Cannot read template description file')
         else:
-            dictDocuments = json.loads(fileContentOrError)
+            self.dictDocuments = json.loads(fileContentOrError)
 
-        # set raw text parsing configuration
-        self.issuePattern = dictDocuments[self.inputFileBaseName]["pattern"]
-        self.issueTemplateName = dictDocuments[self.inputFileBaseName]["templateName"]
-        self.extractPattern = dictDocuments[self.inputFileBaseName]["extract"]
-        self.assignList = dictDocuments[self.inputFileBaseName]["assign"]
 
         if configCollection.keyExists("session_key"):
             self.session_key = configCollection["session_key"]
-
-        if configCollection.keyExists("inputFileName"):
-            self.inputFileName = configCollection["inputFileName"]
-        if configCollection.keyExists("interimFolder"):
-            self.interimFolder = configCollection["interimFolder"]
-        if configCollection.keyExists("rawTextFromDoc"):
-            self.rawTextFromDoc = configCollection["rawTextFromDoc"]
-        if configCollection.keyExists("rawJSON"):
-            self.rawJSON = configCollection["rawJSON"]
-        if configCollection.keyExists("finalJSON"):
-            self.finalJSON = configCollection["finalJSON"]
-
-        if configCollection.keyExists("INDEXEjira_url"):
-            self.INDEXEjira_url = configCollection["INDEXEjira_url"]
-        if configCollection.keyExists("INDEXEjira_max_results"):
-            self.INDEXEjira_max_results = configCollection["INDEXEjira_max_results"]
-        if configCollection.keyExists("INDEXEjira_export"):
-            self.INDEXEjira_export = configCollection["INDEXEjira_export"]
-        if configCollection.keyExists("jira_user"):
-            self.jira_user = configCollection["jira_user"]
-        if configCollection.keyExists("jira_api_token"):
-            self.jira_api_token = configCollection["jira_api_token"]
 
         if configCollection.keyExists("stripWhiteSpace"):
             self.stripWhiteSpace = configCollection["stripWhiteSpace"]
@@ -267,35 +223,40 @@ class IndexerWorkflow(WorkflowBase):
         if not textCombined:
             textCombined = self.loadPDFpymupdf4llm(self.inputFileName)
 
-        # make interim data folder if does not exist
-        Path(self.interimFolder).mkdir(parents=True, exist_ok=True)
-
         with open(self.rawTextFromDoc, "w" , encoding="utf-8", errors="ignore") as rawOut:
             rawOut.write(textCombined)
 
-        endTime = time.time()
-
-        self.updateStats(topKey = "Load Document", keyValList = [("Time", endTime - startTime), ("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF length", len(textCombined))])
+        self.updateStats(topKey = "Load Document", keyValList = [("Time", time.time() - startTime), ("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF length", len(textCombined))])
 
 
     def loadDocumentPhaseAllFiles(self, inputFileList : List[str]): 
         """
         Load all documents and store as plain text
+
+        Args:
+            inputFileList (List[str]) - list of files
+        
+        Returns:
+
         """
         for inputFileName in inputFileList:
-            self.inputFileName = inputFileName
-            context["inputFileBaseName"] = fileName
-            context["interimFolder"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"]
-            context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + fileName
-            context["rawTextFromDoc"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.txt"
-            context["rawJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.json"
-            context["finalJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".json"
-  
-
-
-
-
+            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
             self.loadDocumentPhase()
+
+#            context["rawTextFromDoc"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.txt"
+#            context["rawJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.json"
+#            context["finalJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".json"
+
+            # base input file name is a key for template dict
+#            self.inputFileBaseName = str(Path(inputFileName).name)
+           
+            # set raw text parsing configuration
+#            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
+#            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
+#            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
+#            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
+
 
 
     def preprocessReportRawTextPhase(self, rawText : str) -> dict[str, str] :
@@ -318,6 +279,7 @@ class IndexerWorkflow(WorkflowBase):
         dictIssues = {}
         uniqIdx = 0
         prevMatch = None
+        match : Any = None
 
         for match in re.finditer(compiledPattern, rawText) :
 
@@ -345,15 +307,17 @@ class IndexerWorkflow(WorkflowBase):
             prevMatch = match
 
         # process last match only if it is not a terminator 
-        if match.group("TERMINATORGROUP"):
+        if match:
+            if match.group("TERMINATORGROUP"):
 
-            self.updateStats(topKey = "Preprocess", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
-            return dictIssues    
+                self.updateStats(topKey = "Raw JSON", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
+                return dictIssues    
 
         end = len(rawText)
-        dictIssues[prevMatch.group(0)] = rawText[start:end]
+        if prevMatch:
+            dictIssues[prevMatch.group(0)] = rawText[start:end]
 
-        self.updateStats(topKey = "Preprocess", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
+        self.updateStats(topKey = "Raw JSON", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
         return dictIssues
 
 
@@ -622,6 +586,32 @@ class IndexerWorkflow(WorkflowBase):
             jsonOut.writelines(json.dumps(dictIssues, indent=2))
 
         self.updateStats(topKey = "Raw JSON", keyValList = [ ("Time", time.time() - startTime),  ("Records", len(dictIssues)) ])
+
+
+    def rawTextFromDocumentPhaseAllFiles(self, inputFileList : List[str]):
+        """
+        Perform conversion of raw text to raw JSON for all files
+
+
+        Args:
+            inputFileList (List[str]) - list of files
+        
+        Returns:
+        """
+        for inputFileName in inputFileList:
+            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.inputFileBaseName = str(Path(inputFileName).name)
+            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
+            self.rawJSON = self.interimFolder + inputFileName + ".raw.json"
+
+            # set raw text parsing configuration
+            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
+            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
+            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
+            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
+
+            self.rawTextFromDocumentPhase()
+            print(self.showStats(topKey = "Raw JSON", showKey = "Raw item files", label="Number of files processed"))
 
 
 

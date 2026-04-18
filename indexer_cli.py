@@ -12,10 +12,7 @@ import time
 from pathlib import Path
 from pprint import pprint
 
-
 from typing import Any, List, Dict
-
-from jira import JIRA
 
 from pydantic import BaseModel, Field
 
@@ -26,12 +23,12 @@ from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
 
-def testRun(indexerWorkflow : IndexerWorkflow, fileList : List[str]):
+def testRun(context : Dict[str, Any], fileList : List[str]):
     """ 
     Test for indexer phases
     
     Args:
-        indexerWorkflow (IndexerWorkflow) - workflow object
+        context (Dict[str, Any]) - configuration
         fileList(List[str]) = list of files to process
     
     """
@@ -39,10 +36,33 @@ def testRun(indexerWorkflow : IndexerWorkflow, fileList : List[str]):
     # bm25s index is common for all source documents
     corpus : List[str] = []
 
+    # stages
+    context["loadDocument"] = False
+    context["rawTextFromDocument"] = True
+    context["finalJSONfromRaw"] = False
+    context["prepareBM25corpus"] = False
+    context["completeBM25database"] = False
+    context["vectorizeFinalJSON"] = False
+
+    # text extraction from PDF
+    context["stripWhiteSpace"] = True
+    context["convertToLower"] = True
+    context["convertToASCII"] = True
+    context["singleSpaces"] = True
+
+    # configuration of base class
+    context["statusFileName"] = context["IDXCLIstatus_FileName"]
+    context["session_key"] = context["IDXCLIsession_key"]
+
+    configCollection = ConfigCollection(context)
+    indexerWorkflow = IndexerWorkflow()
+    indexerWorkflow.configure(configCollection)
+
     if indexerWorkflow.loadDocument:
-        startTime = time.time()
         indexerWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
-        indexerWorkflow.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
+    if indexerWorkflow.rawTextFromDocument :
+        indexerWorkflow.rawTextFromDocumentPhaseAllFiles(inputFileList = fileList)
+
 
     pprint(indexerWorkflow.stats)
     return
@@ -51,15 +71,11 @@ def testRun(indexerWorkflow : IndexerWorkflow, fileList : List[str]):
     for fileName in fileList:
 
         context["inputFileBaseName"] = fileName
-        context["interimFolder"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"]
         context["inputFileName"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + fileName
         context["rawTextFromDoc"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.txt"
         context["rawJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".raw.json"
         context["finalJSON"] = context["GLOBALdataFolder"] + context["INDEXEdocumentFolder"] + context["INDEXEdataFolder"] + fileName + ".json"
         
-        configCollection = ConfigCollection(context)
-        indexerWorkflow = IndexerWorkflow()
-        indexerWorkflow.configure(configCollection)
 
         issueTemplate = ParserClassFactory.factory(indexerWorkflow.issueTemplateName)
         if indexerWorkflow.loadDocument :
@@ -99,29 +115,6 @@ def main():
         "Web App and Infrastructure and Mobile Report.pdf",
         "Refinery-CMS.pdf"
     ]
-
-    # stages
-    context["loadDocument"] = True
-    context["rawTextFromDocument"] = False
-    context["finalJSONfromRaw"] = False
-    context["prepareBM25corpus"] = False
-    context["completeBM25database"] = False
-    context["vectorizeFinalJSON"] = False
-
-    # text extraction from PDF
-    context["stripWhiteSpace"] = True
-    context["convertToLower"] = True
-    context["convertToASCII"] = True
-    context["singleSpaces"] = True
-
-    # configuration of base class
-    context["statusFileName"] = context["IDXCLIstatus_FileName"]
-    context["session_key"] = context["IDXCLIsession_key"]
-
-    configCollection = ConfigCollection(context)
-    indexerWorkflow = IndexerWorkflow()
-    indexerWorkflow.configure(configCollection)
-
 
     testRun(context=context, fileList = fileList)
 

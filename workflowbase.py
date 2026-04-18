@@ -139,6 +139,29 @@ class WorkflowBase(BaseModel):
                 statsForKey[key] = value
 
 
+    def showStats(self, topKey : str, showKey : str, label : str) -> str:
+        """
+        Update internal statistics. Attempt to update first, create key second.
+        
+        :param topKey:  key for stat record
+        :type topKey: str
+        :param showKey:  key to show
+        :type showKey: str
+        :param label:  label to show
+        :type label: str
+        :return: String to show
+        :rtype: str
+        """
+
+        try:
+            statsForKey = self.stats[topKey]
+            showValue = statsForKey[showKey]
+        except:
+            return ""
+        return f"{label} : {showValue}"
+
+
+
     def initRAGcomponents(self) -> bool :
         """
         Init RAG components on demand. Avoid repeated initialization.

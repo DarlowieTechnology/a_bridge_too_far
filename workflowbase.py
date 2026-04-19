@@ -5,7 +5,7 @@ import sys
 import logging
 from logging import Logger
 import json
-from typing import List, Dict
+from typing import List, Union
 from typing_extensions import Self
 from pathlib import Path
 import tomli
@@ -63,7 +63,7 @@ class WorkflowBase(BaseModel):
     resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
     fails : list[str] = Field(default = [], description="Fails list for workflow") 
 
-    stats : dict[str, dict[str, int]] = Field(default = {}, description="Run statistics")
+    stats : dict[str, dict[str, Union[int, str]]] = Field(default = {}, description="Run statistics")
 
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -134,9 +134,31 @@ class WorkflowBase(BaseModel):
         for key, value in keyValList:
             try:
                 prevVal = statsForKey[key]
-                statsForKey[key] = prevVal + value
+                if type(prevVal) == str:
+                    statsForKey[key] = value
+                else:
+                    statsForKey[key] = prevVal + value
             except Exception:
                 statsForKey[key] = value
+
+
+    def removeStats(self, topKey : str, removeKey : str) :
+        """
+        Remove key from internal statistics
+        
+        :param topKey:  key for stat record
+        :type topKey: str
+        :param removeKey:  key to remove
+        :type removeKey: str
+        :return: None
+        :rtype: None
+        """
+
+        try:
+            statsForKey = self.stats[topKey]
+            statsForKey.pop(removeKey)
+        except:
+            pass
 
 
     def showStats(self, topKey : str, showKey : str, label : str) -> str:

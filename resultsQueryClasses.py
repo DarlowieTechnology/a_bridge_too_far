@@ -35,38 +35,27 @@ class OneIndexerQueryResult(BaseModel):
 
 #----------------------OneQueryResultList-----------------------------------
 
-QueryResultT = TypeVar('QueryResultT')
-
-class QuerySemantic(BaseModel):
-    query : list[str] = Field(default = [], description="semantic query is a list of strings")
-    searchType : Literal[SEARCH.SEMANTIC]
-
-
-class QueryBM25s(BaseModel):
-    query : list[list[str]] = Field(default = [], description="bm25s query is a list of list of strings")
-    searchType : Literal[SEARCH.BM25S]
-
-
+# OneQueryChunkResult identifier: document + "--" + str(chunkID)
+#
 class OneChunkQueryResultList(BaseModel):
     """represents collection of one query results for Discovery app"""
-    result_dict: Dict[str, OneQueryChunkResult] = Field(default = {}, description="dict, key is issue identifier, value is list of results from one query")
-    query : Union[ QuerySemantic, QueryBM25s ] = Field(default = [], description="query used in search", discriminator='searchType')
     label : str = Field( "", description="unique label of search run")
+    query : list[str] = Field(default = [], description="query used in search")
+    result_dict: Dict[str, OneQueryChunkResult] = Field(default = {}, description="dict, key is issue identifier, value is list of results from one query")
 
     def appendQueryResult(self, identifier: str, queryResult : OneQueryChunkResult) :
-#        identifier = document + "--" + str(chunkID)
         self.result_dict[identifier] = queryResult
 
-
+# OneIndexerQueryResult identifier: identifier\ntitle
+#
 class OneIndexerQueryResultList(BaseModel):
     """represents collection of one query results for Discovery app"""
-    result_dict: Dict[str, OneIndexerQueryResult] = Field(default = {}, description="dict, key is issue identifier, value is list of results from one query")
-    query : Union[ QuerySemantic, QueryBM25s ] = Field(default = [], description="query used in search", discriminator='searchType')
     label : str = Field( "", description="unique label of search run")
+    query : list[str] = Field(default = [], description="query used in search")
+    result_dict: Dict[str, OneIndexerQueryResult] = Field(default = {}, description="dict, key is issue identifier, value is list of results from one query")
 
     def appendQueryResult(self, identifier: str, queryResult : OneIndexerQueryResult) :
         self.result_dict[identifier] = queryResult
-
 
 
 #--------------------AllQueryResults-------------------------------------
@@ -86,11 +75,13 @@ class RRFScores(BaseModel):
 
 class AllChunkQueryResults(BaseModel):
     """represents collection of all query results for Discovery"""
+    query : list[str] = Field(default = [], description="Original query as a list of strings")
     rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
     listQueryResults: List[ OneChunkQueryResultList ] = Field(default=None, description="List of OneChunkQueryResultList")
 
 
-class AllIndexerQueryResults(BaseModel, Generic[QueryResultT]):
-    """represents collection of all query results for Discovery"""
+class AllIndexerQueryResults(BaseModel):
+    """represents collection of all query results for Indexer and Query"""
+    query : list[str] = Field(default = [], description="Original query")
     rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
     listQueryResults: List[ OneIndexerQueryResultList ] = Field(default=None, description="List of OneIndexerQueryResultList")

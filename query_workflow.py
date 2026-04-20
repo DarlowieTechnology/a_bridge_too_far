@@ -33,7 +33,7 @@ from parserClasses import ParserClassFactory
 class QueryWorkflow(WorkflowBase):
 
     dataFolder : str = Field(default = "", description="Intermediate data folder")
-    query : str = Field(default = "", description="List of queries for this workflow")
+    query : list[str] = Field(default = [], description="List of queries for this workflow")
     queryTransforms : QUERYTYPES = Field(default = "", description="List of query transformation flags")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
     semanticMaxCutItemDistance : float = Field(default = 0.5, description = "Maximum distance in semantic search")
@@ -45,12 +45,6 @@ class QueryWorkflow(WorkflowBase):
     outputFileName : str = Field(default = "", description="File name for results")
     queryPreprocessFlag : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
     queryCompressFlag : bool = Field(default = True, description="Call Telegraphic Semantic Compression (TSC) after every query transform")
-
-    queryHyDE : str = Field(default = "", description="HyDE query value")
-    queryMultiple : str = Field(default = "", description="Multiple query value")
-    queryRewrite : str = Field(default = "", description="Rewrite query value")
-    querybm25sprep : str = Field(default = "", description="bm25s query value")
-    queryTokenized : str = Field(default = "", description="bm25s tokenized query value")
 
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
@@ -114,33 +108,36 @@ class QueryWorkflow(WorkflowBase):
         self.queryWorkflow_verify_configuration()
 
 
-    def preprocessQuery(self, queryStr : str) :
+    def preprocessQuery(self, queryList : list[str]) -> list[str] :
         """
         Preprocess string for interaction with LLM: convert all characters to ASCII, lowercase, remove whitespace, normalise spaces
         Can be used on user input or output of LLM
 
-        :param query: original query 
-        :type query: str
+        :param queryList: original query 
+        :type queryList: list[str]
         :return: preprocessed query
-        :rtype: str
+        :rtype: list[str]
         """
-        query = anyascii(queryStr)
-        query = query.strip().lower()
-        query = re.sub(r'[^\w\s?!]', '', query)
-        query = " ".join(query.split())
-        return query
+        prepQuery : list[str] = []
+        for oneQuery in queryList:
+            query = anyascii(oneQuery)
+            query = query.strip().lower()
+            query = re.sub(r'[^\w\s?!]', '', query)
+            query = " ".join(query.split())
+            prepQuery.append(query)
+        return prepQuery
 
 
-    def compressQuery(self, query : str) -> str:
+    def compressQuery(self, queryList : list[str]) -> list[str] :
         """
         Perform Telegraphic Semantic Compression (TSC) on the query for semantic search. 
         Ref: https://developer-service.blog/telegraphic-semantic-compression-tsc-a-semantic-compression-method-for-llm-contexts/.
         Get english dictionary: python -m spacy download en_core_web_sm.
 
-        :param query:  original query 
-        :type query: str
+        :param queryList:  original query 
+        :type queryList: list[str]
         :return: compressed query
-        :rtype: str
+        :rtype: list[str]
         """
 
         # Load spaCy English model
@@ -152,80 +149,96 @@ class QueryWorkflow(WorkflowBase):
         # Optional low-information words to remove
         REMOVE_LIKE = {"like", "just", "really", "basically", "literally"}
 
-        doc = nlp(query)
-        chunks = []
+        compressedQuery : list[str] = []
 
-        for sent in doc.sents:
-            words = [
-                token.lemma_
-                for token in sent
-                if (
-                    token.pos_ not in REMOVE_POS
-                    and token.text.lower() not in REMOVE_LIKE
-                    and not token.is_punct
-                )
-            ]
-            if words:
-                chunks.append(" ".join(words))
-        newQuery =  " ".join(chunks)
-        return newQuery
+        for query in queryList:
+            doc = nlp(query)
+            chunks = []
+
+            for sent in doc.sents:
+                words = [
+                    token.lemma_
+                    for token in sent
+                    if (
+                        token.pos_ not in REMOVE_POS
+                        and token.text.lower() not in REMOVE_LIKE
+                        and not token.is_punct
+                    )
+                ]
+                if words:
+                    chunks.append(" ".join(words))
+            newQuery =  " ".join(chunks)
+            compressedQuery.append(newQuery)
+
+        return compressedQuery
 
     
-    def tokenizeQuery(self, query : str, tokenizerTypes: TOKENIZERTYPES) -> str:
+    def tokenizeQuery(self, queryList : list[str], tokenizerTypes: TOKENIZERTYPES) -> list[str]:
         """
-        create list of tokens from the query for BM25S search.
-        Overwrite self.queryTokenized with new value.
+        create tokens from the BM25S search.
         
-        :param useStopWordsFlag:  remove stopwords from the query.
-        :type useStopWordsFlag: bool
-        :param useStemmerFlag: reduce words in query to stems .
-        :type useStemmerFlag: bool
+        :param queryList: original query
+        :type queryList: list[str]
+        :param tokenizerTypes: flags for tokenizer
+        :type tokenizerTypes: TOKENIZERTYPES
+        :return: list of tokens
+        :rtype: list[str]
         """
 
-        startTokenize = time.time()
         if TOKENIZERTYPES.STOPWORDSEN in tokenizerTypes:
-            stopwords = "english"
+            stopWords = "english"
         else:
-            stopwords = None
+            stopWords = None
 
         if TOKENIZERTYPES.STEMMER in tokenizerTypes:
             stemmer=Stemmer.Stemmer("english")
         else:
             stemmer = None
 
-        query_tokens = bm25s.tokenize(query, return_ids=False, stopwords=stopwords, stemmer=stemmer)
-        self.queryTokenized = query_tokens
-        self.updateStats(topKey = "Tokenize", keyValList = [("Count", 1), ("Time", time.time() - startTokenize), ("Tokens", len(self.queryTokenized[0]))])
+        query_tokens = bm25s.tokenize(queryList, return_ids = False, stopwords = stopWords, stemmer = stemmer)
         return query_tokens
 
 
-    def hydeQuery(self, query : str) -> str:
-        """ Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. 
-            Overwrite self.queryHyDE with new value.
+    def hydeQuery(self, queryList : list[str]) -> list[str]:
+        """ 
+        Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. 
+
+        :param queryList:  original query 
+        :type queryList: list[str]
+        :return: HyDE query
+        :rtype: list[str]
         """
 
         startHyDE = time.time()
         systemPrompt = f"Write a two sentence answer to the user prompt query"
-
         agentHyDE = Agent(self._llmModel, system_prompt = systemPrompt)
-        userPrompt = query
-        try:
-            result = agentHyDE.run_sync(userPrompt)
-            self.queryHyDE = result.output
-            if result.usage():
-                self.addUsage(result.usage())
-                self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
-            else:
-                self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE)])
-            return self.queryHyDE
-        except Exception as e:
-            self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
-        return ""
+
+        queryHyDE : list[str] = []
+
+        for query in queryList:
+            userPrompt = query
+            try:
+                result = agentHyDE.run_sync(userPrompt)
+                resultQuery = result.output
+                if result.usage():
+                    self.addUsage(result.usage())
+                    self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
+                else:
+                    self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE)])
+                queryHyDE.append(resultQuery)
+            except Exception as e:
+                self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
+        return queryHyDE
 
 
-    def multiQuery(self, query : str) -> str:
-        """Generate multiple queries form the original query for semantic search. 
-            Overwrite self.queryMultiple with new value.
+    def multiQuery(self, queryList : list[str]) -> list[str]:
+        """
+        Generate multiple queries form the original query for semantic search. 
+
+        :param queryList:  original query 
+        :type queryList: list[str]
+        :return: Multi query
+        :rtype: list[str]
         """
 
         # Prompt for generating multiple queries
@@ -238,26 +251,36 @@ class QueryWorkflow(WorkflowBase):
 
         startMulti = time.time()
         agentMultipleQ = Agent(self._llmModel, system_prompt = systemPrompt)
-        userPrompt = query
-        try:
-            result = agentMultipleQ.run_sync(userPrompt)
-            self.queryMultiple = result.output
-            if result.usage():
-                self.addUsage(result.usage())
-                self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
-            else:
-                self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti)])
-            return self.queryMultiple
-        except Exception as e:
-            self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
-        return ""
+
+        queryMultiple : list[str] = []
+
+        for query in queryList:
+            userPrompt = query
+            try:
+                result = agentMultipleQ.run_sync(userPrompt)
+                resultQuery = result.output
+                if result.usage():
+                    self.addUsage(result.usage())
+                    self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
+                else:
+                    self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti)])
+                queryMultiple.append(resultQuery)
+            except Exception as e:
+                self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
+
+        return queryMultiple
 
 
-    def rewriteQuery(self, query : str) -> str:
+    def rewriteQuery(self, queryList : list[str]) -> list[str]:
         """
-        Rewrite the query for semantic search. 
-        Overwrite self.queryRewrite with new value.
+        Rewrite the query 
+
+        :param queryList:  original query 
+        :type queryList: list[str]
+        :return: Rewrite query
+        :rtype: list[str]
         """
+
         # Query rewriting prompt
         systemPrompt = """You are a query rewriting expert. The user's original query didn't retrieve relevant documents.
 
@@ -271,26 +294,34 @@ class QueryWorkflow(WorkflowBase):
             """
         
         startRewrite = time.time()
-        agentRewriteQ = Agent(self._llmModel, 
-                               system_prompt = systemPrompt)
-        userPrompt = query
-        try:
-            result = agentRewriteQ.run_sync(userPrompt)
-            self.queryRewrite = result.output
-            if result.usage():
-                self.addUsage(result.usage())
-                self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
-            else:
-                self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite)])
-            return self.queryRewrite
-        except Exception as e:
-            self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
-        return ""
+        agentRewriteQ = Agent(self._llmModel, system_prompt = systemPrompt)
+
+        queryRewrite : list[str] = []
+
+        for query in queryList:
+            userPrompt = query
+            try:
+                result = agentRewriteQ.run_sync(userPrompt)
+                resultQuery = result.output
+                if result.usage():
+                    self.addUsage(result.usage())
+                    self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
+                else:
+                    self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite)])
+                queryRewrite.append(resultQuery)
+            except Exception as e:
+                self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
+
+        return queryRewrite
 
 
-    def prepBM25S(self, query : str) -> str:
+    def prepBM25S(self, queryList : list[str]) -> list[str]:
         """Prepare query for BM25S search using LLM. 
-        Overwrite self.querybm25sprep with new value.
+
+        :param queryList:  original query 
+        :type queryList: list[str]
+        :return: BM25S query
+        :rtype: list[str]
         """
 
         # Prompt for generating prepared query
@@ -301,22 +332,27 @@ class QueryWorkflow(WorkflowBase):
 
         startPrepBM25s = time.time()
         agentPrepBM25s = Agent(self._llmModel, system_prompt = systemPrompt)
-        userPrompt = query
-        try:
-            result = agentPrepBM25s.run_sync(userPrompt)
-            self.querybm25sprep = result.output
-            if result.usage():
-                self.addUsage(result.usage())
-                self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
-            else:
-                self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s)])
-            return self.querybm25sprep
-        except Exception as e:
-            self.updateStats(topKey = "prepBM25S", keyValList = [("Exception", 1)])
-        return ""
+
+        queryBM25SPrep : list[str] = []
+
+        for query in queryList:
+            userPrompt = query
+            try:
+                result = agentPrepBM25s.run_sync(userPrompt)
+                resultQuery = result.output
+                if result.usage():
+                    self.addUsage(result.usage())
+                    self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s), ("Input Tokens", result.usage().input_tokens), ("Output Tokens", result.usage().output_tokens)])
+                else:
+                    self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s)])
+                queryBM25SPrep.append(resultQuery)
+            except Exception as e:
+                self.updateStats(topKey = "prepBM25S", keyValList = [("Exception", 1)])
+
+        return queryBM25SPrep
 
 
-    def bm25sQuery(self, query : str, folderName : str, queryLabel : str) -> OneIndexerQueryResultList : 
+    def bm25sQuery(self, queryList : list[str], folderName : str, queryLabel : str) -> OneIndexerQueryResultList : 
         """
         Perform bm25s query for combined corpus of documents
         data in corpus is encoded as 'identifier\\ntitle'
@@ -332,9 +368,10 @@ class QueryWorkflow(WorkflowBase):
         :return: search result object
         :rtype: OneIndexerQueryResultList
         """
+
         startBM25sQuery = time.time()
         oneIndexerQueryResultList = OneIndexerQueryResultList(
-            query ={'searchType' : SEARCH.BM25S, 'query' : query },
+            query = queryList[0],
             label = queryLabel
         )
 
@@ -344,7 +381,7 @@ class QueryWorkflow(WorkflowBase):
         if retriever.scores["num_docs"] < self.bm25sRetrieveNumber:
             max_items = retriever.scores["num_docs"]
 
-        results, scores = retriever.retrieve(query, k=max_items)
+        results, scores = retriever.retrieve(queryList, k=max_items)
         for rankIdx in range(results.shape[1]):
             docN, score = results[0, rankIdx], scores[0, rankIdx]
             docN = docN["text"].splitlines()
@@ -356,8 +393,9 @@ class QueryWorkflow(WorkflowBase):
                     title = docN[1].strip(),
                     report = str(Path(folderName).stem)
                 )
+                identifier = docN[1].strip() + "(" + docN[0].strip() + ")"
                 oneIndexerQueryResultList.appendQueryResult(
-                    identifier = docN[0].strip(),
+                    identifier = identifier,
                     queryResult = oneIndexerQueryResult
                 )
 
@@ -365,14 +403,14 @@ class QueryWorkflow(WorkflowBase):
         return oneIndexerQueryResultList
 
 
-    def vectorQuery(self, query : str, collection : COLLECTION, queryLabel : str) -> OneIndexerQueryResultList:
+    def vectorQuery(self, queryList : list[str], collection : COLLECTION, queryLabel : str) -> OneIndexerQueryResultList:
         """
         Performs vector (semantic) query. Returns list of results
         Uses semanticMaxCutItemDistance to cut results off
         Uses semanticRetrieveNumber to limit max number of items
         
-        :param query: query for semantic search
-        :type query: str
+        :param queryList: query for semantic search
+        :type queryList: list[str]
         :param collection: chroma DB collection name for query
         :type query: COLLECTION
         :param queryLabel: unique label to query run
@@ -382,12 +420,13 @@ class QueryWorkflow(WorkflowBase):
         """
         startVectorQuery = time.time()
         oneIndexerQueryResultList = OneIndexerQueryResultList(
-            query ={'searchType' : SEARCH.SEMANTIC, 'query' : [ query ] },
+            query = queryList,
             label = queryLabel
         )
 
         chromaCollection = self.collections[collection]
-        queryResult = chromaCollection.query(query_texts=query, n_results=self.semanticRetrieveNumber)
+
+        queryResult = chromaCollection.query(query_texts = queryList, n_results = self.semanticRetrieveNumber)
 
         resultIdx = -1
 
@@ -413,8 +452,9 @@ class QueryWorkflow(WorkflowBase):
                 title = oneIssue.title,
                 report = queryResult["metadatas"][0][resultIdx]["document"],
             )
+            identifier = oneIssue.title + "(" + oneIssue.identifier + ")"
             oneIndexerQueryResultList.appendQueryResult(
-                identifier = oneIssue.identifier,
+                identifier = identifier,
                 queryResult = oneIndexerQueryResult
             )
         self.updateStats(topKey = "Vector", keyValList = [("Count", 1), ("Time", time.time() - startVectorQuery), ("Items", resultIdx + 1)])
@@ -430,18 +470,17 @@ class QueryWorkflow(WorkflowBase):
         :return: query results updated with rank
         :rtype: AllQueryResults
         """
-        startRRF = time.time()
-
     #    for item in allQueryResults.result_lists:
     #        msg = f"RRF:  {item.label} matches: {len(item.result_dict)}"    
     #        queryWorkflow.workerSnapshot(msg)
 
-        # merge keys from all runs into set
+        # merge ident keys from all runs into set
         setKeys = set()
         for item in allQueryResults.listQueryResults:
             for key in item.result_dict:
                 setKeys.add(key)
 
+    #    print(f"=========\n{setKeys}\n==============")
     #    msg = f"RRF: Length of combined keys: {len(setKeys)}"
     #    queryWorkflow.workerSnapshot(msg)
         
@@ -463,13 +502,13 @@ class QueryWorkflow(WorkflowBase):
         allQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
-        self.updateStats(topKey = "RRF", keyValList = [("Count", 1), ("Time", time.time() - startRRF), ("Key Set", len(setKeys))])
         return allQueryResults
 
 
     def performQueries(self) -> AllIndexerQueryResults :
 
         allQueryResults = AllIndexerQueryResults(
+            query = self.query,
             listQueryResults = [],
             rrfScores = {}
         )

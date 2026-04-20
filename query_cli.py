@@ -50,7 +50,7 @@ def main():
 
 
 #    context['query'] = "xss issues"
-    context['query'] = "credentials issues"
+    context['query'] = ["credentials issues"]
 
     context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
 #    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.BM25SORIG

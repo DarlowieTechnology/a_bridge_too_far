@@ -726,10 +726,11 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         allQueryResults = AllChunkQueryResults(
-            listQueryResults = [],
+            query = queryTexts,
             rrfScores = RRFScores(
                 scoresDict = {}
-            )
+            ),
+            listQueryResults = []
         )
 
         if not self.initRAGcomponents():

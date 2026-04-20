@@ -59,26 +59,37 @@ def main():
 
     # test list - only process data sources from this list
     fileList = [
-        "Architecture Review - Threat Model Report.pdf",
-        "AWS_Review.pdf",
-        "CD_and_DevOps Review.pdf",
-        "Database Review.pdf",
-        "Firewall Review.pdf",
-        "phpMyAdmin.pdf",
-        "PHP_Code_Review.pdf",
-        "WASPT_Report.pdf",
-        "Web App and Ext Infrastructure Report.pdf",
-        "Wikimedia.pdf",
-        "Web App and Infrastructure and Mobile Report.pdf",
+        "Architecture Review - Threat Model Report.pdf"
+        ,
+        "AWS_Review.pdf"
+        ,
+        "CD_and_DevOps Review.pdf"
+        ,
+        "Database Review.pdf"
+        ,
+        "Firewall Review.pdf"
+        ,
+        "phpMyAdmin.pdf"
+        ,
+        "PHP_Code_Review.pdf"
+        ,
+        "WASPT_Report.pdf"
+         ,
+        "Web App and Ext Infrastructure Report.pdf"
+         ,
+        "Wikimedia.pdf"
+        ,
+        "Web App and Infrastructure and Mobile Report.pdf"
+         ,
         "Refinery-CMS.pdf"
     ]
 
     # stages
     context["loadDocument"] = False
     context["rawTextFromDocument"] = True
-    context["finalJSONfromRaw"] = True
-    context["prepareBM25corpus"] = True
-    context["vectorizeFinalJSON"] = True
+    context["finalJSONfromRaw"] = False
+    context["prepareBM25corpus"] = False
+    context["vectorizeFinalJSON"] = False
     context["clear"] = False
 
     # text extraction from PDF

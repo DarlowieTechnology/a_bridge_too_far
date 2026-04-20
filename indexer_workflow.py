@@ -309,9 +309,11 @@ class IndexerWorkflow(WorkflowBase):
         # process last match only if it is not a terminator 
         if match:
             if match.group("TERMINATORGROUP"):
-
                 self.updateStats(topKey = "Raw JSON", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
                 return dictIssues    
+        else:
+            msg = f"No matches found. Potential invalid regexp for document {self.inputFileName}"
+            self.workerSnapshot(msg)
 
         end = len(rawText)
         if prevMatch:

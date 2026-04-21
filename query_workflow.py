@@ -393,7 +393,7 @@ class QueryWorkflow(WorkflowBase):
                     title = docN[1].strip(),
                     report = str(Path(folderName).stem)
                 )
-                identifier = docN[1].strip() + "(" + docN[0].strip() + ")"
+                identifier = docN[1].strip() + "|" + docN[0].strip()
                 oneIndexerQueryResultList.appendQueryResult(
                     identifier = identifier,
                     queryResult = oneIndexerQueryResult
@@ -452,7 +452,7 @@ class QueryWorkflow(WorkflowBase):
                 title = oneIssue.title,
                 report = queryResult["metadatas"][0][resultIdx]["document"],
             )
-            identifier = oneIssue.title + "(" + oneIssue.identifier + ")"
+            identifier = oneIssue.title + "|" + oneIssue.identifier
             oneIndexerQueryResultList.appendQueryResult(
                 identifier = identifier,
                 queryResult = oneIndexerQueryResult

@@ -49,7 +49,7 @@ def main():
     context['session_key'] = context['QUECLIsession_key']
 
 
-#    context['query'] = "xss issues"
+#    context['query'] = ["xss issues"]
     context['query'] = ["credentials issues"]
 
     context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP

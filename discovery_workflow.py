@@ -499,7 +499,7 @@ class DiscoveryWorkflow(WorkflowBase):
         """
         for inputFileName in inputFileList:
             fullInputFileName = self.documentFolder + inputFileName
-            intermediateDataFolder = self.dataFolder + inputFileName + "-data"
+            intermediateDataFolder = self.dataFolder + inputFileName + "-data/"
             self.loadDocumentPhase(fullInputFileName, intermediateDataFolder, "raw.txt")
 
 

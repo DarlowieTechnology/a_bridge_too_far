@@ -120,7 +120,8 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
     fileList = [
-        "Refinery-CMS.pdf"
+        "medresearch-000.txt"
+#        "Refinery-CMS.pdf"
 #        "2412.16720v1.pdf"
 #        "AWS_Review.pdf"
 #        "Database Review.pdf"
@@ -156,6 +157,11 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         queryService = QueryService()
         allQueryResults = discoveryWorkflow.matchChunksPhase(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
 
+        # output results files
+        with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+
+
         msgList = discoveryWorkflow.outputRRFInfo(allQueryResults.rrfScores)
 #        print(msgList)
 #        self.workerSnapshot(msgList)
@@ -166,9 +172,6 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         discoveryWorkflow.clearPhaseAllFiles(inputFileList = fileList)
         discoveryWorkflow.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
 
-    # output results files
-    with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-        jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
     discoveryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
@@ -187,11 +190,11 @@ def main():
 
 
     # workflow actions
-    context["loadDocument"] = False
+    context["loadDocument"] = True
     context["parseChunks"] = False
-    context["makeRawVector"] = True
+    context["makeRawVector"] = False
     context["bm25Process"] = False
-    context["matchChunks"] = True
+    context["matchChunks"] = False
     context["verify"] = False
     context["returnResults"] = False
     context["clear"] = False

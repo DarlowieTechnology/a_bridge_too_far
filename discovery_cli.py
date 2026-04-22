@@ -131,9 +131,6 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
 
-    totalCounts = [0] * 4
-    chunks = []
-
     if discoveryWorkflow.loadDocument:
         startTime = time.time()
         discoveryWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
@@ -169,47 +166,13 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         discoveryWorkflow.clearPhaseAllFiles(inputFileList = fileList)
         discoveryWorkflow.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
 
+    # output results files
+    with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+        jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+
     discoveryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
     msg = f"{pprint(discoveryWorkflow.stats)}"
-    discoveryWorkflow.workerSnapshot(msg)
-    return
-
-
-    for inputFileName in fileList:
-        counts, allTopicMatches = discoveryWorkflow.processOneFile(inputFileName)
-        totalCounts[0] += counts[0]
-        totalCounts[1] += counts[1]
-        totalCounts[2] += counts[2]
-        totalCounts[3] += counts[3]
-        for key in allTopicMatches.topic_dict.keys():
-            matchingChunks = allTopicMatches.topic_dict[key]
-            for chunk in matchingChunks.chunk_list:
-                chunks.append(chunk)
-
-
-    score = totalCounts[0] - totalCounts[1] - totalCounts[2] * 0.5
-    if score < 0:
-        score = 0
-    if totalCounts[3] > 0:
-        scorePerCent = (score/totalCounts[3]) * 100
-    else:
-        scorePerCent = 0
-
-    for chunk in chunks:
-        discoveryWorkflow.workerSnapshot(str(chunk))
-
-
-    # ---------------completed ---------------
-
-    msg = f"TotalCounts: {totalCounts}    score:{scorePerCent:.2f} %"
-    discoveryWorkflow.workerSnapshot(msg)
-
-    with open("fails.json", "w" , encoding="utf-8", errors="ignore") as jsonOut:
-        jsonOut.writelines(json.dumps(discoveryWorkflow.getFails(), indent=2))
-
-    totalEnd = time.time()
-    msg = f"Workflow completed. {discoveryWorkflow.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
     discoveryWorkflow.workerSnapshot(msg)
 
 
@@ -226,7 +189,7 @@ def main():
     # workflow actions
     context["loadDocument"] = False
     context["parseChunks"] = False
-    context["makeRawVector"] = False
+    context["makeRawVector"] = True
     context["bm25Process"] = False
     context["matchChunks"] = True
     context["verify"] = False
@@ -264,6 +227,8 @@ def main():
     context["rrfCutOffValue"] = 0.000001
     context["rrfOutlierZScoreThreshold"] = 3
     context["outputNumber"] = 5
+
+    context['outputFileName'] = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
 
     configCollection = ConfigCollection(context)
 

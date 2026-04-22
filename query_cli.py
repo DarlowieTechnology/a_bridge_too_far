@@ -32,7 +32,7 @@ def testRun(queryWorkflow : QueryWorkflow) :
 
     # output results files
     print(f"Query result are written in file: {queryWorkflow.outputFileName}")
-    with open(queryWorkflow.outputFileName, "w") as jsonOut:
+    with open(queryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
         jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
     queryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", queryWorkflow.totalUsageFormat(insertHTML = False) ) ])

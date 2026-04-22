@@ -117,6 +117,8 @@ class DiscoveryWorkflow(WorkflowBase):
     rrfOutlierZScoreThreshold : float = Field(default = 1.5, description="Threshold for outlier z-score")
     outputNumber : int = Field(default = 1, description="Maximum number of items to return")
 
+    outputFileName : str = Field(default = "", description="File name for results")
+
     stats : Dict[str, int] = Field(default = {}, description="Run statistics")
 
     @model_validator(mode='after')
@@ -155,6 +157,9 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Z Score threshold for outliers is invalid')
         if not self.outputNumber in range(1, 100):
             raise ValueError(f'output number is invalid')
+
+        if not Path(self.outputFileName).is_file:
+            raise ValueError(f'Output file name is invalid')
 
         return self
 
@@ -237,6 +242,9 @@ class DiscoveryWorkflow(WorkflowBase):
             self.outputNumber = configCollection["outputNumber"]
 
         self.stats = {}
+
+        if configCollection.keyExists("outputFileName"):
+            self.outputFileName = configCollection["outputFileName"]
 
         # manually call model validator
         self.discoveryWorkflow_verify_configuration()
@@ -943,121 +951,13 @@ class DiscoveryWorkflow(WorkflowBase):
             self.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
 
 
+        # output results files
+        with open(self.outputFileName, "w") as jsonOut:
+            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+
+
         self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
         pprint(self.stats)
         return
 
-
-
-        totalCounts = [0] * 4
-        chunks = []
-
-        for inputFileName in fileList:
-            counts, allTopicMatches = self.processOneFile(inputFileName)
-            totalCounts[0] += counts[0]
-            totalCounts[1] += counts[1]
-            totalCounts[2] += counts[2]
-            totalCounts[3] += counts[3]
-            for key in allTopicMatches.topic_dict.keys():
-                matchingChunks = allTopicMatches.topic_dict[key]
-                for chunk in matchingChunks.chunk_list:
-                    chunks.append(chunk)
-
-        score = totalCounts[0] - totalCounts[1] - totalCounts[2] * 0.5
-        if score < 0:
-            score = 0
-        if totalCounts[3] > 0:
-            scorePerCent = (score/totalCounts[3]) * 100
-        else:
-            scorePerCent = 0
-
-        for chunk in chunks:
-            self.workerSnapshot(str(chunk))
-
-
-        # ------------verify----------------------
-
-        if "verify" in self.context and self.context["verify"]:
-
-            startTime = time.time()
-            result = True
-            totalScore = 0
-
-            result, fileContentOrError = OpenFile.open(filePath = self.context['verifyInfo'], readContent = True)
-            if not result:
-                msg = f"verify: {fileContentOrError} - supply 'verify info' file"
-                self.workerSnapshot(msg)
-            else:
-                verifyInfo = json.loads(fileContentOrError)
-                if 'allTopicMatches' not in locals():
-                    # if this is a separate step - read match file
-                    result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
-                    if not result:
-                        msg = f"verify: {fileContentOrError} - perform 'matchChunks' phase first"
-                        self.workerSnapshot(msg)
-                    else:
-                        allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
-
-                if result:
-                    for item in verifyInfo:
-                        expectedTopic = item["name"]
-                        expected = item["value"]
-                        totalScore += expected
-                        if expectedTopic in allTopicMatches.topic_dict.keys():
-                            matchingChunks = allTopicMatches.topic_dict[expectedTopic]
-                            number = len(matchingChunks.chunk_list)
-                            if expected >= number:
-                                counts[0] += number
-                                counts[1] += (expected - number)
-                            if expected < number:
-                                counts[0] += expected
-                                counts[2] = number - expected
-                        else:
-                            if expected > 0:
-                                counts[1] += expected
-
-                    scoreForFile = counts[0] - counts[1] - counts[2] * 0.5
-                    counts[3] = totalScore
-                    if scoreForFile < 0:
-                        scoreForFile = 0
-                    if totalScore > 0:
-                        scorePerCent = (scoreForFile/totalScore) * 100
-                    else:
-                        scorePerCent = 0
-                    endTime = time.time()
-                    msg = f"verify:  {counts[0]}|{counts[1]}|{counts[2]}  score : {scorePerCent:.2f}%.  Time: {(endTime - startTime):.2f} seconds"
-                    self.workerSnapshot(msg)
-
-
-        # -------------- return results ---------------
-
-        if "returnResults" in self.context and self.context["returnResults"]:
-
-            startTime = time.time()
-            result = True
-
-            if 'allTopicMatches' not in locals():
-                # if this is a separate step - read match file
-                result, fileContentOrError = OpenFile.open(filePath = self.context['matchJSON'], readContent = True)
-                if not result:
-                    msg = f"returnResults: {fileContentOrError} - perform 'matchChunks' phase first"
-                    self.workerSnapshot(msg)
-                else:
-                    allTopicMatches = AllTopicMatches.model_validate_json(fileContentOrError)
-                
-                if result:
-                    return counts, allTopicMatches
-
-
-        # ---------------completed ---------------
-
-        msg = f"TotalCounts: {totalCounts}    score:{scorePerCent:.2f} %"
-        self.workerSnapshot(msg)
-
-        with open("fails.json", "w" , encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(json.dumps(self.getFails(), indent=2))
-
-        totalEnd = time.time()
-        msg = f"Workflow completed. {self.totalUsageFormat()}. Total time {(totalEnd - totalStart):.2f} seconds."
-        self.workerSnapshot(msg)

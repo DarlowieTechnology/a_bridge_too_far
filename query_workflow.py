@@ -681,7 +681,7 @@ class QueryWorkflow(WorkflowBase):
         allQueryResults = self.performQueries()
 
         # output results files
-        with open(self.outputFileName, "w") as jsonOut:
+        with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
         self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", self.totalUsageFormat(insertHTML = False) ) ])

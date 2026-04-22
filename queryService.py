@@ -95,7 +95,7 @@ class QueryService(BaseModel):
         """
 
         oneChunkQueryResultList = OneChunkQueryResultList(
-            query ={'searchType' : SEARCH.SEMANTIC, 'query' : query },
+            query = query,
             label = queryLabel
         )
 
@@ -151,7 +151,7 @@ class QueryService(BaseModel):
         """
 
         oneChunkQueryResultList = OneChunkQueryResultList(
-            query ={'searchType' : SEARCH.BM25S, 'query' : query },
+            query = query[0],
             label = queryLabel        
         )
 

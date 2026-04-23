@@ -44,7 +44,9 @@ class LLMNAMES(str, Enum) :
     GEMINI3GOOGLE = "gemini-3-flash-preview",
     GEMINI25PROGOOGLE = "gemini-2.5-pro",
     GEMINI25GOOGLE = "gemini-2.5-flash",
-    GEMINI25LITEGOOGLE = "gemini-2.5-flash-lite"
+    GEMINI25LITEGOOGLE = "gemini-2.5-flash-lite",
+    GEMMA4OLLAMA = "gemma4:latest",
+    GEMMA4CLOUDOLLAMA = "gemma4:31b-cloud"
 
 
 PROVIDERS = {
@@ -54,7 +56,9 @@ PROVIDERS = {
             LLMNAMES.GLM46CLOUDOLLAMA.value,
             LLMNAMES.GPTOSS20BOLLAMA.value,
             LLMNAMES.GPTOSS120BCLOUDOLLAMA.value,
-            LLMNAMES.LLAMA31OLLAMA.value
+            LLMNAMES.LLAMA31OLLAMA.value,
+            LLMNAMES.GEMMA4OLLAMA.value,
+            LLMNAMES.GEMMA4CLOUDOLLAMA.value
         ],
         "url" : "http://localhost:11434/v1",
         "embed" : "http://localhost:11434/api/embeddings"

@@ -122,7 +122,6 @@ class QueryWorkflow(WorkflowBase):
         for oneQuery in queryList:
             query = anyascii(oneQuery)
             query = query.strip().lower()
-            query = re.sub(r'[^\w\s?!]', '', query)
             query = " ".join(query.split())
             prepQuery.append(query)
         return prepQuery
@@ -470,7 +469,7 @@ class QueryWorkflow(WorkflowBase):
         :return: query results updated with rank
         :rtype: AllQueryResults
         """
-    #    for item in allQueryResults.result_lists:
+    #    for item in allQueryResults.listQueryResults:
     #        msg = f"RRF:  {item.label} matches: {len(item.result_dict)}"    
     #        queryWorkflow.workerSnapshot(msg)
 
@@ -503,6 +502,38 @@ class QueryWorkflow(WorkflowBase):
             scoresDict = scoresDict
         )
         return allQueryResults
+
+
+    def configureOutput(self, allQueryResults : AllIndexerQueryResults) -> AllIndexerQueryResults:
+        """
+        configure output as per 'outputNumber' configuration 
+        Leave RRF results as is.
+        
+        :param allQueryResults: query results
+        :type allQueryResults: AllIndexerQueryResults
+        :return: query results updated with rank
+        :rtype: AllQueryResults
+        """
+
+        allIndexerQueryResultsNew = AllIndexerQueryResults(
+            query = allQueryResults.query,
+            rrfScores = allQueryResults.rrfScores,
+            listQueryResults = []
+        )
+        for queryResultList in allQueryResults.listQueryResults:
+            oneIndexerQueryResultList = OneIndexerQueryResultList(
+                label = queryResultList.label, 
+                query = queryResultList.query,
+                result_dict = {}
+            )
+            count = 0
+            for key in queryResultList.result_dict.keys():
+                if count >= self.outputNumber:
+                    break
+                oneIndexerQueryResultList.appendQueryResult(key, queryResultList.result_dict[key])
+                count += 1
+            allIndexerQueryResultsNew.listQueryResults.append(oneIndexerQueryResultList)
+        return allIndexerQueryResultsNew
 
 
     def performQueries(self) -> AllIndexerQueryResults :
@@ -659,7 +690,11 @@ class QueryWorkflow(WorkflowBase):
             self.workerSnapshot(msg)
             allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS"))
 
+        # re-rank as per RRF
         allQueryResults = self.rrfReRanking(allQueryResults)
+
+        # reduce output as per configuration
+        allQueryResults = self.configureOutput(allQueryResults)
         return allQueryResults
 
 

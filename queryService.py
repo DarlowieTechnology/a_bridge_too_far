@@ -21,7 +21,6 @@ from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks,
 from resultsQueryClasses import SEARCH, RRFScores, IdentifierQueryResults, OneQueryChunkResult, OneChunkQueryResultList, AllChunkQueryResults
 
 
-#----------------------StatsOnList--------------------------------------------
 
 class StatsOnList(BaseModel) :
     """represents statistics of data set"""
@@ -68,7 +67,6 @@ class StatsOnList(BaseModel) :
         # clean_data = data[np.abs(z_scores) <= threshold] 
         return outliers
 
-#----------------------QueryService--------------------------------------------
 
 
 class QueryService(BaseModel):
@@ -117,14 +115,14 @@ class QueryService(BaseModel):
                 document = queryResult["metadatas"][0][resultIdx]["document"],
                 searchTypeName = SEARCH.SEMANTIC.value
             )
+            ident = queryResult["metadatas"][0][resultIdx]["document"] + "|" + queryResult["metadatas"][0][resultIdx]["chunkid"]
             oneChunkQueryResultList.appendQueryResult(
-                identifier = queryResult["metadatas"][0][resultIdx]["chunkid"],
+                identifier = ident,
                 queryResult = oneQueryChunkResult
             )
 
 #            print(f"Rank:{resultIdx+1}   score: {distFloat}    doc: {queryResult["metadatas"][0][resultIdx]["document"]}   chunk ID: {queryResult["metadatas"][0][resultIdx]["chunkid"]}")
 #            print(f"chunk:\n{queryResult["documents"][0][resultIdx]}")
-#            print(f"----------------------")
 
         return oneChunkQueryResultList
 
@@ -132,7 +130,7 @@ class QueryService(BaseModel):
     def bm25sQuery(self, query : List[List[str]], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneChunkQueryResultList : 
         """
         Perform bm25s query for combined corpus of documents
-        data in corpus is encoded as documentFileName + '--' + chunkId + '\n' + chunkText
+        data in corpus is encoded as documentFileName + '|' + chunkId + '\n' + chunkText
         Number of items retrieved is limited to min of context['bm25sRetrieveNum'] and number of items
         Discard items with score less or equal to value context['bm25sCutOffScore']
 
@@ -169,8 +167,8 @@ class QueryService(BaseModel):
             if bm25sMinCutOffScore >= score:
                 break
             docN = docN["text"].splitlines()
-            combo = docN[0].strip()
-            documentAndID = combo.split('--')
+            ident = docN[0].strip()
+            documentAndID = ident.split('|')
             documentName = documentAndID[0]
             chunkID = documentAndID[1]
             chunkText = docN[1].strip()
@@ -184,13 +182,12 @@ class QueryService(BaseModel):
                 searchTypeName = SEARCH.BM25S.value
             )
             oneChunkQueryResultList.appendQueryResult(
-                identifier = chunkID,
+                identifier = ident,
                 queryResult = oneQueryChunkResult
             )
 
 #            print(f"Rank:{rankIdx+1}  score: {score}    doc: {documentName}   chunk ID: {chunkID}")
 #            print(f"chunk:\n{chunkText}")
-#            print(f"----------------------")
 
         return oneChunkQueryResultList
 
@@ -205,7 +202,7 @@ class QueryService(BaseModel):
         :rtype: AllChunkQueryResults
         """
 
-        # merge identifiers in the form "document names--chunkID" from all runs into set
+        # merge identifiers in the form "document name|chunkID" from all runs into set
         setKeys = set()
         for item in allChunkQueryResults.listQueryResults:
             for key in item.result_dict:

@@ -35,8 +35,6 @@ class OneIndexerQueryResult(BaseModel):
 
 #----------------------OneQueryResultList-----------------------------------
 
-# OneQueryChunkResult identifier: document + "--" + str(chunkID)
-#
 class OneChunkQueryResultList(BaseModel):
     """represents collection of one query results for Discovery app"""
     label : str = Field( "", description="unique label of search run")
@@ -46,8 +44,7 @@ class OneChunkQueryResultList(BaseModel):
     def appendQueryResult(self, identifier: str, queryResult : OneQueryChunkResult) :
         self.result_dict[identifier] = queryResult
 
-# OneIndexerQueryResult identifier: identifier\ntitle
-#
+
 class OneIndexerQueryResultList(BaseModel):
     """represents collection of one query results for Discovery app"""
     label : str = Field( "", description="unique label of search run")

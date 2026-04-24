@@ -639,7 +639,7 @@ class DiscoveryWorkflow(WorkflowBase):
     def bm25ProcessPhaseAllFiles(self, inputFileList : List[str]) :
         """
         For all files create corpus of chunks.
-        Each record contains <FILE_NAME>--<CHUNKID>\n<CHUNK>
+        Each record contains <FILE_NAME>|<CHUNKID>\n<CHUNK>
         Tokenize corpus for bm25 search
         
         :param inputFileList: source file to process
@@ -672,7 +672,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 chunkId = 0
                 for chunk in chunksList:
                     chunk = self.compressText(chunk, nlp)
-                    outText = str(inputFileName) + '--' + str(chunkId) + "\n" + chunk
+                    outText = str(inputFileName) + '|' + str(chunkId) + "\n" + chunk
                     corpus.append(outText)
                     chunkId += 1
 

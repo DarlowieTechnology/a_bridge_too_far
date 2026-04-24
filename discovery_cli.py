@@ -221,11 +221,11 @@ def main():
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     # workflow actions
-    context["loadDocument"] = True
-    context["parseChunks"] = True
-    context["makeRawVector"] = True
-    context["bm25Process"] = True
-    context["matchChunks"] = False
+    context["loadDocument"] = False
+    context["parseChunks"] = False
+    context["makeRawVector"] = False
+    context["bm25Process"] = False
+    context["matchChunks"] = True
     context["verify"] = False
     context["returnResults"] = False
     context["clear"] = False

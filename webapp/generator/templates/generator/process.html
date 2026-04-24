@@ -6,12 +6,6 @@
 
 {% block content %}
 
-   <div class="bold-text">Activity log</div>
-   <div id="status">
-      {% if status %}
-         <div>{{ status }}</div>
-      {% endif %}
-   </div>
    <hr class="custom-hr">
 
    <a id="cost" href="">Potential cost of access to cloud-deployed LLMs</a>
@@ -89,14 +83,6 @@
             const result = await response.json();
             try {
                document.getElementById('stage').innerHTML = result["stage"]
-            } catch (error) {
-               console.error(error.message);
-            }
-            try {
-               document.getElementById('status').innerHTML = ""
-               for (const value of result["status"]) {
-                  document.getElementById('status').innerHTML += "<br>" + value
-               }
             } catch (error) {
                console.error(error.message);
             }

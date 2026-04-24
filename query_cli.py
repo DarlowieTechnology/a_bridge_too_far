@@ -32,13 +32,13 @@ def testRun(queryWorkflow : QueryWorkflow) :
     allQueryResults = queryWorkflow.performQueries()
 
     # output results files
+
+    print(f"Output file name: {queryWorkflow.outputFileName}")
     with open(queryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
         jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
     queryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", queryWorkflow.totalUsageFormat(insertHTML = False) ) ])
     pprint(queryWorkflow.stats)
-
-
 
 
 def main():
@@ -60,21 +60,22 @@ def main():
         print(f"Output file name: {outputFileName}")
     else:
         outputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
-        print(f"Default output file name: {outputFileName}")
     if args.count:
         outputNumber = args.output
     else:
         outputNumber = 50
-        print(f"Default output count: {outputNumber}")
 
-
-    context['query'] = [userQuery]
+    # ------ configurable on command line
+    #
+    context['query'] = [userQuery]                      # query - configurable on command line
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
 
-    context['outputFileName'] = outputFileName
-    context['outputNumber'] = outputNumber
+    context['outputFileName'] = outputFileName          # name of output file - configurable on command line
+    context['outputNumber'] = outputNumber              # number of items in result lists - configurable on command line
 
+    # ------ other configuration parameter
+    #
     context['status'] = []
     context["statusFileName"] = context["QUECLIstatus_FileName"]
     context['session_key'] = context['QUECLIsession_key']
@@ -88,14 +89,14 @@ def main():
     context["dataFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"]
     context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + context["QUERYbm25IndexFolder"]
 
-    context['semanticMaxCutItemDistance'] = 1.0       # distance cut-off for semantic matches
-    context['semanticRetrieveNumber'] = 1000   # maximum number of semantic items to retrieve
+    context['semanticMaxCutItemDistance'] = 1.0         # distance cut-off for semantic matches
+    context['semanticRetrieveNumber'] = 1000            # maximum number of semantic items to retrieve
 
 #    context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER
     context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN
 
-    context['bm25sMinCutOffScore'] = 0.0       # bm25s score cut-off
-    context['bm25sRetrieveNumber'] = 1000        # maximum number of bm25s items to retrieve
+    context['bm25sMinCutOffScore'] = 0.0                # bm25s score cut-off
+    context['bm25sRetrieveNumber'] = 1000               # maximum number of bm25s items to retrieve
     
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled

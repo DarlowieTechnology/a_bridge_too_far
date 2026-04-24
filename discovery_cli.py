@@ -8,6 +8,7 @@ import mimetypes
 from  uuid import UUID, uuid4
 from typing import List
 import threading
+import argparse
 from pprint import pprint
 
 
@@ -158,6 +159,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         allQueryResults = discoveryWorkflow.matchChunksPhase(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
 
         # output results files
+        print(f"Output file name: {discoveryWorkflow.outputFileName}")
         with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
@@ -183,16 +185,41 @@ def main():
 
     context = darlowie.context
 
+    parser = argparse.ArgumentParser(description="Discovery CLI")
+    parser.add_argument("--query", help="User query (\"medical notes\" or \"pipe engineering\")")
+    parser.add_argument("--output", help="Output file")
+    parser.add_argument("--count", help="Count of results in output")
+    args = parser.parse_args()
+    if args.query:
+        userQuery = args.query
+    else:
+        print("Provide user query")
+        return
+    if args.output:
+        outputFileName = args.output
+    else:
+        outputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
+    if args.count:
+        outputNumber = args.output
+    else:
+        outputNumber = 50
+
+    # ------ configurable on command line
+    #
+    context["knownTopics"] = [userQuery]            # query - configurable on command line
+    context["outputNumber"] = outputNumber          # number of items in result lists - configurable on command line
+    context['outputFileName'] = outputFileName      # name of output file - configurable on command line
+
+    # ------ other configuration parameter
+    #
     # configuration of base class
-    context["status"] = []
     context["statusFileName"] = context["DISCLIstatus_FileName"]
     context["session_key"] = context["DISCLIsession_key"]
 
-
     # workflow actions
-    context["loadDocument"] = True
+    context["loadDocument"] = False
     context["parseChunks"] = False
-    context["makeRawVector"] = False
+    context["makeRawVector"] = True
     context["bm25Process"] = False
     context["matchChunks"] = False
     context["verify"] = False
@@ -210,9 +237,6 @@ def main():
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48
 
-    # search configuration
-    context["knownTopics"] = ["medical notes"]
-
     context["searchSemanticOriginal"] = True
     context["searchBM25sOriginal"] = True
     context["searchSemanticMulti"] = True
@@ -223,15 +247,12 @@ def main():
     context["searchBM25sHyDE"] = True
 
     # retrieval configuration
-    context["semanticRetrieveNumber"] = 10
-    context["semanticMaxCutItemDistance"] = 1.0
-    context["bm25sRetrieveNumber"] = 10
-    context["bm25sMinCutOffScore"] = 0.001
-    context["rrfCutOffValue"] = 0.000001
-    context["rrfOutlierZScoreThreshold"] = 3
-    context["outputNumber"] = 5
-
-    context['outputFileName'] = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
+    context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
+    context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
+    context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
+    context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
+    context["rrfCutOffValue"] = 0.00                # minimal RRF score to cut-off
+    context["rrfOutlierZScoreThreshold"] = 3        # Z-score threshold for outliers
 
     configCollection = ConfigCollection(context)
 
@@ -243,7 +264,6 @@ def main():
 #    thread = threading.Thread( target=discoverWorkflow.threadWorker)
 #    thread.start()
 #    thread.join()
-
 
 
 if __name__ == "__main__":

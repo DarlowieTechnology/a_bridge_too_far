@@ -101,6 +101,8 @@ def main():
     # configuration of base class
     context["statusFileName"] = context["IDXCLIstatus_FileName"]
     context["session_key"] = context["IDXCLIsession_key"]
+    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["INDEXEdocumentFolder"] + context["GLOBALrag_Datapath"]
+
 
     configCollection = ConfigCollection(context)
     indexerWorkflow = IndexerWorkflow()

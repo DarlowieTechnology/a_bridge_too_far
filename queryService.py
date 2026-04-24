@@ -431,15 +431,13 @@ class QueryService(BaseModel):
         
         inData = sorted(inData)
 
-#        print(inData)
-
         data = np.array(inData)
         q1 = np.percentile(data, 25)
         q3 = np.percentile(data, 75)
         iqr = q3 - q1
         upperFence = q3 + (1.5 * iqr)
 
-        print(upperFence)
+        print(f"getOutliersFromRRF : upperFence: {upperFence}")
 
         mean_val = np.mean(inData)
         std_dev = np.std(inData)

@@ -208,9 +208,12 @@ def main():
 
     context = darlowie.context
 
+    # ------ other configuration parameter
+    #
+    # configuration of base class
     context['status'] = []
     context["statusFileName"] = context["GENCLIstatus_FileName"]
-
+    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["GENERAdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
     logger = logging.getLogger(context["GENCLIsession_key"])

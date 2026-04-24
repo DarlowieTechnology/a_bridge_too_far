@@ -120,15 +120,18 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
-    fileList = [
-        "medresearch-000.txt"
+#    fileList = [
+#        "medresearch-000.txt"
 #        "Refinery-CMS.pdf"
 #        "2412.16720v1.pdf"
 #        "AWS_Review.pdf"
 #        "Database Review.pdf"
 #        "2009.03393v1.pdf"
 #        "1912.02292v1.pdf"
-    ]
+#    ]
+
+    fileList = fileListMedical
+
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
@@ -165,7 +168,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
 
         msgList = discoveryWorkflow.outputRRFInfo(allQueryResults.rrfScores)
-#        print(msgList)
+        print(json.dumps(msgList, indent = 4))
 #        self.workerSnapshot(msgList)
         discoveryWorkflow.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 
@@ -215,12 +218,13 @@ def main():
     # configuration of base class
     context["statusFileName"] = context["DISCLIstatus_FileName"]
     context["session_key"] = context["DISCLIsession_key"]
+    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     # workflow actions
-    context["loadDocument"] = False
-    context["parseChunks"] = False
+    context["loadDocument"] = True
+    context["parseChunks"] = True
     context["makeRawVector"] = True
-    context["bm25Process"] = False
+    context["bm25Process"] = True
     context["matchChunks"] = False
     context["verify"] = False
     context["returnResults"] = False

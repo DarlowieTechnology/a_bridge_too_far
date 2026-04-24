@@ -25,7 +25,7 @@ context = {
     # Global
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
-    "GLOBALloggerLevel" : logging.INFO,      # WARN or INFO
+    "GLOBALloggerLevel" : logging.WARN,      # WARN or INFO
     "GLOBALllm_Provider" : "ollama",
     "GLOBALllm_Embed" : "nomic-embed-text:latest",
     "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
@@ -37,6 +37,7 @@ context = {
 
     # Generator app settings
 
+    "GENERAdocumentFolder" : "generatordocuments/",          # folder for source documents
     "GENERArag_activity_cutoff" : 0.3,       # cut off distance for activity table match
     "GENERArag_scenario_cutoff" : 0.35,      # cut off distance for scenario table match
     "GENERAad_FileName": "jobDescriptions/2025-10-02-0001.txt", # file name of original text

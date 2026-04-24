@@ -425,17 +425,11 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         outStrings = []
-        idx = 0
         for ident in rrfScores.scoresDict.keys():
             identifierQueryResults = rrfScores.scoresDict[ident]
             if identifierQueryResults.rrfRank < self.rrfCutOffValue:
                 break
-            idx += 1
-            if (idx >= self.outputNumber):
-                print(f"{identifierQueryResults.model_dump(mode = 'python')}")
-                break
-            else:
-                print(f"{identifierQueryResults.model_dump(mode = 'python')},")
+            outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))
 
         return outStrings
 
@@ -877,7 +871,41 @@ class DiscoveryWorkflow(WorkflowBase):
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
         queryService.getOutliersFromRRF(allQueryResults, self.rrfOutlierZScoreThreshold)
+        allQueryResults = self.configureOutput(allQueryResults)
         return allQueryResults
+
+
+    def configureOutput(self, allQueryResults : AllChunkQueryResults) -> AllChunkQueryResults:
+        """
+        configure output as per 'outputNumber' configuration 
+        Leave RRF results as is.
+        
+        :param allQueryResults: query results
+        :type allQueryResults: AllIndexerQueryResults
+        :return: query results updated with rank
+        :rtype: AllQueryResults
+        """
+
+        allChunkQueryResultsNew = AllChunkQueryResults(
+            query = allQueryResults.query,
+            rrfScores = allQueryResults.rrfScores,
+            listQueryResults = []
+        )
+        for queryResultList in allQueryResults.listQueryResults:
+            oneChunkQueryResultList = OneChunkQueryResultList(
+                label = queryResultList.label, 
+                query = queryResultList.query,
+                result_dict = {}
+            )
+            count = 0
+            for key in queryResultList.result_dict.keys():
+                if count >= self.outputNumber:
+                    break
+                oneChunkQueryResultList.appendQueryResult(key, queryResultList.result_dict[key])
+                count += 1
+            allChunkQueryResultsNew.listQueryResults.append(oneChunkQueryResultList)
+        return allChunkQueryResultsNew
+
 
 
     def threadWorker(self):

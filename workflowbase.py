@@ -46,7 +46,7 @@ class WorkflowBase(BaseModel):
     """
 
     logger : Logger = Field(default = None, description="Application logger") 
-    globalRAGDatapath : str = Field(default = "chromadb", description="Path to RAG database")
+    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
     globalProvider : str = Field(default = "", description="Global provider of LLM service") 
     embeddingLLM : str = Field(default = "", description="Embedding LLM") 
@@ -97,7 +97,7 @@ class WorkflowBase(BaseModel):
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
             self.globalAPIkey = configCollection['gemini_key']
 
-        self.globalRAGDatapath = configCollection["GLOBALdataFolder"] + configCollection["GLOBALrag_Datapath"]
+        self.ragDatapath = configCollection["ragDatapath"]
 
         # manually call model validator
         self.WorkflowBase_verify_configuration()
@@ -267,7 +267,7 @@ class WorkflowBase(BaseModel):
         """
         try:
             chromaClient = chromadb.PersistentClient(
-                path=self.globalRAGDatapath,
+                path=self.ragDatapath,
                 settings=Settings(anonymized_telemetry=False),
                 tenant=DEFAULT_TENANT,
                 database=DEFAULT_DATABASE,

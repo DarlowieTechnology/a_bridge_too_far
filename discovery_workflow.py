@@ -114,7 +114,8 @@ class DiscoveryWorkflow(WorkflowBase):
     bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion (RRF) value cut off")
-    rrfOutlierZScoreThreshold : float = Field(default = 1.5, description="Threshold for outlier z-score")
+    rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
+    rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     outputNumber : int = Field(default = 1, description="Maximum number of items to return")
 
     outputFileName : str = Field(default = "", description="File name for results")
@@ -155,6 +156,8 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Reciprocal Rank Fusion (RRF) cut off value is invalid')
         if not (self.rrfOutlierZScoreThreshold >= 0):
             raise ValueError(f'Z Score threshold for outliers is invalid')
+        if not (self.rrfOutlierIQRCoefficient >= 0):
+            raise ValueError(f'IQR Coefficient for outliers is invalid')
         if not self.outputNumber in range(1, 100):
             raise ValueError(f'output number is invalid')
 
@@ -237,7 +240,9 @@ class DiscoveryWorkflow(WorkflowBase):
         if configCollection.keyExists("rrfCutOffValue"):
             self.rrfCutOffValue = configCollection["rrfCutOffValue"]
         if configCollection.keyExists("rrfOutlierZScoreThreshold"):
-            self.rrfOutlierZScoreThreshold   = configCollection["rrfOutlierZScoreThreshold"]
+            self.rrfOutlierZScoreThreshold = configCollection["rrfOutlierZScoreThreshold"]
+        if configCollection.keyExists("rrfOutlierIQRCoefficient"):
+            self.rrfOutlierIQRCoefficient = configCollection["rrfOutlierIQRCoefficient"]
         if configCollection.keyExists("outputNumber"):
             self.outputNumber = configCollection["outputNumber"]
 
@@ -414,7 +419,7 @@ class DiscoveryWorkflow(WorkflowBase):
         return outText
 
 
-    def outputRRFInfo(self, rrfScores : RRFScores) -> List[str]:
+    def outputRRFInfo(self, rrfScores : RRFScores, onlyOutliers : bool) -> List[str]:
         """
         Output RRF scores. Stop at RRF cut off value. 
 
@@ -429,7 +434,10 @@ class DiscoveryWorkflow(WorkflowBase):
             identifierQueryResults = rrfScores.scoresDict[ident]
             if identifierQueryResults.rrfRank < self.rrfCutOffValue:
                 break
-            outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))
+            if onlyOutliers:
+                if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
+                    print(f"{identifierQueryResults.model_dump(mode = 'python')},")
+#            outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))
 
         return outStrings
 
@@ -749,7 +757,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.semanticQuery(
                 query = queryTexts, 
                 chromaCollection = chromaCollection, 
-                queryLabel = "semantic original",
+                queryLabel = "ORIG",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
                 maxCutItemDistance = self.semanticMaxCutItemDistance
             )
@@ -767,7 +775,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.bm25sQuery(
                 query = tokenList, 
                 folderName=self.bm25IndexFolder, 
-                queryLabel = "bm25s original", 
+                queryLabel = "BM25SORIG", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore
             )
@@ -783,7 +791,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.semanticQuery(
                 query = multiQueryTexts, 
                 chromaCollection = chromaCollection, 
-                queryLabel = "semantic multi",
+                queryLabel = "MULTI",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
                 maxCutItemDistance = self.semanticMaxCutItemDistance
             )
@@ -800,7 +808,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.bm25sQuery(
                 query = multiTokenList, 
                 folderName = self.bm25IndexFolder, 
-                queryLabel = "bm25s multi", 
+                queryLabel = "BM25SMULTI", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -815,7 +823,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.semanticQuery(
                 query = rewriteQueryTexts, 
                 chromaCollection = chromaCollection, 
-                queryLabel = "semantic rewrite",
+                queryLabel = "REWRITE",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
                 maxCutItemDistance = self.semanticMaxCutItemDistance)
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -831,7 +839,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.bm25sQuery(
                 query = rewriteTokenList, 
                 folderName = self.bm25IndexFolder, 
-                queryLabel = "bm25s rewrite", 
+                queryLabel = "BM25SREWRITE", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -846,7 +854,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.semanticQuery(
                 query = hydeQueryTexts, 
                 chromaCollection = chromaCollection, 
-                queryLabel = "semantic hyde",
+                queryLabel = "HYDE",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
                 maxCutItemDistance = self.semanticMaxCutItemDistance)
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -862,7 +870,7 @@ class DiscoveryWorkflow(WorkflowBase):
             oneQueryResultList = queryService.bm25sQuery(
                 query = hydeTokenList, 
                 folderName = self.bm25IndexFolder, 
-                queryLabel = "bm25s hyde", 
+                queryLabel = "BM25SHYDE", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -870,7 +878,11 @@ class DiscoveryWorkflow(WorkflowBase):
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         allQueryResults = queryService.rrfReRanking(allQueryResults)
-        queryService.getOutliersFromRRF(allQueryResults, self.rrfOutlierZScoreThreshold)
+        queryService.getOutliersFromRRF(
+            allChunkQueryResults = allQueryResults, 
+            iqrCoefficient = self.rrfOutlierIQRCoefficient, 
+            zScoreThreshold = self.rrfOutlierZScoreThreshold
+        )
         allQueryResults = self.configureOutput(allQueryResults)
         return allQueryResults
 

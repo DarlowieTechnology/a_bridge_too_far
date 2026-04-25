@@ -409,14 +409,16 @@ class QueryService(BaseModel):
         return outList
 
 
-    def getOutliersFromRRF(self, allChunkQueryResults : AllChunkQueryResults, threshold : float = 3.0) -> Dict[str, IdentifierQueryResults]:
+    def getOutliersFromRRF(self, allChunkQueryResults : AllChunkQueryResults, iqrCoefficient : float, zScoreThreshold : float) -> Dict[str, IdentifierQueryResults]:
         """
         Select outliers in array of RRF ranks by Interquartile Range (IQR) and Z Score
 
         :param allChunkQueryResults: all query results
         :type allChunkQueryResults: AllChunkQueryResults
-        :param threshold: Z Score threshold - how many standard deviations away the value is
-        :type threshold: float
+        :param iqrCoefficient: IQR  coefficient - scaling upper fence in skewed distributions
+        :type iqrCoefficient: float
+        :param zScoreThreshold: Z Score threshold - how many standard deviations away the value is
+        :type zScoreThreshold: float
         :return: dict of outliers, key is ident, value is IdentifierQueryResults object
         :rtype: Dict[str, IdentifierQueryResults]
         """
@@ -432,14 +434,14 @@ class QueryService(BaseModel):
         q1 = np.percentile(data, 25)
         q3 = np.percentile(data, 75)
         iqr = q3 - q1
-        upperFence = q3 + (1.5 * iqr)
+        upperFence = q3 + (iqrCoefficient * iqr)
 
         print(f"getOutliersFromRRF : upperFence: {upperFence}")
 
         mean_val = np.mean(inData)
         std_dev = np.std(inData)
         z_scores = [(y - mean_val) / std_dev for y in inData]
-        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > threshold]
+        outliers = [y for y, z_score in zip(inData, z_scores) if z_score > zScoreThreshold]
 
         outDict : Dict[str, IdentifierQueryResults] = {}
         for ident in allChunkQueryResults.rrfScores.scoresDict.keys():

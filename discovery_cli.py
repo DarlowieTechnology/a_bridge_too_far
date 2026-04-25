@@ -130,7 +130,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 #        "1912.02292v1.pdf"
 #    ]
 
-    fileList = fileListMedical
+    fileList = fullFileList
 
 
     msg = f"Discovered {len(fileList)} files for processing."
@@ -166,9 +166,8 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
-
-        msgList = discoveryWorkflow.outputRRFInfo(allQueryResults.rrfScores)
-        print(json.dumps(msgList, indent = 4))
+        msgList = discoveryWorkflow.outputRRFInfo(rrfScores = allQueryResults.rrfScores, onlyOutliers = True)
+#        print(json.dumps(msgList, indent = 4))
 #        self.workerSnapshot(msgList)
         discoveryWorkflow.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 
@@ -256,7 +255,8 @@ def main():
     context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
     context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
     context["rrfCutOffValue"] = 0.00                # minimal RRF score to cut-off
-    context["rrfOutlierZScoreThreshold"] = 3        # Z-score threshold for outliers
+    context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
+    context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
     configCollection = ConfigCollection(context)
 

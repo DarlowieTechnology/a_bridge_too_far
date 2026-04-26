@@ -755,7 +755,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # semantic search for original query
         if self.searchSemanticOriginal:
             oneQueryResultList = queryService.semanticQuery(
-                query = [queryText], 
+                query = queryText, 
                 chromaCollection = chromaCollection, 
                 queryLabel = "ORIG",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
@@ -784,9 +784,8 @@ class DiscoveryWorkflow(WorkflowBase):
  #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         # semantic search for multi query
-        multiQueryTexts = []
         if self.searchSemanticMulti:
-            multiQueryTexts, usage = queryService.multiQuery([queryText], model)
+            multiQueryTexts, usage = queryService.multiQuery(queryText, model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = multiQueryTexts, 
@@ -802,11 +801,11 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for multi query
         if self.searchBM25sMulti:
             if not self.searchSemanticMulti:
-                multiQueryTexts, usage = queryService.multiQuery([queryText], model)
+                multiQueryTexts, usage = queryService.multiQuery(queryText, model)
                 self.addUsage(usage)
             multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(
-                query = multiTokenList, 
+                query = multiTokenList,
                 folderName = self.bm25IndexFolder, 
                 queryLabel = "BM25SMULTI", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
@@ -816,9 +815,8 @@ class DiscoveryWorkflow(WorkflowBase):
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         # semantic search for rewrite query
-        rewriteQueryTexts = []
         if self.searchSemanticRewrite:
-            rewriteQueryTexts, usage = queryService.rewriteQuery([queryText], model)
+            rewriteQueryTexts, usage = queryService.rewriteQuery(queryText, model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = rewriteQueryTexts, 
@@ -833,7 +831,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for rewrite query
         if self.searchBM25sRewrite:
             if not self.searchSemanticRewrite:
-                rewriteQueryTexts, usage = queryService.rewriteQuery([queryText], model)
+                rewriteQueryTexts, usage = queryService.rewriteQuery(queryText, model)
                 self.addUsage(usage)
             rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(
@@ -849,7 +847,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # search for semantic HyDE query
         hydeQueryTexts = []
         if self.searchSemanticHyDE:
-            hydeQueryTexts, usage = queryService.hydeQuery([queryText], model)
+            hydeQueryTexts, usage = queryService.hydeQuery(queryText, model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = hydeQueryTexts, 
@@ -864,7 +862,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # search for bm25s HyDE query
         if self.searchBM25sHyDE:
             if self.searchSemanticHyDE:
-                hydeQueryTexts, usage = queryService.hydeQuery([queryText], model)
+                hydeQueryTexts, usage = queryService.hydeQuery(queryText, model)
                 self.addUsage(usage)
             hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(

@@ -72,14 +72,14 @@ class StatsOnList(BaseModel) :
 class QueryService(BaseModel):
 
 
-    def semanticQuery(self, query : List[str], chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : int) -> OneChunkQueryResultList:
+    def semanticQuery(self, query : str, chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : int) -> OneChunkQueryResultList:
         """
         Performs semantic query. Returns list of results
         Use maxCutItemDistance value to cut results off
         Use maxRetrieveNumber to limit max number of items returned
         
         :param query: query for semantic search
-        :type query: List[str]
+        :type query: str
         :param chromaCollection: chroma DB collection
         :type chromaCollection: Collection
         :param queryLabel: unique label to query run
@@ -127,15 +127,15 @@ class QueryService(BaseModel):
         return oneChunkQueryResultList
 
 
-    def bm25sQuery(self, query : List[List[str]], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneChunkQueryResultList : 
+    def bm25sQuery(self, query : List[str], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneChunkQueryResultList : 
         """
         Perform bm25s query for combined corpus of documents
         data in corpus is encoded as documentFileName + '|' + chunkId + '\n' + chunkText
         Number of items retrieved is limited to min of context['bm25sRetrieveNum'] and number of items
         Discard items with score less or equal to value context['bm25sCutOffScore']
 
-        :param query: list of lists of query tokens for bm25s
-        :type query: List[List[str]]
+        :param query: lists of query tokens for bm25s
+        :type query: List[str]
         :param folderName: name of folder with bm25s index
         :type folderName: str
         :param queryLabel: unique label to query run
@@ -148,8 +148,9 @@ class QueryService(BaseModel):
         :rtype: OneChunkQueryResultList
         """
 
+        combinedQuery = " ".join(query)
         oneChunkQueryResultList = OneChunkQueryResultList(
-            query = query[0],
+            query = combinedQuery,
             label = queryLabel        
         )
 
@@ -161,7 +162,7 @@ class QueryService(BaseModel):
         if retriever.scores["num_docs"] < bm25sRetrieveNumber:
             max_items = retriever.scores["num_docs"]
 
-        results, scores = retriever.retrieve(query, k=max_items)
+        results, scores = retriever.retrieve([query], k=max_items)
         for rankIdx in range(results.shape[1]):
             docN, score = results[0, rankIdx], scores[0, rankIdx]
             if bm25sMinCutOffScore >= score:
@@ -235,15 +236,15 @@ class QueryService(BaseModel):
         return allChunkQueryResults
 
 
-    def hydeQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
+    def hydeQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
         """ Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. Throws exceptions on LLM errors.
 
             :param query: query for semantic search
-            :type query: List[str]
+            :type query: str
             :param model: OpenAI model instance
             :type model: Model
             :return: tuple of results and run usage
-            :rtype: tuple[List[str], RunUsage]
+            :rtype: tuple[str, RunUsage]
 
         """
 
@@ -255,23 +256,23 @@ class QueryService(BaseModel):
             retries = 3)
         userPrompt = query
         result = agentHyDE.run_sync(userPrompt)
-        resOutput: List[str] = []
+        resOutput: str = ""
         if type(result.output) == str:
-            resOutput.append(result.output)
-        if type(result.output) == list:
             resOutput = result.output
+        if type(result.output) == list:
+            resOutput = " ".join(result.output)
         return resOutput, result.usage()
 
 
-    def multiQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
+    def multiQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
         """Generate multiple queries form the original query for semantic search. Throws exceptions on LLM errors.
         
         :param query: query for semantic search
-        :type query: List[str]
+        :type query: str
         :param model: OpenAI model instance
         :type model: Model
         :return: tuple of results and run usage
-        :rtype: tuple[List[str], RunUsage]
+        :rtype: tuple[str, RunUsage]
         """
 
         # Prompt for generating multiple queries
@@ -285,28 +286,28 @@ class QueryService(BaseModel):
         agentMultipleQ = Agent(
             model = model, 
             system_prompt = systemPrompt, 
-            output_type = List,
+            output_type = str,
             retries = 3)
         userPrompt = query
         result = agentMultipleQ.run_sync(userPrompt)
-        resOutput: List[str] = []
+        resOutput: str = ""
         if type(result.output) == str:
-            resOutput.append(result.output)
-        if type(result.output) == list:
             resOutput = result.output
+        if type(result.output) == list:
+            resOutput = " ".join(result.output)
         return resOutput, result.usage()
 
 
-    def rewriteQuery(self, query : List[str], model : Model) -> tuple[List[str], RunUsage]:
+    def rewriteQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
         """
         Rewrite the query for semantic search.  Throws exceptions on LLM errors.
         
         :param query: query for semantic search
-        :type query: List[str]
+        :type query: str
         :param model: OpenAI model instance
         :type model: Model
         :return: tuple of results and run usage
-        :rtype: tuple[List[str], RunUsage]
+        :rtype: tuple[str, RunUsage]
         """
         # Query rewriting prompt
         systemPrompt = """You are a query rewriting expert. The user's original query didn't retrieve relevant documents.
@@ -327,26 +328,26 @@ class QueryService(BaseModel):
             retries = 3)
         userPrompt = query
         result = agentRewriteQ.run_sync(userPrompt)
-        resOutput: List[str] = []
+        resOutput: str = ""
         if type(result.output) == str:
-            resOutput.append(result.output)
-        if type(result.output) == list:
             resOutput = result.output
+        if type(result.output) == list:
+            resOutput = " ".join(result.output)
         return resOutput, result.usage()
 
 
-    def tokenizeQuery(self, query : List[str]) -> List[str]:
+    def tokenizeQuery(self, query : str) -> List[str]:
         """
         create list of tokens from the query for BM25S search.
 
         :param query: query for semantic search
-        :type query: List[str]
+        :type query: str
         :return: List of token strings
         :rtype: List[str]
         """
 
         query_tokens = bm25s.tokenize(texts = query, return_ids=False, stopwords="english")
-        return query_tokens
+        return query_tokens[0]
 
 
     def getOutliersForQuery(self, oneChunkQueryResultList : OneChunkQueryResultList, threshold : float = 3.0, upper : bool = True) -> List[str]:

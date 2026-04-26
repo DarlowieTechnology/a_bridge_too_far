@@ -17,10 +17,10 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import ConfigCollection
+from common import ConfigCollection, OpenFile
 from discovery_workflow import DiscoveryWorkflow
 from queryService import QueryService
-
+from resultsQueryClasses import CollectionChunkQueryResults
 
 
 def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
@@ -159,14 +159,14 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     if discoveryWorkflow.matchChunks:
         startTime = time.time()
         queryService = QueryService()
-        allQueryResults = discoveryWorkflow.matchChunksPhase(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
+        collectionChunkQueryResults = discoveryWorkflow.matchChunksPhaseAllQueries(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
 
         # output results files
         print(f"Output file name: {discoveryWorkflow.outputFileName}")
         with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+            jsonOut.writelines(collectionChunkQueryResults.model_dump_json(indent=2))
 
-        msgList = discoveryWorkflow.outputRRFInfo(rrfScores = allQueryResults.rrfScores, onlyOutliers = True)
+#        msgList = discoveryWorkflow.outputRRFInfo(rrfScores = allQueryResults.rrfScores, onlyOutliers = True)
 #        print(json.dumps(msgList, indent = 4))
 #        self.workerSnapshot(msgList)
         discoveryWorkflow.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
@@ -188,14 +188,18 @@ def main():
     context = darlowie.context
 
     parser = argparse.ArgumentParser(description="Discovery CLI")
-    parser.add_argument("--query", help="User query (\"medical notes\" or \"pipe engineering\")")
+    parser.add_argument("--input", help="File with user queries, new line delimited")
     parser.add_argument("--output", help="Output file")
     parser.add_argument("--count", help="Count of results in output")
     args = parser.parse_args()
-    if args.query:
-        userQuery = args.query
+    if args.input:
+        res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        userQueryList = errOrContent.split()
     else:
-        print("Provide user query")
+        print("Provide input file with user query")
         return
     if args.output:
         outputFileName = args.output
@@ -208,7 +212,7 @@ def main():
 
     # ------ configurable on command line
     #
-    context["knownTopics"] = [userQuery]            # query - configurable on command line
+    context["knownTopics"] = userQueryList          # list of user queries - supplied in input file
     context["outputNumber"] = outputNumber          # number of items in result lists - configurable on command line
     context['outputFileName'] = outputFileName      # name of output file - configurable on command line
 

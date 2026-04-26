@@ -55,7 +55,7 @@ from anyascii import anyascii
 
 # local
 from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
-from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneChunkQueryResultList, IdentifierQueryResults, RRFScores, AllChunkQueryResults
+from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneChunkQueryResultList, IdentifierQueryResults, RRFScores, AllChunkQueryResults, CollectionChunkQueryResults
 from queryService import QueryService
 from workflowbase import WorkflowBase 
 
@@ -723,12 +723,12 @@ class DiscoveryWorkflow(WorkflowBase):
                 print(f"{ident}")
 
 
-    def matchChunksPhase(self, queryTexts: List[str], queryService : QueryService) -> AllChunkQueryResults :
+    def matchChunksPhase(self, queryText: str, queryService : QueryService) -> AllChunkQueryResults :
         """
         match chunks against known topics
         
-        :param queryTexts: list of topics to match
-        :type queryTexts: List[str]
+        :param queryText: user query
+        :type queryText: str
         :param queryService: Query service object
         :type queryService: QueryService
         :return: collection of all results
@@ -736,7 +736,7 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         allQueryResults = AllChunkQueryResults(
-            query = queryTexts,
+            query = [queryText],
             rrfScores = RRFScores(
                 scoresDict = {}
             ),
@@ -755,7 +755,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # semantic search for original query
         if self.searchSemanticOriginal:
             oneQueryResultList = queryService.semanticQuery(
-                query = queryTexts, 
+                query = [queryText], 
                 chromaCollection = chromaCollection, 
                 queryLabel = "ORIG",
                 maxRetrieveNumber = self.semanticRetrieveNumber,
@@ -767,7 +767,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         # bm25s search for original query
         if self.searchBM25sOriginal:
-            tokenList = queryService.tokenizeQuery(query = queryTexts)
+            tokenList = queryService.tokenizeQuery(query = [queryText])
 
             # make bm25 index folder if does not exist
             Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
@@ -786,7 +786,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # semantic search for multi query
         multiQueryTexts = []
         if self.searchSemanticMulti:
-            multiQueryTexts, usage = queryService.multiQuery(queryTexts, model)
+            multiQueryTexts, usage = queryService.multiQuery([queryText], model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = multiQueryTexts, 
@@ -802,7 +802,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for multi query
         if self.searchBM25sMulti:
             if not self.searchSemanticMulti:
-                multiQueryTexts, usage = queryService.multiQuery(queryTexts, model)
+                multiQueryTexts, usage = queryService.multiQuery([queryText], model)
                 self.addUsage(usage)
             multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(
@@ -818,7 +818,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # semantic search for rewrite query
         rewriteQueryTexts = []
         if self.searchSemanticRewrite:
-            rewriteQueryTexts, usage = queryService.rewriteQuery(queryTexts, model)
+            rewriteQueryTexts, usage = queryService.rewriteQuery([queryText], model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = rewriteQueryTexts, 
@@ -833,7 +833,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for rewrite query
         if self.searchBM25sRewrite:
             if not self.searchSemanticRewrite:
-                rewriteQueryTexts, usage = queryService.rewriteQuery(queryTexts, model)
+                rewriteQueryTexts, usage = queryService.rewriteQuery([queryText], model)
                 self.addUsage(usage)
             rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(
@@ -849,7 +849,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # search for semantic HyDE query
         hydeQueryTexts = []
         if self.searchSemanticHyDE:
-            hydeQueryTexts, usage = queryService.hydeQuery(queryTexts, model)
+            hydeQueryTexts, usage = queryService.hydeQuery([queryText], model)
             self.addUsage(usage)
             oneQueryResultList = queryService.semanticQuery(
                 query = hydeQueryTexts, 
@@ -864,7 +864,7 @@ class DiscoveryWorkflow(WorkflowBase):
         # search for bm25s HyDE query
         if self.searchBM25sHyDE:
             if self.searchSemanticHyDE:
-                hydeQueryTexts, usage = queryService.hydeQuery(queryTexts, model)
+                hydeQueryTexts, usage = queryService.hydeQuery([queryText], model)
                 self.addUsage(usage)
             hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
             oneQueryResultList = queryService.bm25sQuery(
@@ -885,6 +885,27 @@ class DiscoveryWorkflow(WorkflowBase):
         )
         allQueryResults = self.configureOutput(allQueryResults)
         return allQueryResults
+
+
+    def matchChunksPhaseAllQueries(self, queryTexts: List[str], queryService : QueryService) -> CollectionChunkQueryResults :
+        """
+        For all queries in the list, match chunks against known topics
+        
+        :param queryTexts: list of topics to match
+        :type queryTexts: List[str]
+        :param queryService: Query service object
+        :type queryService: QueryService
+        :return: collection of all query result sets
+        :rtype: CollectionChunkQueryResults
+        """
+
+        collectionChunkQueryResults = CollectionChunkQueryResults()
+
+        for oneQuery in queryTexts:
+            allChunkQueryResults = self.matchChunksPhase(queryText = oneQuery, queryService = queryService)
+            collectionChunkQueryResults.listAllQueryResults.append(allChunkQueryResults)
+
+        return collectionChunkQueryResults
 
 
     def configureOutput(self, allQueryResults : AllChunkQueryResults) -> AllChunkQueryResults:
@@ -917,7 +938,6 @@ class DiscoveryWorkflow(WorkflowBase):
                 count += 1
             allChunkQueryResultsNew.listQueryResults.append(oneChunkQueryResultList)
         return allChunkQueryResultsNew
-
 
 
     def threadWorker(self):
@@ -975,9 +995,14 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.matchChunks:
             startTime = time.time()
             queryService = QueryService()
-            allQueryResults = self.matchChunksPhase(queryTexts = self.knownTopics, queryService = queryService)
+            collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.knownTopics, queryService = queryService)
 
-            msgList = self.outputRRFInfo(allQueryResults.rrfScores)
+            # output results files
+            print(f"Output file name: {self.outputFileName}")
+            with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+                jsonOut.writelines(collectionChunkQueryResults.model_dump_json(indent=2))
+
+#            msgList = self.outputRRFInfo(allQueryResults.rrfScores)
 #            print(msgList)
 #            self.workerSnapshot(msgList)
 
@@ -989,11 +1014,6 @@ class DiscoveryWorkflow(WorkflowBase):
             startTime = time.time()
             self.clearPhaseAllFiles(inputFileList = fileList)
             self.updateStats(topKey = "Clearing", keyValList = [("Time", time.time() - startTime)])
-
-
-        # output results files
-        with open(self.outputFileName, "w") as jsonOut:
-            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
 
         self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])

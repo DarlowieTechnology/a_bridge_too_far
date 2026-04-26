@@ -1,5 +1,5 @@
 from enum import Enum, unique
-
+import collections
 from typing import Generic, List, Dict, Literal, Union, TypeVar
 
 from pydantic import BaseModel, Field
@@ -82,3 +82,15 @@ class AllIndexerQueryResults(BaseModel):
     query : list[str] = Field(default = [], description="Original query")
     rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
     listQueryResults: List[ OneIndexerQueryResultList ] = Field(default=None, description="List of OneIndexerQueryResultList")
+
+#--------------------CollectionQueryResults-------------------------------------
+
+class CollectionChunkQueryResults(BaseModel):
+    """represents collection of query result sets for Discovery app"""
+    listAllQueryResults: List[ AllChunkQueryResults ] = Field(default = [], description="List of query results")
+
+    def getAllResultsForQuery(self, queryList : list[str]) -> AllChunkQueryResults :
+        for item in self.listAllQueryResults:
+            if collections.Counter(queryList) == collections.Counter(item.query):
+                return item
+        return None

@@ -166,7 +166,8 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
         with open(discoveryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
             jsonOut.writelines(collectionChunkQueryResults.model_dump_json(indent=2))
 
-#        msgList = discoveryWorkflow.outputRRFInfo(rrfScores = allQueryResults.rrfScores, onlyOutliers = True)
+        for queryResult in collectionChunkQueryResults.listAllQueryResults:
+            msgList = discoveryWorkflow.outputRRFInfo(rrfScores = queryResult.rrfScores, onlyOutliers = True)
 #        print(json.dumps(msgList, indent = 4))
 #        self.workerSnapshot(msgList)
         discoveryWorkflow.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
@@ -187,28 +188,34 @@ def main():
 
     context = darlowie.context
 
+    defaultOutputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
+
     parser = argparse.ArgumentParser(description="Discovery CLI")
+    parser.add_argument("--query", help="User query - preference over query input file")
     parser.add_argument("--input", help="File with user queries, new line delimited")
-    parser.add_argument("--output", help="Output file")
-    parser.add_argument("--count", help="Count of results in output")
+    parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
+    parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
     args = parser.parse_args()
-    if args.input:
-        res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
-        if not res:
-            print(errOrContent)
-            return
-        userQueryList = errOrContent.split()
+    if args.query:
+        userQueryList = [args.query]
     else:
-        print("Provide input file with user query")
-        return
+        if args.input:
+            res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
+            if not res:
+                print(errOrContent)
+                return
+            userQueryList = errOrContent.split()
+        else:
+            print("Provide query on command line or input file name")
+            return
     if args.output:
         outputFileName = args.output
     else:
-        outputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
+        outputFileName = defaultOutputFileName
     if args.count:
         outputNumber = args.output
     else:
-        outputNumber = 50
+        outputNumber = context["DISCLIoutputCount"]
 
     # ------ configurable on command line
     #
@@ -245,13 +252,13 @@ def main():
     context["chunkOverlap"] = 48
 
     context["searchSemanticOriginal"] = True
-    context["searchBM25sOriginal"] = True
-    context["searchSemanticMulti"] = True
-    context["searchBM25sMulti"] = True
-    context["searchSemanticRewrite"] = True
-    context["searchBM25sRewrite"] = True
-    context["searchSemanticHyDE"] = True
-    context["searchBM25sHyDE"] = True
+    context["searchBM25sOriginal"] = False
+    context["searchSemanticMulti"] = False
+    context["searchBM25sMulti"] = False
+    context["searchSemanticRewrite"] = False
+    context["searchBM25sRewrite"] = False
+    context["searchSemanticHyDE"] = False
+    context["searchBM25sHyDE"] = False
 
     # retrieval configuration
     context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve

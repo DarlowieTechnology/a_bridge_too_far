@@ -45,10 +45,12 @@ def main():
 
     context = darlowie.context
 
+    defaultOutputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
+
     parser = argparse.ArgumentParser(description="Query CLI")
-    parser.add_argument("--query", help="User query (\"xss issues\" or \"credentials issues\")")
-    parser.add_argument("--output", help="Output file")
-    parser.add_argument("--count", help="Count of results in output")
+    parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
+    parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
+    parser.add_argument("--count", help=f"Count of results in output, default {context['QUECLIoutputCount']}")
     args = parser.parse_args()
     if args.query:
         userQuery = args.query
@@ -59,11 +61,11 @@ def main():
         outputFileName = args.output
         print(f"Output file name: {outputFileName}")
     else:
-        outputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
+        outputFileName = defaultOutputFileName
     if args.count:
         outputNumber = args.output
     else:
-        outputNumber = 50
+        outputNumber = context["QUECLIoutputCount"]
 
     # ------ configurable on command line
     #

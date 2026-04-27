@@ -78,6 +78,7 @@ context = {
 
     "QUECLIsession_key": "QUERY",   # session name  for Query CLI
     "QUECLIstatus_FileName": "status.QUERY.json",  # status file name for Query CLI
+    "QUECLIoutputCount": 50,     # default number of results in output
 
     # Discovery app settings
 
@@ -88,6 +89,7 @@ context = {
     # Discovery CLI settings
 
     "DISCLIsession_key": "DISCOVERY",   # session name  for Discovery CLI
-    "DISCLIstatus_FileName": "status.DISCOVERY.json"  # status file name for Discovery CLI
+    "DISCLIstatus_FileName": "status.DISCOVERY.json",  # status file name for Discovery CLI
+    "DISCLIoutputCount": 50     # default number of results in output
 
 }

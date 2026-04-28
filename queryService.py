@@ -227,6 +227,13 @@ class QueryService(BaseModel):
         # sort descending by rank
         scoresDict = {k: v for k, v in sorted(scoresDict.items(), key=lambda item: item[1].rrfRank, reverse=True)}
 
+        position = 0
+        # initialize position field
+        for key in scoresDict.keys():
+            identifierQueryResults = scoresDict[key]
+            identifierQueryResults.position = position
+            position += 1
+
         allChunkQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
@@ -437,11 +444,13 @@ class QueryService(BaseModel):
         iqr = q3 - q1
         upperFence = q3 + (iqrCoefficient * iqr)
 
-        print(f"getOutliersFromRRF : upperFence: {upperFence}")
-
         mean_val = np.mean(inData)
         std_dev = np.std(inData)
-        z_scores = [(y - mean_val) / std_dev for y in inData]
+        # if standard deviation is zero - make non-zero
+        if std_dev == 0:
+            z_scores = [(y - mean_val) / 0.0000001 for y in inData]
+        else:
+            z_scores = [(y - mean_val) / std_dev for y in inData]
         outliers = [y for y, z_score in zip(inData, z_scores) if z_score > zScoreThreshold]
 
         outDict : Dict[str, IdentifierQueryResults] = {}

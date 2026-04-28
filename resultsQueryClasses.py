@@ -61,6 +61,7 @@ class IdentifierQueryResults(BaseModel):
     """represents unique identifier, RRF score, outlier info for one item"""
     identifier: str = Field(default = "", description="unique identifier")
     rrfRank : float = Field(default = 0.0, description="RRF rank")
+    position : int = Field(default = 0, description="Position in RRF list")
     outlierIQR: bool = Field( default = False, description="outlier by IQR")
     outlierZScore: bool = Field( default = False, description="outlier by Z Score")
 
@@ -87,6 +88,8 @@ class AllIndexerQueryResults(BaseModel):
 
 class CollectionChunkQueryResults(BaseModel):
     """represents collection of query result sets for Discovery app"""
+    rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
+    rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     listAllQueryResults: List[ AllChunkQueryResults ] = Field(default = [], description="List of query results")
 
     def getAllResultsForQuery(self, queryList : list[str]) -> AllChunkQueryResults :

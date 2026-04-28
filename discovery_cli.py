@@ -159,6 +159,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
     if discoveryWorkflow.matchChunks:
         startTime = time.time()
         queryService = QueryService()
+
         collectionChunkQueryResults = discoveryWorkflow.matchChunksPhaseAllQueries(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
 
         # output results files
@@ -204,7 +205,7 @@ def main():
             if not res:
                 print(errOrContent)
                 return
-            userQueryList = errOrContent.split()
+            userQueryList = errOrContent.split('\n')
         else:
             print("Provide query on command line or input file name")
             return
@@ -236,8 +237,6 @@ def main():
     context["makeRawVector"] = False
     context["bm25Process"] = False
     context["matchChunks"] = True
-    context["verify"] = False
-    context["returnResults"] = False
     context["clear"] = False
 
     # text extraction configuration
@@ -251,14 +250,14 @@ def main():
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48
 
-    context["searchSemanticOriginal"] = True
+    context["searchSemanticOriginal"] = False
     context["searchBM25sOriginal"] = False
     context["searchSemanticMulti"] = False
     context["searchBM25sMulti"] = False
     context["searchSemanticRewrite"] = False
     context["searchBM25sRewrite"] = False
-    context["searchSemanticHyDE"] = False
-    context["searchBM25sHyDE"] = False
+    context["searchSemanticHyDE"] = True
+    context["searchBM25sHyDE"] = True
 
     # retrieval configuration
     context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve

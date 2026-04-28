@@ -93,8 +93,6 @@ class DiscoveryWorkflow(WorkflowBase):
     makeRawVector : bool = Field(default = False, description="Vectorize chunks in vector table")
     bm25Process : bool = Field(default = False, description="Create bm25 index")
     matchChunks : bool = Field(default = False, description="Match chunks against known topics")
-    verify : bool = Field(default = False, description="Verify results against known data set")
-    returnResults : bool = Field(default = False, description="Collect test results")
     clear : bool = Field(default = False, description="Clear Intermediate data")
 
     # search configuration
@@ -183,10 +181,6 @@ class DiscoveryWorkflow(WorkflowBase):
             self.bm25Process = configCollection["bm25Process"]
         if configCollection.keyExists("matchChunks"): 
             self.matchChunks = configCollection["matchChunks"]
-        if configCollection.keyExists("verify"): 
-            self.verify = configCollection["verify"]
-        if configCollection.keyExists("returnResults"): 
-            self.returnResults = configCollection["returnResults"]
         if configCollection.keyExists("clear"): 
             self.clear = configCollection["clear"]
 
@@ -897,9 +891,15 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: CollectionChunkQueryResults
         """
 
-        collectionChunkQueryResults = CollectionChunkQueryResults()
+        collectionChunkQueryResults = CollectionChunkQueryResults(
+            rrfOutlierZScoreThreshold = self.rrfOutlierZScoreThreshold,
+            rrfOutlierIQRCoefficient = self.rrfOutlierIQRCoefficient
+        )
 
         for oneQuery in queryTexts:
+
+            print(f"Processing query: {oneQuery}")
+
             allChunkQueryResults = self.matchChunksPhase(queryText = oneQuery, queryService = queryService)
             collectionChunkQueryResults.listAllQueryResults.append(allChunkQueryResults)
 

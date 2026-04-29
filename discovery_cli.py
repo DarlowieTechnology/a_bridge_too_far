@@ -120,17 +120,17 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 
     fullFileList = fileListEngineering + fileListMedical + fileListLLM + fileListPenTest
 
-#    fileList = [
+    fileList = [
 #        "medresearch-000.txt"
-#        "Refinery-CMS.pdf"
+        "Refinery-CMS.pdf"
 #        "2412.16720v1.pdf"
 #        "AWS_Review.pdf"
 #        "Database Review.pdf"
 #        "2009.03393v1.pdf"
 #        "1912.02292v1.pdf"
-#    ]
+    ]
 
-    fileList = fullFileList
+#    fileList = fullFileList
 
 
     msg = f"Discovered {len(fileList)} files for processing."
@@ -253,11 +253,11 @@ def main():
     context["searchSemanticOriginal"] = False
     context["searchBM25sOriginal"] = False
     context["searchSemanticMulti"] = False
-    context["searchBM25sMulti"] = False
+    context["searchBM25sMulti"] = True
     context["searchSemanticRewrite"] = False
     context["searchBM25sRewrite"] = False
-    context["searchSemanticHyDE"] = True
-    context["searchBM25sHyDE"] = True
+    context["searchSemanticHyDE"] = False
+    context["searchBM25sHyDE"] = False
 
     # retrieval configuration
     context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve

@@ -241,6 +241,7 @@ PyPika
 pyproject_hooks
 pyreadline3
 pysast
+PyStemmer
 python-dateutil
 python-docx
 python-dotenv

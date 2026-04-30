@@ -252,7 +252,7 @@ def main():
 
     context["searchSemanticOriginal"] = False
     context["searchBM25sOriginal"] = False
-    context["searchSemanticMulti"] = False
+    context["searchSemanticMulti"] = True
     context["searchBM25sMulti"] = True
     context["searchSemanticRewrite"] = False
     context["searchBM25sRewrite"] = False

@@ -281,7 +281,6 @@ class DiscoveryWorkflow(WorkflowBase):
         loader = PyPDFLoader(file_path = inputFile, mode = "page" )
         try:
             docs = loader.load()
-            pprint(docs[0])
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)

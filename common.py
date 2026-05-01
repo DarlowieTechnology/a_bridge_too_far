@@ -68,7 +68,7 @@ PROVIDERS = {
             LLMNAMES.GPTOSS20BLMSTUDIO.value
         ],
         "url" : "http://localhost:1234/v1",
-        "embed" : "http://localhost:1234/v1/embeddings"
+        "embed" : "http://localhost:11434/api/embeddings"
     },
     GLOBALPROVIDER.GEMINI.value : {
         "llm" : [
@@ -94,7 +94,10 @@ DEFAULTLLMSETS = {
         "GLOBALllm_URL" : "http://localhost:11434/v1"
     },
     GLOBALPROVIDER.LMSTUDIO.value : {
-
+        "GLOBALllm_Embed" : "nomic-embed-text:latest",
+        "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
+        "GLOBALllm_Version" : "openai/gpt-oss-120b",
+        "GLOBALllm_URL" : "http://localhost:1234/v1"
     }
 }
 

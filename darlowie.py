@@ -26,7 +26,7 @@ context = {
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
     "GLOBALloggerLevel" : logging.WARN,      # WARN or INFO
-    "GLOBALllm_Provider" : "ollama",
+    "GLOBALllm_Provider" : "lmstudio",
     "GLOBALrag_Datapath" : "chromadb",
 
     # Generator app settings

@@ -91,7 +91,9 @@ def main():
     context["finalJSON"] = context["inputFileName"] + ".json"
     context["inputFileBaseName"] = "jira:SCRUM"
 
-    configCollection = ConfigCollection(context)
+    configCollection = ConfigCollection(conf = context)
+    configCollection.configure()
+
     indexerWorkflow = IndexerWorkflow()
     indexerWorkflow.configure(configCollection)
 

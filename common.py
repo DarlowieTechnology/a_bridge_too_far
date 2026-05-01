@@ -1,4 +1,4 @@
-from enum import Enum, Flag, IntFlag, unique, auto
+from enum import Enum, IntFlag, unique, auto
 
 from typing import Union
 from typing import List
@@ -11,13 +11,11 @@ import json
 import logging
 from logging import Logger
 import inspect
-import tomli
-import threading
 from  uuid import UUID, uuid4
 
 from datetime import datetime
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 
 # local
@@ -82,6 +80,21 @@ PROVIDERS = {
         ],
         "url" : "https://generativelanguage.googleapis.com/v1beta/openai/",
         "embed" : "http://localhost:11434/api/embeddings"
+    }
+}
+
+
+# default configuration for provider - used to expand configuration via darlowie.py
+#
+DEFAULTLLMSETS = {
+    GLOBALPROVIDER.OLLAMA.value : {
+        "GLOBALllm_Embed" : "nomic-embed-text:latest",
+        "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
+        "GLOBALllm_Version" : "gpt-oss:120b-cloud",
+        "GLOBALllm_URL" : "http://localhost:11434/v1"
+    },
+    GLOBALPROVIDER.LMSTUDIO.value : {
+
     }
 }
 
@@ -256,73 +269,51 @@ class ResultWithTypeList(BaseModel):
 
 
 
-class ConfigCollection(object):
+class ConfigCollection(BaseModel):
     """
-    Collection of settings from TOML and ENV. 
-    If TOML file is not found the application terminates.
-    TOML configuration file is in ./ directory for CLI
-    TOML configuration file is in ../ directory for webapp
-    TOML configuration file is in ../a_bridge_too_far directory for test data
+    Collection of settings from darlowie.py and ENV. 
     """
 
-    configName = 'default.toml'
-    _conf = {}
+    conf : Dict[str, Any] = Field(..., description="dict of configuration")
 
-    def __init__(self, context : Dict):
-
-        if "logger" in context.keys():
-            logger = context["logger"]
-        else:
-            logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
-            logger = logging.getLogger("ConfigCollection")
-
-        try:
-            with open(self.configName, mode="rb") as fp:
-                self._conf = tomli.load(fp)
-        except Exception as e:
-            try:
-                configName = "../" + self.configName
-                with open(configName, mode="rb") as fp:
-                    self._conf = tomli.load(fp)
-            except Exception as e:
-                try:
-                    configName = "../a_bridge_too_far/" + self.configName
-                    with open(configName, mode="rb") as fp:
-                        self._conf = tomli.load(fp)
-                except Exception as e:
-                    logger.debug(f"***ERROR: Cannot open config file {self.configName}, exception {e}")
-                    sys.exit("Program terminates")
-        # read ENV
+    def configure(self) -> bool:
+        """
+        read ENV for keys
+        expand LLM configuration
+        """
         if 'OLLAMA_API_KEY' in os.environ:
-            self._conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
+            self.conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
         if 'gemini_key' in os.environ:
-            self._conf['gemini_key'] = os.environ['gemini_key']
+            self.conf['gemini_key'] = os.environ['gemini_key']
         if 'mistral_key' in os.environ:
-            self._conf['mistral_key'] = os.environ['mistral_key']
-        self._conf["jira_api_token"] = os.environ['Jira_api_token']
-        self._conf["jira_user"] = os.environ['Jira_user']
-        self._conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+            self.conf['mistral_key'] = os.environ['mistral_key']
+        self.conf["jira_api_token"] = os.environ['Jira_api_token']
+        self.conf["jira_user"] = os.environ['Jira_user']
+        self.conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
         if 'LMSTUDIO_API_KEY' in os.environ:
-            self._conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
+            self.conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
         
-        # merge with overwrite 
-        for key in context.keys():
-            if key in self._conf.keys():
-                logger.debug(f"Overwriting configuration key {key}")
-            self._conf[key] = context[key]
+        llmProvider = self.conf["GLOBALllm_Provider"]
+        if llmProvider not in DEFAULTLLMSETS.keys():
+            print(f"Unknown LLM provider: {llmProvider}")
+            return False
+        
+        expansionDict = DEFAULTLLMSETS[llmProvider]
+        for key in expansionDict:
+            self.conf[key] = expansionDict[key]
 
 
     def __getitem__(self, key):
         """Called when obj[index] is used."""
-        return self._conf[key]
+        return self.conf[key]
 
     def keyExists(self, key) -> bool:
         """returns True if key exists in configuration"""
-        return key in self._conf.keys()
+        return key in self.conf.keys()
 
     def getAbsPath(this, key):
         """return absolute path value from relative path. Compatible with Django web app"""
-        return Path(str(Path(__file__).parent.resolve()) + '/' + this._conf[key]).resolve()
+        return Path(str(Path(__file__).parent.resolve()) + '/' + this.conf[key]).resolve()
 
 
 class DebugUtils(object):

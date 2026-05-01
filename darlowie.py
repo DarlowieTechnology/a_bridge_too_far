@@ -27,12 +27,6 @@ context = {
     "GLOBALdataFolder" : "../testdata/",     # root data folder
     "GLOBALloggerLevel" : logging.WARN,      # WARN or INFO
     "GLOBALllm_Provider" : "ollama",
-    "GLOBALllm_Embed" : "nomic-embed-text:latest",
-    "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
-    "GLOBALllm_Version" : "gpt-oss:120b-cloud",
-#    "GLOBALllm_Version" : "gemma4:latest",
-#    "GLOBALllm_Version" : "gemma4:31b-cloud",
-    "GLOBALllm_URL" : "http://localhost:11434/v1",
     "GLOBALrag_Datapath" : "chromadb",
 
     # Generator app settings

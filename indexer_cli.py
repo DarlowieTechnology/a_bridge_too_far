@@ -104,7 +104,9 @@ def main():
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["INDEXEdocumentFolder"] + context["GLOBALrag_Datapath"]
 
 
-    configCollection = ConfigCollection(context)
+    configCollection = ConfigCollection(conf = context)
+    configCollection.configure()
+
     indexerWorkflow = IndexerWorkflow()
     indexerWorkflow.configure(configCollection)
 

@@ -104,7 +104,8 @@ def main():
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
-    configCollection = ConfigCollection(context)
+    configCollection = ConfigCollection(conf = context)
+    configCollection.configure()
 
     queryWorkflow = QueryWorkflow()
     queryWorkflow.configure(configCollection)

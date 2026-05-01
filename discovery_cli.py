@@ -232,10 +232,10 @@ def main():
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     # workflow actions
-    context["loadDocument"] = False
-    context["parseChunks"] = False
-    context["makeRawVector"] = False
-    context["bm25Process"] = False
+    context["loadDocument"] = True
+    context["parseChunks"] = True
+    context["makeRawVector"] = True
+    context["bm25Process"] = True
     context["matchChunks"] = True
     context["clear"] = False
 
@@ -268,7 +268,8 @@ def main():
     context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
     context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
-    configCollection = ConfigCollection(context)
+    configCollection = ConfigCollection(conf = context)
+    configCollection.configure()
 
     discoverWorkflow = DiscoveryWorkflow()
     discoverWorkflow.configure(configCollection)

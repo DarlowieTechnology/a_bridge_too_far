@@ -59,10 +59,10 @@ def main():
 
     # test list - only process data sources from this list
     fileList = [
-        "Architecture Review - Threat Model Report.pdf"
-        ,
-        "AWS_Review.pdf"
-        ,
+#        "Architecture Review - Threat Model Report.pdf"
+#        ,
+#        "AWS_Review.pdf"
+#        ,
         "CD_and_DevOps Review.pdf"
         ,
         "Database Review.pdf"
@@ -87,7 +87,7 @@ def main():
     # stages
     context["loadDocument"] = False
     context["rawTextFromDocument"] = False
-    context["finalJSONfromRaw"] = False
+    context["finalJSONfromRaw"] = True
     context["prepareBM25corpus"] = False
     context["vectorizeFinalJSON"] = True
     context["clear"] = False

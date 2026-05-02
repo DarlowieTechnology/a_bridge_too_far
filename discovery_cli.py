@@ -130,8 +130,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 #        "1912.02292v1.pdf"
     ]
 
-#    fileList = fullFileList
-
+    fileList = fullFileList
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)

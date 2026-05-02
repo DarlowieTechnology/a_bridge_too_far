@@ -74,22 +74,22 @@ def main():
         "PHP_Code_Review.pdf"
         ,
         "WASPT_Report.pdf"
-         ,
+        ,
         "Web App and Ext Infrastructure Report.pdf"
-         ,
+        ,
         "Wikimedia.pdf"
         ,
         "Web App and Infrastructure and Mobile Report.pdf"
-         ,
+        ,
         "Refinery-CMS.pdf"
     ]
 
     # stages
     context["loadDocument"] = False
-    context["rawTextFromDocument"] = True
+    context["rawTextFromDocument"] = False
     context["finalJSONfromRaw"] = False
     context["prepareBM25corpus"] = False
-    context["vectorizeFinalJSON"] = False
+    context["vectorizeFinalJSON"] = True
     context["clear"] = False
 
     # text extraction from PDF

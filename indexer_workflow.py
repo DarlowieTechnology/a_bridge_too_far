@@ -351,12 +351,13 @@ class IndexerWorkflow(WorkflowBase):
             return None
 
 
-    def parseIssueOllama(self, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, RunUsage] :
+    def parseIssueOllama(self, ident : str, docs : str, ClassTemplate : BaseModel) -> tuple[BaseModel, RunUsage] :
         """
         Use Ollama host and Pydantic AI Agent to extracts one ClassTemplate structured record. 
         ClassTemplate is a subclass of Pydantic BaseModel.
         
         Args:
+            ident (str) - identifier extracted via regexp
             docs (str) - text with unstructured data
             ClassTemplate (BaseModel) - description of structured data
 
@@ -365,7 +366,9 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         systemPrompt = f"""
-        The prompt contains an issue. Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
+        The prompt contains a record.
+        Record starts with identifier field with the value: {ident}
+        Here is the JSON schema for the ClassTemplate model you must use as context for what information is expected:
         {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
         """
 
@@ -375,11 +378,17 @@ class IndexerWorkflow(WorkflowBase):
 
         agent = Agent(ollModel,
                     output_type=ClassTemplate,
-                    system_prompt = systemPrompt)
+                    system_prompt = systemPrompt,
+                    retries=5)
         try:
-
             result : AgentRunResult = agent.run_sync(prompt)
+
+            if not result.output.identifier:
+                # cannot parse identifier - replacing with dentifier from regexp before validation
+                result.output.identifier = ident
+
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
+
             for attr in oneIssue.__dict__:
                 if oneIssue.__dict__[attr]:
                     oneIssue.__dict__[attr] = oneIssue.__dict__[attr].replace("\n", " ")
@@ -390,7 +399,7 @@ class IndexerWorkflow(WorkflowBase):
 
             return oneIssue, runUsage
         
-        except pydantic_ai.exceptions.UnexpectedModelBehavior:
+        except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
             msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
             self.workerSnapshot(msg)
         except ValidationError as e:
@@ -422,7 +431,8 @@ class IndexerWorkflow(WorkflowBase):
 
         for item in listText.keys():
 
-            oneIssue, usageStats = self.parseIssueOllama(listText[item], ClassTemplate)
+            oneIssue, usageStats = self.parseIssueOllama(item, listText[item], ClassTemplate)
+            time.sleep(3)
             if not oneIssue:
                 continue
 
@@ -708,6 +718,7 @@ class IndexerWorkflow(WorkflowBase):
         startTime = time.time()
 
         # read final JSON into record collection
+
         result, fileContentOrError = OpenFile.open(filePath = self.finalJSON, readContent = True)
         if not result:
             msg = f"prepareBM25corpusPhase: {fileContentOrError} - perform 'finalJSONfromRaw' phase first"

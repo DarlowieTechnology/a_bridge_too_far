@@ -172,16 +172,17 @@ class ReportIssue(BaseModel):
 
 
 class ReportIssueCD(BaseModel):
-    """ReportIssueCD : An issue description in cyber security report. 
-    This is a section of the report. The section contains information on the issue.
-    Section starts with issue identifier. Identifier contains letters, numbers, dashes, no whitespace.
-    Title follows identifier field.
-    Risk Rating field follows title field
-    Title field repeats after Risk Rating field
-    Description: field  follows second title field
-    Optional Recommendation: text section follows description field
-    Optional Affects: field follows Recommendation field
-    Optional References: field follows Affects field.
+    """
+An issue section in cyber security report. \
+Section starts with identifier field. \
+identifier field contains letters, numbers, dashes, no whitespace. \
+Title follows identifier field. Title is a string terminated by words risk rating. \
+Risk rating field follows title field. risk rating contains one word describing risk level. \
+Second Title field follows Risk Rating field. It has the same string as first title field terminated by word description. \
+Description field follows second title field. It terminstes by word recommendation or end of text. \
+Optional recommendation field follows description field. It starts after word recommendation. \
+Optional affects field follows recommendation field. It starts after word affects. \
+Optional references field follows Affects field.
     """
 
     # ^ Doc-string for the issue in the test report.
@@ -192,24 +193,25 @@ class ReportIssueCD(BaseModel):
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
 
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
-    title: str = Field(default=None, description="title field contains name of the issue.")
-    risk: str = Field(default=None, description="risk field contains rate of the risk of the issue")
-    description: str = Field(default=None, description="description field contains description of the issue.")
-    recommendation: Optional[str] = Field(default=None, description="recommendation field follows description field and contains recommendation on how to mitigate the issue.")
-    affects:Optional[str] = Field(default=None, description="affects field follows recommendation field.")
-    references:Optional[str] = Field(default=None, description="references field follows affects field.")
+    identifier: str = Field(default=None, description="identifier field contains letters, numbers, dashes, no whitespace.")
+    title: str = Field(default=None, description="title field contains name of the issue. Title is a string terminated by words risk rating.")
+    risk: str = Field(default=None, description="Risk rating field follows title field. risk rating contains one word describing risk level.")
+    title2: Optional[str] = Field(default=None, description="Second title field follows Risk Rating field. It has the same string as first title field terminated by word description.")
+    description: Optional[str] = Field(default=None, description="Description field follows second title field. It terminstes by word recommendation or end of text.")
+    recommendation: Optional[str] = Field(default=None, description="Optional recommendation field follows description field. It starts after word recommendation.")
+    affects:Optional[str] = Field(default=None, description="Optional affects field follows recommendation field. It starts after word affects. ")
+    references:Optional[str] = Field(default=None, description="Optional references field follows Affects field.")
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return NotImplemented        
-        return self.identifier == other.identifier and self.title == other.title and self.risk == other.risk and self.description == other.description
+        return self.identifier == other.identifier and self.title == other.title and self.risk == other.risk
 
     def __ne__(self, other):
         return not self.__eq__(other)
     
     def stringToHash(self):
-        return self.identifier + self.title + self.risk + self.description
+        return self.identifier + self.title + self.risk
 
     # bm25s tokenization - identifier and title
     def bm25s(self) -> str:

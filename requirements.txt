@@ -139,6 +139,7 @@ langgraph-prebuilt
 langgraph-sdk
 langsmith
 llvmlite
+lmstudio
 logfire
 logfire-api
 loguru

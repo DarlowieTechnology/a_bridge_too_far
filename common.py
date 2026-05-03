@@ -96,7 +96,8 @@ DEFAULTLLMSETS = {
     GLOBALPROVIDER.LMSTUDIO.value : {
         "GLOBALllm_Embed" : "nomic-embed-text:latest",
         "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
-        "GLOBALllm_Version" : "openai/gpt-oss-120b",
+#        "GLOBALllm_Version" : "openai/gpt-oss-120b",
+        "GLOBALllm_Version" : "openai/gpt-oss-20b",
         "GLOBALllm_URL" : "http://localhost:1234/v1"
     }
 }

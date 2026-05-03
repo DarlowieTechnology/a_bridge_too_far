@@ -317,7 +317,7 @@ class IndexerWorkflow(WorkflowBase):
 
         end = len(rawText)
         if prevMatch:
-            dictIssues[prevMatch.group(0)] = rawText[start:end]
+            dictIssues[prevMatch.group('IDENTIFIERGROUP')] = rawText[start:end]
 
         self.updateStats(topKey = "Raw JSON", keyValList = [ ("Raw item files", 1), ("Raw items", len(dictIssues)) ])
         return dictIssues
@@ -372,7 +372,15 @@ class IndexerWorkflow(WorkflowBase):
         {json.dumps(ClassTemplate.model_json_schema(), indent=2)}
         """
 
+#        print("======SYS======")
+#        print(systemPrompt)
+#        print("============")
+
         prompt = f"{docs}"
+
+#        print("======INPUT======")
+#        print(docs)
+#        print("============")
 
         ollModel = self.createOpenAIModel()
 
@@ -384,8 +392,12 @@ class IndexerWorkflow(WorkflowBase):
             result : AgentRunResult = agent.run_sync(prompt)
 
             if not result.output.identifier:
-                # cannot parse identifier - replacing with dentifier from regexp before validation
+                # cannot parse identifier - replacing with identifier from regexp before validation
                 result.output.identifier = ident
+
+#            print("======Output======")
+#            print(result.output)
+#            print("============")
 
             oneIssue = ClassTemplate.model_validate_json(result.output.model_dump_json())
 
@@ -402,9 +414,11 @@ class IndexerWorkflow(WorkflowBase):
         except pydantic_ai.exceptions.UnexpectedModelBehavior as e:
             msg = "Exception: pydantic_ai.exceptions.UnexpectedModelBehavior"
             self.workerSnapshot(msg)
+            print(f"ident: {ident}  exception: {e}")
         except ValidationError as e:
             msg = f"Exception: ValidationError {e}"
             self.workerSnapshot(msg)
+            print(f"ident: {ident}  exception: {e}")
 
         # attempt regexp match only if LLM match failed
         return self.parseFallback(docs, ClassTemplate), None
@@ -430,9 +444,8 @@ class IndexerWorkflow(WorkflowBase):
         usageForPhase = RunUsage()
 
         for item in listText.keys():
-
+#            time.sleep(7)
             oneIssue, usageStats = self.parseIssueOllama(item, listText[item], ClassTemplate)
-            time.sleep(3)
             if not oneIssue:
                 continue
 

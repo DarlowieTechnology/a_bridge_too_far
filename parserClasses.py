@@ -30,7 +30,7 @@ class ReportFinding(BaseModel):
     Risk field follows title field.
     Impact field follows Risk field.
     Exploitability field follows Impact field.
-    Identifier follows Exploitability field
+    Identifier follows Exploitability field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.
     Category follows Identifier field
     Optional Component field follows Category field
     Optional Location field follows Component field
@@ -50,7 +50,7 @@ class ReportFinding(BaseModel):
     risk: str = Field(default=None, description="risk field contains rate of the risk of the issue")
     impact: str = Field(default=None, description="impact field contains rate of impact of the issue")
     exploitability: str = Field(default=None, description="exploitability field contains rate of successful exploitation of the issue")
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.")
     category: Optional[str] = Field(default=None, description="category field contains category of the issue")
     component: Optional[str] = Field(default=None, description="component field contains name of component where the issue was found")
     location: Optional[str] = Field(default=None, description="location field contains location of the issue")
@@ -77,18 +77,18 @@ class ReportFinding(BaseModel):
 class ReportFindingWithStatus(BaseModel):
     """A finding description in cyber security report. 
     This is a section of the report.
-    Section starts with Title field.
-    Risk field follows Title field.
-    Impact field follows Risk field.
-    Exploitability field follows Impact field.
-    Identifier field follows Exploitability field.
-    Status field follows Identifier field 
-    Category field follows Status field
-    Optional Component field follows Category field
-    Optional Location follows Component field
-    Optional Impact follows Location field
-    Optional Description field follows Impact field
-    Optional Recommendation field follows Description field.
+    Section starts with Title field. Title field is a string terminated by word 'risk'.
+    Risk field follows Title field. Risk contains one word describing risk level: undetermined or low or medium or high or critical.
+    Impact field follows risk field. Impact field contains one word describing impact level: undetermined or low or medium or high or critical.
+    Exploitability field follows impact field. Exploitability field contains one word describing exploitability: undetermined or low or medium or high or critical.
+    Identifier field follows exploitability field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. Identifier field is terminated by word 'status'.
+    Status field follows Identifier field. Status field contains one word describing status. Status field is terminated by word 'category'.
+    Optional category field follows status field
+    Optional component field follows category field
+    Optional location follows component field
+    Optional impact follows location field
+    Optional description field follows impact field
+    Optional recommendation field follows description field.
     """
 
     # ^ Doc-string for the finding in the test report.
@@ -98,18 +98,18 @@ class ReportFindingWithStatus(BaseModel):
     # Note that:
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
-    title: str = Field(default=None, description="title field contains name of the issue.")
-    risk: str = Field(default=None, description="risk field contains rate of the risk of the issue.")
-    impact: str = Field(default=None, description="impact field contains rate of impact of the issue.")
-    exploitability: str = Field(default=None, description="exploitability field contains rate of successful exploitation of the issue.")
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
-    status: str = Field(default=None, description="status field contains status of the issue.")
-    category: Optional[str] = Field(default=None, description="category field follows identifier.")
-    component: Optional[str] = Field(default=None, description="component field contains name of component where the issue was found.")
-    location: Optional[str] = Field(default=None, description="location field contains location of the issue.")
-    impactdescription: Optional[str] = Field(default=None, description="impact description field contains description of impact of the issue.")
-    description: Optional[str] = Field(default=None, description="description field contains description of the issue.")
-    recommendation: Optional[str] = Field(default=None, description="recommendation field contains recommendation on how to mitigate the issue.")
+    title: str = Field(default=None, description="Title field is a string terminated by word 'risk'.")
+    risk: str = Field(default=None, description="Risk field follows Title field. Risk contains one word describing risk level: undetermined or low or medium or high or critical.")
+    impact: str = Field(default=None, description="Impact field follows risk field. Impact field contains one word describing impact level: undetermined or low or medium or high or critical.")
+    exploitability: str = Field(default=None, description="Exploitability field follows impact field. Exploitability field contains one word describing exploitability: undetermined or low or medium or high or critical.")
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. Identifier field is terminated by word 'status'.")
+    status: str = Field(default=None, description="Status field follows Identifier field. Status field contains one word describing status. Status field is terminated by word 'category'.")
+    category: Optional[str] = Field(default=None, description="Optional category field follows status field.")
+    component: Optional[str] = Field(default=None, description="Optional component field contains name of component where the issue was found.")
+    location: Optional[str] = Field(default=None, description="location Optional field contains location of the issue.")
+    impactdescription: Optional[str] = Field(default=None, description="Optional impact description field contains description of impact of the issue.")
+    description: Optional[str] = Field(default=None, description="Optional description field contains description of the issue.")
+    recommendation: Optional[str] = Field(default=None, description="Optional recommendation field contains recommendation on how to mitigate the issue.")
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -128,15 +128,15 @@ class ReportFindingWithStatus(BaseModel):
 
     
 class ReportIssue(BaseModel):
-    """An issue description in cyber security report. 
-    This is a section of the report.
-    Section starts with identifier. Identifier contains letters, numbers, dashes, no whitespace.
-    Title field follows identifier field.
-    Risk rating field follows title.
-    Optional Status field follows Risk Rating field.
-    Optional Description text section follows Status field
-    Optional Recommendation text section follows Description field.
-    Optional Affects field follows Recommendation field.
+    """
+An issue section in cyber security report. \
+Section starts with identifier field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. \
+Title follows identifier field. Title is a string terminated by words: 'risk rating'. \
+Risk field starts after words: 'risk rating'. Risk field contains one word describing risk level: low or medium or high or critical. \
+Optional status field follows risk field. Status field contains one word describing status. \
+Optional Description field follows status field. Description field terminates by word 'recommendation' or end of text. \
+Optional recommendation field follows description field. Recommendation field starts after word 'recommendation'. Recommendation field terminates by word 'affects' or end of text.\
+Optional affects field follows recommendation field. It starts after word 'affects'. \
     """
 
     # ^ Doc-string for the issue in the test report.
@@ -147,13 +147,13 @@ class ReportIssue(BaseModel):
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
 
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
-    title: str = Field(default=None, description="title field contains name of the issue.")
-    risk: str = Field(default=None, description="risk field contains rate of the risk of the issue.")
-    status: Optional[str] = Field(default=None, description="status field contains status of the issue.")
-    description: Optional[str] = Field(default=None, description="description field contains description of the issue.")
-    recommendation: Optional[str] = Field(default=None, description="recommendation field contains recommendation on how to mitigate the issue.")
-    affects:Optional[str] = Field(default=None, description="affects field follows recommendation text section.")
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.")
+    title: str = Field(default=None, description="Title follows identifier field. Title is a string terminated by words: 'risk rating'.")
+    risk: str = Field(default=None, description="Risk field starts after words: 'risk rating'. Risk field contains one word describing risk level: low or medium or high or critical.")
+    status: Optional[str] = Field(default=None, description="Optional status field follows risk field. Status field contains one word describing status.")
+    description: Optional[str] = Field(default=None, description="Optional Description field follows status field. Description field terminates by word 'recommendation' or end of text.")
+    recommendation: Optional[str] = Field(default=None, description="Optional recommendation field follows description field. Recommendation field starts after word recommendation. Recommendation field terminates by word 'affects' or end of text.")
+    affects:Optional[str] = Field(default=None, description="Optional affects field follows recommendation field. It starts after word 'affects'.")
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -174,12 +174,11 @@ class ReportIssue(BaseModel):
 class ReportIssueCD(BaseModel):
     """
 An issue section in cyber security report. \
-Section starts with identifier field. \
-identifier field contains letters, numbers, dashes, no whitespace. \
-Title follows identifier field. Title is a string terminated by words risk rating. \
-Risk rating field follows title field. risk rating contains one word describing risk level. \
-Second Title field follows Risk Rating field. It has the same string as first title field terminated by word description. \
-Description field follows second title field. It terminstes by word recommendation or end of text. \
+Section starts with identifier field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. \
+Title follows identifier field. Title field is a string terminated by words risk rating. \
+Risk rating field follows title field. risk rating contains one word describing risk level: low or medium or high or critical. \
+Optional second title field follows risk rating field. Second title field has the same string as title field. Second title field is terminated by word description. \
+Optional description field follows second title field. It terminates by word recommendation or end of text. \
 Optional recommendation field follows description field. It starts after word recommendation. \
 Optional affects field follows recommendation field. It starts after word affects. \
 Optional references field follows Affects field.
@@ -193,11 +192,11 @@ Optional references field follows Affects field.
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
 
-    identifier: str = Field(default=None, description="identifier field contains letters, numbers, dashes, no whitespace.")
-    title: str = Field(default=None, description="title field contains name of the issue. Title is a string terminated by words risk rating.")
-    risk: str = Field(default=None, description="Risk rating field follows title field. risk rating contains one word describing risk level.")
-    title2: Optional[str] = Field(default=None, description="Second title field follows Risk Rating field. It has the same string as first title field terminated by word description.")
-    description: Optional[str] = Field(default=None, description="Description field follows second title field. It terminstes by word recommendation or end of text.")
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.")
+    title: str = Field(default=None, description="Title follows identifier field. Title field is a string terminated by words risk rating.")
+    risk: str = Field(default=None, description="Risk rating field follows title field. Risk rating field contains one word describing risk level: low or medium or high or critical.")
+    title2: Optional[str] = Field(default=None, description="Optional second title field follows risk rating field. Second title field has the same string as title field. Second title field is terminated by word description.")
+    description: Optional[str] = Field(default=None, description="Optional description field follows second title field. It terminstes by word recommendation or end of text.")
     recommendation: Optional[str] = Field(default=None, description="Optional recommendation field follows description field. It starts after word recommendation.")
     affects:Optional[str] = Field(default=None, description="Optional affects field follows recommendation field. It starts after word affects. ")
     references:Optional[str] = Field(default=None, description="Optional references field follows Affects field.")
@@ -219,12 +218,12 @@ Optional references field follows Affects field.
 
 
 class IssueDescription(BaseModel):
-    """An issue description in cyber security report. 
-    This is a section of the report. 
-    Section starts with issue identifier. Identifier contains letters, numbers, dashes, no whitespace.
-    Title follows identifier field.
-    Risk rating follows Title, Risk Rating field is enclosed in brackets.
-    Optional Description field follows Risk Rating field.
+    """
+An issue description in cyber security report. \
+Section starts with identifier field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. Identifier field is terminated by semicolon.
+Title field follows identifier field. Title field is a string terminated by round bracket.
+Risk rating follows title field. Risk rating field is enclosed in round brackets.
+Optional description field follows risk rating field.
     """
 
     # ^ Doc-string for the issue in the test report.
@@ -235,9 +234,9 @@ class IssueDescription(BaseModel):
     # Each field has a `description` -- this description is used by the LLM.
     # Having a good description can help improve extraction results.
 
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
-    title: str = Field(default=None, description="title field contains name of the issue.")
-    risk: str = Field(default=None, description="risk field contains rate of the risk of the issue.")    
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace. Identifier field is terminated by semicolon.")
+    title: str = Field(default=None, description="Title field follows identifier field. Title field is a string terminated by round bracket.")
+    risk: str = Field(default=None, description="Risk rating follows title field. Risk rating field is enclosed in round brackets.")
     description: Optional[str] = Field(default=None, description="description field contains description of the issue.")
 
     def __eq__(self, other):
@@ -263,7 +262,7 @@ class ISECIssue(BaseModel):
     Class field follows Title field 
     Severity field follows Class field 
     Difficulty field follows Severity field 
-    Identifier follows Difficulty field. Finding ID contains letters, numbers, dashes, no whitespace.
+    Identifier follows Difficulty field. Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.
     Optional Targets field follows Identifier field
     Optional Description field follows Targets field 
     Optional Exploit scenario field follows Description field
@@ -283,7 +282,7 @@ class ISECIssue(BaseModel):
     vulnClass: str = Field(default=None, description="vulnerability class of the issue")
     severity: str = Field(default=None, description="severity of the issue")
     difficulty: str = Field(default=None, description="difficulty of exploitation of the issue")
-    identifier: str = Field(default=None, description="identifier field contains unique identifier of the issue.")
+    identifier: str = Field(default=None, description="Identifier field contains single word consisting of letters, numbers, dashes, no whitespace.")
     targets: Optional[str] = Field(default=None, description="targets field contains targets for the exploitation")
     description: Optional[str] = Field(default=None, description="description field contains description of the issue.")
     exploitScenario: Optional[str] = Field(default=None, description="exploit scenario field contains detailed description of the exploit")

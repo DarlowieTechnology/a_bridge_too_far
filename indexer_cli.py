@@ -86,10 +86,10 @@ def main():
 
     # stages
     context["loadDocument"] = False
-    context["rawTextFromDocument"] = False
-    context["finalJSONfromRaw"] = False
+    context["rawTextFromDocument"] = True
+    context["finalJSONfromRaw"] = True
     context["prepareBM25corpus"] = False
-    context["vectorizeFinalJSON"] = True
+    context["vectorizeFinalJSON"] = False
     context["clear"] = False
 
     # text extraction from PDF

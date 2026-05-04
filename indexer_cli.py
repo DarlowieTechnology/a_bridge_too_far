@@ -10,6 +10,7 @@ import json
 import re
 import time
 from pathlib import Path
+import argparse
 from pprint import pprint
 
 from typing import Any, List, Dict
@@ -57,40 +58,60 @@ def main():
 
     context = darlowie.context
 
-    # test list - only process data sources from this list
-    fileList = [
-#        "Architecture Review - Threat Model Report.pdf"
-#        ,
-#        "AWS_Review.pdf"
-#        ,
-        "CD_and_DevOps Review.pdf"
-        ,
-        "Database Review.pdf"
-        ,
-        "Firewall Review.pdf"
-        ,
-        "phpMyAdmin.pdf"
-        ,
-        "PHP_Code_Review.pdf"
-        ,
-        "WASPT_Report.pdf"
-        ,
-        "Web App and Ext Infrastructure Report.pdf"
-        ,
-        "Wikimedia.pdf"
-        ,
-        "Web App and Infrastructure and Mobile Report.pdf"
-        ,
-        "Refinery-CMS.pdf"
-    ]
+    parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
+    parser.add_argument("--input", help="File with reports to process, new line delimited")
+    parser.add_argument("--load", action='store_const', const=True, help=f"Perform PDF load")
+    parser.add_argument("--rawjson", action='store_const', const=True, help=f"Perform raw JSON extraction")
+    parser.add_argument("--finaljson", action='store_const', const=True, help=f"Perform final JSON extraction")
+    parser.add_argument("--bm25s", action='store_const', const=True, help=f"Create bm25s index")
+    parser.add_argument("--vectorize", action='store_const', const=True, help=f"Perform vectorization")
+    parser.add_argument("--clear", action='store_const', const=True, help=f"Perform temp files removal")
+    args = parser.parse_args()
 
     # stages
-    context["loadDocument"] = False
-    context["rawTextFromDocument"] = False
-    context["finalJSONfromRaw"] = True
-    context["prepareBM25corpus"] = False
-    context["vectorizeFinalJSON"] = False
-    context["clear"] = False
+    if args.load:
+        context["loadDocument"] = True
+    else:
+        context["loadDocument"] = False
+
+    if args.rawjson:
+        context["rawTextFromDocument"] = True
+    else:
+        context["rawTextFromDocument"] = False
+
+    if args.finaljson:
+        context["finalJSONfromRaw"] = True
+    else:
+        context["finalJSONfromRaw"] = False
+
+    if args.bm25s:
+        context["prepareBM25corpus"] = True
+    else:
+        context["prepareBM25corpus"] = False
+
+    if args.vectorize:
+        context["vectorizeFinalJSON"] = True
+    else:
+        context["vectorizeFinalJSON"] = False
+
+    if args.clear:
+        context["clear"] = True
+    else:
+        context["clear"] = False
+
+    if context["loadDocument"] or context["rawTextFromDocument"] or context["finalJSONfromRaw"] or context["prepareBM25corpus"] or context["vectorizeFinalJSON"]:
+        # enforce file list argument for all stages that require input files
+        if not args.input:
+            print("Provide list of reports to process")
+            return
+        
+    if args.input:
+        res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        fileList = errOrContent.split('\n')
+        fileList = [x for x in fileList if x]   # remove empty strings
 
     # text extraction from PDF
     context["stripWhiteSpace"] = True
@@ -102,7 +123,6 @@ def main():
     context["statusFileName"] = context["IDXCLIstatus_FileName"]
     context["session_key"] = context["IDXCLIsession_key"]
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["INDEXEdocumentFolder"] + context["GLOBALrag_Datapath"]
-
 
     configCollection = ConfigCollection(conf = context)
     configCollection.configure()

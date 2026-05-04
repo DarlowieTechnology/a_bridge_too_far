@@ -203,7 +203,8 @@ class DiscoveryWorkflow(WorkflowBase):
         self.chunkOverlap = configCollection["chunkOverlap"]
 
         # search configuration
-        self.knownTopics = configCollection["knownTopics"]
+        if configCollection.keyExists("knownTopics"):
+            self.knownTopics = configCollection["knownTopics"]
 
         if configCollection.keyExists("searchSemanticOriginal"):
             self.searchSemanticOriginal = configCollection["searchSemanticOriginal"]

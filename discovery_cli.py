@@ -17,7 +17,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import ConfigCollection, OpenFile
+from common import GLOBALPROVIDER, ConfigCollection, OpenFile
 from discovery_workflow import DiscoveryWorkflow
 from queryService import QueryService
 from resultsQueryClasses import CollectionChunkQueryResults
@@ -191,37 +191,88 @@ def main():
     defaultOutputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
 
     parser = argparse.ArgumentParser(description="Discovery CLI")
-    parser.add_argument("--query", help="User query - preference over query input file")
+    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
+    parser.add_argument("--query", help="User query string, for example \"Bell's palsy\"")
     parser.add_argument("--input", help="File with user queries, new line delimited")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
-    args = parser.parse_args()
-    if args.query:
-        userQueryList = [args.query]
-    else:
-        if args.input:
-            res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
-            if not res:
-                print(errOrContent)
-                return
-            userQueryList = errOrContent.split('\n')
-        else:
-            print("Provide query on command line or input file name")
-            return
-    if args.output:
-        outputFileName = args.output
-    else:
-        outputFileName = defaultOutputFileName
-    if args.count:
-        outputNumber = args.output
-    else:
-        outputNumber = context["DISCLIoutputCount"]
+    parser.add_argument("--load", action='store_const', const=True, help=f"Load documents")
+    parser.add_argument("--parsechunks", action='store_const', const=True, help=f"Parse chunks")
+    parser.add_argument("--makerawvector", action='store_const', const=True, help=f"Create raw vector table")
+    parser.add_argument("--bm25s", action='store_const', const=True, help=f"Create bm25s index")
+    parser.add_argument("--matchchunks", action='store_const', const=True, help=f"Execute hybrid search")
+    parser.add_argument("--clear", action='store_const', const=True, help=f"Remove temp files")
 
-    # ------ configurable on command line
-    #
-    context["knownTopics"] = userQueryList          # list of user queries - supplied in input file
-    context["outputNumber"] = outputNumber          # number of items in result lists - configurable on command line
-    context['outputFileName'] = outputFileName      # name of output file - configurable on command line
+    args = parser.parse_args()
+
+    if args.provider:
+        if args.provider not in GLOBALPROVIDER:
+            print(f"Unknown provider {args.provider}")
+            return
+        else:
+            context['GLOBALllm_Provider'] = args.provider
+
+    if args.verbose:
+        # can be any logging.XXXX values, so we don't check, see Python logging package for details
+        context['GLOBALloggerLevel'] = int(args.verbose)
+
+    # stages
+    if args.load:
+        context["loadDocument"] = True
+    else:
+        context["loadDocument"] = False
+
+    if args.parsechunks:
+        context["parseChunks"] = True
+    else:
+        context["parseChunks"] = False
+
+    if args.makerawvector:
+        context["makeRawVector"] = True
+    else:
+        context["makeRawVector"] = False
+
+    if args.bm25s:
+        context["bm25Process"] = True
+    else:
+        context["bm25Process"] = False
+
+    if args.matchchunks:
+        context["matchChunks"] = True
+    else:
+        context["matchChunks"] = False
+
+    if args.clear:
+        context["clear"] = True
+    else:
+        context["clear"] = False
+
+    if context["matchChunks"]:
+        # enforce command line query or input file for matching chunks stage
+        if args.query:
+            context["knownTopics"] = [args.query]    # make list out of single query string on command line
+        else:
+            if args.input:
+                res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
+                if not res:
+                    print(errOrContent)
+                    return
+                context["knownTopics"] = errOrContent.split('\n')
+                context["knownTopics"] = [x for x in context["knownTopics"] if x]   # remove empty strings
+            else:
+                print("Provide query on command line or input file name")
+                return
+
+    if args.output:
+        context['outputFileName'] = args.output
+    else:
+        context['outputFileName'] = defaultOutputFileName
+
+    if args.count:
+        context["outputNumber"] = args.output
+    else:
+        context["outputNumber"] = context["DISCLIoutputCount"]
 
     # ------ other configuration parameter
     #
@@ -229,14 +280,6 @@ def main():
     context["statusFileName"] = context["DISCLIstatus_FileName"]
     context["session_key"] = context["DISCLIsession_key"]
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
-
-    # workflow actions
-    context["loadDocument"] = True
-    context["parseChunks"] = True
-    context["makeRawVector"] = True
-    context["bm25Process"] = True
-    context["matchChunks"] = True
-    context["clear"] = False
 
     # text extraction configuration
     context["stripWhiteSpace"] = True
@@ -249,6 +292,7 @@ def main():
     context["chunkSize"] = 256
     context["chunkOverlap"] = 48
 
+    # components of hybrid search
     context["searchSemanticOriginal"] = False
     context["searchBM25sOriginal"] = False
     context["searchSemanticMulti"] = True

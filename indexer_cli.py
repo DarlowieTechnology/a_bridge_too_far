@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 # local
 import darlowie
-from common import COLLECTION, ConfigCollection, DebugUtils, OpenFile, RecordCollection
+from common import GLOBALPROVIDER, COLLECTION, ConfigCollection, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
@@ -59,6 +59,8 @@ def main():
     context = darlowie.context
 
     parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
+    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--input", help="File with reports to process, new line delimited")
     parser.add_argument("--load", action='store_const', const=True, help=f"Perform PDF load")
     parser.add_argument("--rawjson", action='store_const', const=True, help=f"Perform raw JSON extraction")
@@ -67,6 +69,17 @@ def main():
     parser.add_argument("--vectorize", action='store_const', const=True, help=f"Perform vectorization")
     parser.add_argument("--clear", action='store_const', const=True, help=f"Perform temp files removal")
     args = parser.parse_args()
+
+    if args.provider:
+        if args.provider not in GLOBALPROVIDER:
+            print(f"Unknown provider {args.provider}")
+            return
+        else:
+            context['GLOBALllm_Provider'] = args.provider
+
+    if args.verbose:
+        # can be any logging.XXXX values, so we don't check, see Python logging package for details
+        context['GLOBALloggerLevel'] = int(args.verbose)
 
     # stages
     if args.load:

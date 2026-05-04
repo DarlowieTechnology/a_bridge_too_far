@@ -3,13 +3,14 @@
 #
 import time
 import threading
+import logging
 import argparse
 from pprint import pprint
 
 
 # local
 import darlowie
-from common import QUERYTYPES, TOKENIZERTYPES, ConfigCollection
+from common import GLOBALPROVIDER, QUERYTYPES, TOKENIZERTYPES, ConfigCollection
 from query_workflow import QueryWorkflow
 
 
@@ -48,33 +49,46 @@ def main():
     defaultOutputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
 
     parser = argparse.ArgumentParser(description="Query CLI")
+    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['QUECLIoutputCount']}")
+
     args = parser.parse_args()
+
+    if args.provider:
+        if args.provider not in GLOBALPROVIDER:
+            print(f"Unknown provider {args.provider}")
+            return
+        else:
+            context['GLOBALllm_Provider'] = args.provider
+
+    if args.verbose:
+        # can be any logging.XXXX values, so we don't check, see Python logging package for details
+        context['GLOBALloggerLevel'] = int(args.verbose)
+
     if args.query:
         userQuery = args.query
     else:
         print("Provide user query")
         return
+
     if args.output:
-        outputFileName = args.output
-        print(f"Output file name: {outputFileName}")
+        context['outputFileName'] = args.output
     else:
         outputFileName = defaultOutputFileName
+
     if args.count:
-        outputNumber = args.output
+        context['outputNumber'] = args.output
     else:
-        outputNumber = context["QUECLIoutputCount"]
+        context['outputNumber'] = context["QUECLIoutputCount"]
 
     # ------ configurable on command line
     #
     context['query'] = [userQuery]                      # query - configurable on command line
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
-
-    context['outputFileName'] = outputFileName          # name of output file - configurable on command line
-    context['outputNumber'] = outputNumber              # number of items in result lists - configurable on command line
 
     # ------ other configuration parameter
     #

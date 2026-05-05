@@ -44,7 +44,8 @@ class LLMNAMES(str, Enum) :
     GEMINI25GOOGLE = "gemini-2.5-flash",
     GEMINI25LITEGOOGLE = "gemini-2.5-flash-lite",
     GEMMA4OLLAMA = "gemma4:latest",
-    GEMMA4CLOUDOLLAMA = "gemma4:31b-cloud"
+    GEMMA4CLOUDOLLAMA = "gemma4:31b-cloud",
+    GEMMA4LMSTUDIO = "google/gemma-4-e4b"
 
 
 PROVIDERS = {
@@ -65,10 +66,11 @@ PROVIDERS = {
         "llm" : [
             LLMNAMES.LLAMA3370BLMSTUDIO.value,
             LLMNAMES.GPTOSS120BLMSTUDIO.value,
-            LLMNAMES.GPTOSS20BLMSTUDIO.value
+            LLMNAMES.GPTOSS20BLMSTUDIO.value,
+            LLMNAMES.GEMMA4LMSTUDIO.value
         ],
         "url" : "http://localhost:1234/v1",
-        "embed" : "http://localhost:11434/api/embeddings"
+        "embed" : "http://localhost:11434/api/embeddings"       # TODO relying on Ollama to host embedding LLM
     },
     GLOBALPROVIDER.GEMINI.value : {
         "llm" : [
@@ -79,7 +81,7 @@ PROVIDERS = {
             LLMNAMES.GEMINI25LITEGOOGLE.value
         ],
         "url" : "https://generativelanguage.googleapis.com/v1beta/openai/",
-        "embed" : "http://localhost:11434/api/embeddings"
+        "embed" : "http://localhost:11434/api/embeddings"       # TODO relying on Ollama to host embedding LLM
     }
 }
 
@@ -95,9 +97,10 @@ DEFAULTLLMSETS = {
     },
     GLOBALPROVIDER.LMSTUDIO.value : {
         "GLOBALllm_Embed" : "nomic-embed-text:latest",
-        "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",
+        "GLOBALembedding_URL" : "http://localhost:11434/api/embeddings",  # TODO relying on Ollama to host embedding LLM
 #        "GLOBALllm_Version" : "openai/gpt-oss-120b",
-        "GLOBALllm_Version" : "openai/gpt-oss-20b",
+#        "GLOBALllm_Version" : "openai/gpt-oss-20b",
+        "GLOBALllm_Version" : LLMNAMES.GEMMA4LMSTUDIO.value,
         "GLOBALllm_URL" : "http://localhost:1234/v1"
     }
 }

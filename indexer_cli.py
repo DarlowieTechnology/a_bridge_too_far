@@ -125,6 +125,8 @@ def main():
             return
         fileList = errOrContent.split('\n')
         fileList = [x for x in fileList if x]   # remove empty strings
+    else:
+        fileList = []
 
     # text extraction from PDF
     context["stripWhiteSpace"] = True

@@ -345,9 +345,9 @@ class WorkflowBase(BaseModel):
                 return self.getModel(OPENAIAPI.RESPONSES)
 #                return self.getModel(OPENAIAPI.CHAT)
             
-            if self.generalLLM == LLMNAMES.LLAMA3370BLMSTUDIO.value:
+            if (self.generalLLM == LLMNAMES.LLAMA3370BLMSTUDIO.value) or (self.generalLLM == LLMNAMES.GEMMA4LMSTUDIO.value):
 
-                # LM Studio uses OpenAI Chat API for LLama models
+                # LM Studio uses OpenAI Chat API for LLama models and Google Gemma models
                 return self.getModel(OPENAIAPI.CHAT)
 
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:

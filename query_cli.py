@@ -77,7 +77,7 @@ def main():
     if args.output:
         context['outputFileName'] = args.output
     else:
-        outputFileName = defaultOutputFileName
+        context['outputFileName'] = defaultOutputFileName
 
     if args.count:
         context['outputNumber'] = args.output

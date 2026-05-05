@@ -207,3 +207,12 @@ default.toml
 
 # data
 documents
+.ollama/
+.vs/
+aaa.txt
+chromadb/
+fails.json
+status.DISCOVERY.json
+status.INDEXER.json
+status.QUERY.json
+.gitignore

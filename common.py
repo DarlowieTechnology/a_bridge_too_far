@@ -144,6 +144,39 @@ class TOKENIZERTYPES(IntFlag) :
     STEMMER = auto()
 
 
+class CommonHelper(BaseModel):
+
+    @staticmethod
+    def displayProviderLLM(context : Dict[str, Any]) :
+        """
+        Displays configuration of Provider and LLM
+        """
+        provider = context["GLOBALllm_Provider"]
+        for providerDef in DEFAULTLLMSETS.keys():
+            dictInfo = DEFAULTLLMSETS[providerDef]
+            if providerDef == provider:
+                providerOut = f"Provider: {providerDef} - CURRENT"
+            else:
+                providerOut = f"Provider: {providerDef}"
+            print(providerOut)
+            print(f"\tLLM: {dictInfo['GLOBALllm_Version']}")
+            print(f"\tLLM URL: {dictInfo['GLOBALllm_URL']}")
+            print(f"\tEmbedding LLM: {dictInfo['GLOBALllm_Embed']}")
+            print(f"\tEmbedding URL: {dictInfo['GLOBALembedding_URL']}")
+            print(f"\tPossible LLMs")
+            llmList = PROVIDERS[providerDef]["llm"]
+            for llmName in llmList:
+                print(f"\t\t{llmName}")
+
+    @ staticmethod
+    def setLLMName(providerName : str, llmName : str) :
+        DEFAULTLLMSETS[providerName]["GLOBALllm_Version"] = llmName
+
+    @ staticmethod
+    def currentLLMName(providerName : str) -> str :
+        return DEFAULTLLMSETS[providerName]["GLOBALllm_Version"]
+
+
 class OneDiscoveryBM25File(BaseModel):
     """
     represents file metadata for bm25 index

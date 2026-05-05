@@ -17,7 +17,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, ConfigCollection, OpenFile
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, OpenFile
 from discovery_workflow import DiscoveryWorkflow
 from queryService import QueryService
 from resultsQueryClasses import CollectionChunkQueryResults
@@ -191,7 +191,8 @@ def main():
     defaultOutputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
 
     parser = argparse.ArgumentParser(description="Discovery CLI")
-    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
+    parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--query", help="User query string, for example \"Bell's palsy\"")
     parser.add_argument("--input", help="File with user queries, new line delimited")
@@ -207,11 +208,25 @@ def main():
     args = parser.parse_args()
 
     if args.provider:
+        if args.provider == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
         if args.provider not in GLOBALPROVIDER:
             print(f"Unknown provider {args.provider}")
             return
         else:
             context['GLOBALllm_Provider'] = args.provider
+
+    if args.llm:
+        if args.llm == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
+        if args.llm not in LLMNAMES:
+            print(f"Unknown LLM {args.llm}")
+            return
+        else:
+            provider = context["GLOBALllm_Provider"]
+            CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
         # can be any logging.XXXX values, so we don't check, see Python logging package for details
@@ -273,6 +288,9 @@ def main():
         context["outputNumber"] = args.output
     else:
         context["outputNumber"] = context["DISCLIoutputCount"]
+
+    # summary of command line
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
     # ------ other configuration parameter
     #

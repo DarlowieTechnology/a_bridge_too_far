@@ -10,7 +10,7 @@ from pprint import pprint
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, QUERYTYPES, TOKENIZERTYPES, ConfigCollection
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection
 from query_workflow import QueryWorkflow
 
 
@@ -49,7 +49,8 @@ def main():
     defaultOutputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
 
     parser = argparse.ArgumentParser(description="Query CLI")
-    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
+    parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
@@ -58,11 +59,25 @@ def main():
     args = parser.parse_args()
 
     if args.provider:
+        if args.provider == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
         if args.provider not in GLOBALPROVIDER:
             print(f"Unknown provider {args.provider}")
             return
         else:
             context['GLOBALllm_Provider'] = args.provider
+
+    if args.llm:
+        if args.llm == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
+        if args.llm not in LLMNAMES:
+            print(f"Unknown LLM {args.llm}")
+            return
+        else:
+            provider = context["GLOBALllm_Provider"]
+            CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
         # can be any logging.XXXX values, so we don't check, see Python logging package for details
@@ -89,6 +104,10 @@ def main():
     context['query'] = [userQuery]                      # query - configurable on command line
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
+
+    # summary of command line
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
+
 
     # ------ other configuration parameter
     #

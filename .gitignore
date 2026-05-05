@@ -215,4 +215,7 @@ fails.json
 status.DISCOVERY.json
 status.INDEXER.json
 status.QUERY.json
+status.JIRAEXPORT.json
 .gitignore
+node_modules/
+oldcode/

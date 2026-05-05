@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, COLLECTION, ConfigCollection, DebugUtils, OpenFile, RecordCollection
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
@@ -59,7 +59,8 @@ def main():
     context = darlowie.context
 
     parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
-    parser.add_argument("--provider", help=f"LLM service provider, one of [\"ollama\", \"lmstudio\"], default \"{context['GLOBALllm_Provider']}\"")
+    parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
+    parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--input", help="File with reports to process, new line delimited")
     parser.add_argument("--load", action='store_const', const=True, help=f"Perform PDF load")
@@ -71,11 +72,25 @@ def main():
     args = parser.parse_args()
 
     if args.provider:
+        if args.provider == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
         if args.provider not in GLOBALPROVIDER:
             print(f"Unknown provider {args.provider}")
             return
         else:
             context['GLOBALllm_Provider'] = args.provider
+
+    if args.llm:
+        if args.llm == '?':
+            CommonHelper.displayProviderLLM(context)
+            return
+        if args.llm not in LLMNAMES:
+            print(f"Unknown LLM {args.llm}")
+            return
+        else:
+            provider = context["GLOBALllm_Provider"]
+            CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
         # can be any logging.XXXX values, so we don't check, see Python logging package for details
@@ -127,6 +142,9 @@ def main():
         fileList = [x for x in fileList if x]   # remove empty strings
     else:
         fileList = []
+
+    # summary of command line
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
     # text extraction from PDF
     context["stripWhiteSpace"] = True

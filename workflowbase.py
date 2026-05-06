@@ -84,10 +84,12 @@ class WorkflowBase(BaseModel):
         return self
 
 
-    def configure(self, configCollection : ConfigCollection) :
+    def configure(self, configCollection : ConfigCollection) -> bool:
 
         logging.basicConfig(stream=sys.stdout, level=configCollection["GLOBALloggerLevel"])
         self.logger = logging.getLogger(configCollection["session_key"])
+        self.usage = RunUsage()
+        self.statusFileName = configCollection["statusFileName"]
 
         self.globalProvider = configCollection["GLOBALllm_Provider"]
         self.embeddingLLM = configCollection["GLOBALllm_Embed"]
@@ -100,17 +102,14 @@ class WorkflowBase(BaseModel):
         self.ragDatapath = configCollection["ragDatapath"]
 
         # manually call model validator
-        self.WorkflowBase_verify_configuration()
+        try:
+            self.WorkflowBase_verify_configuration()
+        except ValueError as e:
+            msg = f"{e}"
+            self.workerError(msg)
+            return False
 
-        # delay RAG components till vectorize action
-#        self.embeddingFunction  = self.createEmbeddingFunction()
-#        self.chromaClient = self.openChromaClient()
-#        if self.chromaClient:
-#            for coll in list(COLLECTION):
-#                self.collections[coll.value] = self.openOrCreateCollection(coll.value, True)
-
-        self.usage = RunUsage()
-        self.statusFileName = configCollection["statusFileName"]
+        return True
 
 
     def updateStats(self, topKey : str, keyValList : List[tuple[str, int]]) :

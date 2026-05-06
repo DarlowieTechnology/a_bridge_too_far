@@ -161,7 +161,8 @@ def main():
     configCollection.configure()
 
     indexerWorkflow = IndexerWorkflow()
-    indexerWorkflow.configure(configCollection)
+    if not indexerWorkflow.configure(configCollection):
+        return
 
 #    testRun(indexerWorkflow = indexerWorkflow, fileList = [fileList])
 

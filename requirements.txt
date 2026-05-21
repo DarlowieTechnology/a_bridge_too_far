@@ -72,6 +72,7 @@ exceptiongroup
 executing
 face
 fakeredis
+fastapi[standard]
 fastavro
 fastembed
 fastmcp

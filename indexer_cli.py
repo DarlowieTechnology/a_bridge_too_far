@@ -152,17 +152,11 @@ def main():
     context["convertToASCII"] = True
     context["singleSpaces"] = True
 
-    # configuration of base class
-    context["statusFileName"] = context["IDXCLIstatus_FileName"]
-    context["session_key"] = context["IDXCLIsession_key"]
-    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["INDEXEdocumentFolder"] + context["GLOBALrag_Datapath"]
-
-    configCollection = ConfigCollection(conf = context)
-    configCollection.configure()
+    configCollection = ConfigCollection()
+    configCollection.configure(context = context)
 
     indexerWorkflow = IndexerWorkflow()
-    if not indexerWorkflow.configure(configCollection):
-        return
+    indexerWorkflow.configure(configCollection)
 
 #    testRun(indexerWorkflow = indexerWorkflow, fileList = [fileList])
 

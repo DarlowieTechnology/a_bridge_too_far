@@ -2,6 +2,7 @@
 # Query workflow class used by Django app and command line
 #
 import json
+import logging
 from typing import List, Dict
 from typing_extensions import Self
 from pathlib import Path
@@ -46,10 +47,12 @@ class QueryWorkflow(WorkflowBase):
     queryPreprocessFlag : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
     queryCompressFlag : bool = Field(default = True, description="Call Telegraphic Semantic Compression (TSC) after every query transform")
 
-    stats : Dict[str, int] = Field(default = {}, description="Run statistics")
+    @model_validator(mode='after')
+    def verify_configuration(self) -> Self:
 
-#    @model_validator(mode='after')
-    def queryWorkflow_verify_configuration(self) -> Self:
+        # call base class validator first
+        super().verify_configuration()
+
         if not Path(self.dataFolder).is_dir:
             raise ValueError(f'Intermediate data folder is invalid')
         if not Path(self.bm25IndexFolder).is_dir:
@@ -66,8 +69,7 @@ class QueryWorkflow(WorkflowBase):
             raise ValueError(f'output number is invalid')
         if not Path(self.outputFileName).is_file:
             raise ValueError(f'Output file name is invalid')
-
-        return Self
+        return self
 
 
     def configure(self, configCollection : ConfigCollection) :
@@ -75,14 +77,20 @@ class QueryWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
-        self.dataFolder = configCollection["dataFolder"]
+        self.logger = logging.getLogger(configCollection["QUECLIsession_key"])
+        self.statusFileName = configCollection["QUECLIstatus_FileName"]
+        self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["QUERYdataFolder"]
+        self.ragDatapath = self.dataFolder + configCollection["GLOBALrag_Datapath"]
+        self.bm25IndexFolder = self.dataFolder + configCollection["QUERYbm25IndexFolder"]
+
+        # self.queryTransforms = QUERYTYPES.ORIGINAL|QUERYTYPES.ORIGINALCOMPRESS|QUERYTYPES.HYDE|QUERYTYPES.HYDECOMPRESS|QUERYTYPES.MULTI|QUERYTYPES.MULTICOMPRESS|QUERYTYPES.REWRITE|QUERYTYPES.REWRITECOMPRESS|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25SORIGCOMPRESS|QUERYTYPES.BM25PREP|QUERYTYPES.BM25PREPCOMPRESS
+        # self.queryTransforms = QUERYTYPES.HYDE
+        self.queryTransforms = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+
 
         if configCollection.keyExists("query"): 
             self.query = configCollection["query"]
-        if configCollection.keyExists("queryTransforms"): 
-            self.queryTransforms = configCollection["queryTransforms"]
-        if configCollection.keyExists("bm25IndexFolder"): 
-            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+
         if configCollection.keyExists("semanticMaxCutItemDistance"):
             self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
         if configCollection.keyExists("semanticRetrieveNumber"):
@@ -105,7 +113,7 @@ class QueryWorkflow(WorkflowBase):
         self.stats = {}
 
         # manually call model validator
-        self.queryWorkflow_verify_configuration()
+        self.verify_configuration()
 
 
     def preprocessQuery(self, queryList : list[str]) -> list[str] :

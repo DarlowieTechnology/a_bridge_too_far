@@ -25,7 +25,7 @@ context = {
     # Global
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
-    "GLOBALloggerLevel" : logging.WARN,      # WARN or INFO
+    "GLOBALloggerLevel" : logging.INFO,      # WARN or INFO
     "GLOBALllm_Provider" : "lmstudio",
     "GLOBALrag_Datapath" : "chromadb",
 

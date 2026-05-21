@@ -1,6 +1,7 @@
 #
 # generator workflow class used by Django app and command line
 #
+import logging
 from logging import Logger
 import json
 import time
@@ -19,19 +20,15 @@ from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # local
-from common import OneRecord, OneDesc, AllDesc, OneQueryResult, OneResultList, ConfigSingleton, DebugUtils, OpenFile, OneEmployer, AllEmployers
+from common import OneRecord, OneDesc, AllDesc, OneQueryResult, OneResultList, ConfigSingleton, DebugUtils, OpenFile, OneEmployer, AllEmployers, ConfigCollection
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
 
 class GeneratorWorkflow(WorkflowBase):
 
-    def __init__(self, context : dict, logger : Logger):
-        """
-        Args:
-            context (dict)
-            logger (Logger) - can originate in CLI or Django app
-        """
-        super().__init__(context, logger, createCollection=True)
+    def configure(self, configCollection : ConfigCollection) :
+        self.logger = logging.getLogger(configCollection("GENCLIsession_key"))
+        self.statusFileName = configCollection("GENCLIstatus_FileName")
 
 
     def threadWorker(self):

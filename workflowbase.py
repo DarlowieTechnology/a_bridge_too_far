@@ -5,7 +5,7 @@ import sys
 import logging
 from logging import Logger
 import json
-from typing import List, Union
+from typing import List, Union, Dict, Any
 from typing_extensions import Self
 from pathlib import Path
 import tomli
@@ -37,7 +37,7 @@ from anyascii import anyascii
 
 
 # local
-from common import GLOBALPROVIDER, PROVIDERS, LLMNAMES, OPENAIAPI, COLLECTION, ConfigCollection, DebugUtils
+from common import GLOBALPROVIDER, LLMNAMES, OPENAIAPI, COLLECTION, ConfigCollection, DebugUtils
 
 
 class WorkflowBase(BaseModel):
@@ -45,71 +45,33 @@ class WorkflowBase(BaseModel):
     Base class for workflows
     """
 
-    logger : Logger = Field(default = None, description="Application logger") 
-    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
-    globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
-    globalProvider : str = Field(default = "", description="Global provider of LLM service") 
-    embeddingLLM : str = Field(default = "", description="Embedding LLM") 
-    embeddingURL : str = Field(default = "", description="Embedding LLM") 
-    generalLLM : str = Field(default = "", strict=True, description="General LLM") 
-    globalURL : str = Field(default = "", description="Global LLM service base URL") 
-    globalAPIkey : str = Field(default = "", description="Global API Key") 
-    chromaClient : ClientAPI = Field(default = None, description="ChromaDB Persistent Client") 
-    embeddingFunction : OllamaEmbeddingFunction = Field(default = None, description="ChromaDB embedding Function") 
-    collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections") 
-    usage : RunUsage = Field(default = None, description="LLM usage object")
-    statusLog : List[str] = Field(default = [], description="Status log of workflow") 
-    statusFileName : str = Field(default = "", description="Name of status log file") 
-    resultsLog : List[str] = Field(default = [], description="Results log of workflow") 
-    fails : list[str] = Field(default = [], description="Fails list for workflow") 
-
-    stats : dict[str, dict[str, Union[int, str]]] = Field(default = {}, description="Run statistics")
-
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    logger : Logger = Field(default = None, description="Application logger", exclude=True)
+    chromaClient : ClientAPI = Field(default = None, description="ChromaDB Persistent Client", exclude=True)
+    embeddingFunction : OllamaEmbeddingFunction = Field(default = None, description="ChromaDB embedding Function", exclude=True)
+    collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections", exclude=True)
+    usage : RunUsage = Field(default = None, description="LLM usage object", exclude=True)
+    statusLog : List[str] = Field(default = [], description="Status log of workflow", exclude=True)
+    stats : dict[str, dict[str, Union[int, str]]] = Field(default = {}, description="Run statistics", exclude=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, exclude=True)
 
 
     @model_validator(mode='after')
-    def WorkflowBase_verify_configuration(self) -> Self:
-        if self.globalProvider:
-            if self.globalProvider not in PROVIDERS.keys():
-                raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
-            providerInfo = PROVIDERS[self.globalProvider]
-            if providerInfo["embed"] != self.embeddingURL:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown Embedding URL: {self.embeddingURL}')
-            if providerInfo["url"] != self.globalURL:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM API URL: {self.globalURL}')
-            if self.generalLLM not in providerInfo["llm"]:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM: {self.generalLLM}')
+    def verify_configuration(self) -> Self:
         return self
 
 
-    def configure(self, configCollection : ConfigCollection) -> bool:
+    def configure(self, configCollection : ConfigCollection):
 
         logging.basicConfig(stream=sys.stdout, level=configCollection["GLOBALloggerLevel"])
-        self.logger = logging.getLogger(configCollection["session_key"])
         self.usage = RunUsage()
-        self.statusFileName = configCollection["statusFileName"]
 
-        self.globalProvider = configCollection["GLOBALllm_Provider"]
-        self.embeddingLLM = configCollection["GLOBALllm_Embed"]
-        self.embeddingURL = configCollection["GLOBALembedding_URL"]
-        self.generalLLM = configCollection["GLOBALllm_Version"]
-        self.globalURL = configCollection["GLOBALllm_URL"]
-        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
-            self.globalAPIkey = configCollection['gemini_key']
 
-        self.ragDatapath = configCollection["ragDatapath"]
-
-        # manually call model validator
-        try:
-            self.WorkflowBase_verify_configuration()
-        except ValueError as e:
-            msg = f"{e}"
-            self.workerError(msg)
-            return False
-
-        return True
+    def needsUpdate(self, updatedDiscoveryWorkflow : Dict[str, Any]) -> bool:
+        toUpdate = False
+        for key in updatedDiscoveryWorkflow.keys():
+            if hasattr(self, key):
+                toUpdate = toUpdate or (self.__dict__[key] != updatedDiscoveryWorkflow[key])
+        return toUpdate
 
 
     def updateStats(self, topKey : str, keyValList : List[tuple[str, int]]) :
@@ -209,10 +171,6 @@ class WorkflowBase(BaseModel):
         return True
 
 
-    def getFails(self) -> List[str] :
-        return self.fails
-
-
     def getChromaCollection(self, name: str) -> Collection:
         """
         Returns Chroma collection by name or None
@@ -228,6 +186,9 @@ class WorkflowBase(BaseModel):
         """
 
         if modelType == OPENAIAPI.CHAT:
+
+#            print(f"globalURL: {self.globalURL}  general LLM: {self.generalLLM}")
+
             OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
             OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
             model = OpenAIChatModel(model_name=self.generalLLM, 
@@ -282,6 +243,7 @@ class WorkflowBase(BaseModel):
     def createEmbeddingFunction(self) :
         """
         Create embedding function
+        TODO: LM Studio uses its own API to perform embedding 
         
         :return: embedding function object
         """
@@ -347,6 +309,7 @@ class WorkflowBase(BaseModel):
             if (self.generalLLM == LLMNAMES.LLAMA3370BLMSTUDIO.value) or (self.generalLLM == LLMNAMES.GEMMA4LMSTUDIO.value):
 
                 # LM Studio uses OpenAI Chat API for LLama models and Google Gemma models
+#                print("Creating OPENAIAPI.CHAT")
                 return self.getModel(OPENAIAPI.CHAT)
 
         if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
@@ -502,23 +465,4 @@ class WorkflowBase(BaseModel):
             self.statusLog.append(msg)
         with open(self.statusFileName, "w") as jsonOut:
             formattedOut = json.dumps(self.statusLog, indent=2)
-            jsonOut.write(formattedOut)
-
-
-    def workerResult(self, msg : List[str]):
-        """
-        Logs result and updates status file
-
-        Args:
-            msg (str) - list of message strings 
-
-        Returns:
-            None
-        """
-        if msg:
-            self.logger.info(msg)
-            for oneMsg in msg:
-                self.resultsLog.append(oneMsg)
-        with open(self.statusFileName, "w") as jsonOut:
-            formattedOut = json.dumps(self.resultsLog, indent=2)
             jsonOut.write(formattedOut)

@@ -72,7 +72,7 @@ class StatsOnList(BaseModel) :
 class QueryService(BaseModel):
 
 
-    def semanticQuery(self, query : str, chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : int) -> OneChunkQueryResultList:
+    def semanticQuery(self, query : str, chromaCollection : Collection, queryLabel : str, maxRetrieveNumber : int, maxCutItemDistance : float) -> OneChunkQueryResultList:
         """
         Performs semantic query. Returns list of results
         Use maxCutItemDistance value to cut results off
@@ -87,7 +87,7 @@ class QueryService(BaseModel):
         :param maxRetrieveNumber: maximum number of results to return
         :type maxRetrieveNumber: int
         :param maxCutItemDistance: maximum distance of the result
-        :type maxCutItemDistance: int
+        :type maxCutItemDistance: float
         :return: list of results
         :rtype: OneChunkQueryResultList
         """

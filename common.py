@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 sys.path.append("..")
 sys.path.append("../..")
 
+import darlowie
+
 @unique
 class GLOBALPROVIDER(str, Enum) :
     OLLAMA = "ollama"
@@ -314,13 +316,21 @@ class ConfigCollection(BaseModel):
     Collection of settings from darlowie.py and ENV. 
     """
 
-    conf : Dict[str, Any] = Field(..., description="dict of configuration")
+    conf : Dict[str, Any] = Field(default={}, description="dict of configuration")
 
-    def configure(self) -> bool:
+    def configure(self, context : Dict[str, Any] | None = None) -> bool:
         """
+        read darlowie global settings
         read ENV for keys
         expand LLM configuration
         """
+
+        self.conf = darlowie.context 
+
+        if context:
+            for key in context:
+                self.conf[key] = context[key]
+
         if 'OLLAMA_API_KEY' in os.environ:
             self.conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
         if 'gemini_key' in os.environ:
@@ -341,6 +351,18 @@ class ConfigCollection(BaseModel):
         expansionDict = DEFAULTLLMSETS[llmProvider]
         for key in expansionDict:
             self.conf[key] = expansionDict[key]
+        return True
+
+
+    def update(self, updatedContext : Dict[str, Any]) -> bool:
+        for key in updatedContext:
+            self.conf[key] = updatedContext[key]
+        self.conf["GLOBALllm_Provider"] = updatedContext["globalProvider"]
+        llmProvider = self.conf["GLOBALllm_Provider"]
+        if llmProvider not in DEFAULTLLMSETS.keys():
+            print(f"Unknown LLM provider: {llmProvider}")
+            return False
+        return True
 
 
     def __getitem__(self, key):

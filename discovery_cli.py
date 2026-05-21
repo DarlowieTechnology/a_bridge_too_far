@@ -23,7 +23,7 @@ from queryService import QueryService
 from resultsQueryClasses import CollectionChunkQueryResults
 
 
-def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
+def testRun(discoveryWorkflow : DiscoveryWorkflow) :
     """ 
     Test for discovery app
     
@@ -130,7 +130,10 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) -> list[str]:
 #        "1912.02292v1.pdf"
     ]
 
-    fileList = fullFileList
+    
+#    fileList = fullFileList
+    
+    fileList = discoveryWorkflow.documentsList
 
     msg = f"Discovered {len(fileList)} files for processing."
     discoveryWorkflow.workerSnapshot(msg)
@@ -191,18 +194,20 @@ def main():
     defaultOutputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
 
     parser = argparse.ArgumentParser(description="Discovery CLI")
-    parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
-    parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
+    parser.add_argument("--provider", help=f"LLM service provider, for full list use \"--provider ?\"")
+    parser.add_argument("--llm", help=f"LLM name, for full list use \"---llm ?\"")
+    parser.add_argument("--source", help=f"Source file name")
+    parser.add_argument("--sourcefiles", help=f"List of sources in text file, new line delimited")
     parser.add_argument("--query", help="User query string, for example \"Bell's palsy\"")
-    parser.add_argument("--input", help="File with user queries, new line delimited")
+    parser.add_argument("--input", help="User queries in text file, new line delimited")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
     parser.add_argument("--load", action='store_const', const=True, help=f"Load documents")
     parser.add_argument("--parsechunks", action='store_const', const=True, help=f"Parse chunks")
     parser.add_argument("--makerawvector", action='store_const', const=True, help=f"Create raw vector table")
     parser.add_argument("--bm25s", action='store_const', const=True, help=f"Create bm25s index")
-    parser.add_argument("--matchchunks", action='store_const', const=True, help=f"Execute hybrid search")
+    parser.add_argument("--search", action='store_const', const=True, help=f"Execute hybrid search")
     parser.add_argument("--clear", action='store_const', const=True, help=f"Remove temp files")
 
     args = parser.parse_args()
@@ -227,6 +232,21 @@ def main():
         else:
             provider = context["GLOBALllm_Provider"]
             CommonHelper.setLLMName(provider, args.llm)
+
+    if args.source:
+        context["source"] = [args.source]
+
+    if args.sourcefiles:
+        res, errOrContent = OpenFile.open(filePath = args.sourcefiles, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        context["source"] = errOrContent.split('\n')
+        context["source"] = [x for x in context["source"] if x]   # remove empty strings
+
+    if ("source" not in context.keys()) and (args.load or args.parsechunks or args.makerawvector or args.bm25s):
+        print("ERROR: Provide either source file name or list of source files")
+        return
 
     if args.verbose:
         # can be any logging.XXXX values, so we don't check, see Python logging package for details
@@ -253,7 +273,7 @@ def main():
     else:
         context["bm25Process"] = False
 
-    if args.matchchunks:
+    if args.search:
         context["matchChunks"] = True
     else:
         context["matchChunks"] = False
@@ -276,7 +296,7 @@ def main():
                 context["knownTopics"] = errOrContent.split('\n')
                 context["knownTopics"] = [x for x in context["knownTopics"] if x]   # remove empty strings
             else:
-                print("Provide query on command line or input file name")
+                print("ERROR: For search provide query on command line or input file name")
                 return
 
     if args.output:
@@ -287,17 +307,13 @@ def main():
     if args.count:
         context["outputNumber"] = args.output
     else:
-        context["outputNumber"] = context["DISCLIoutputCount"]
+        context["outputNumber"] = context['DISCLIoutputCount']
 
     # summary of command line
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
     # ------ other configuration parameter
     #
-    # configuration of base class
-    context["statusFileName"] = context["DISCLIstatus_FileName"]
-    context["session_key"] = context["DISCLIsession_key"]
-    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     # text extraction configuration
     context["stripWhiteSpace"] = True
@@ -329,8 +345,8 @@ def main():
     context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
     context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
-    configCollection = ConfigCollection(conf = context)
-    configCollection.configure()
+    configCollection = ConfigCollection()
+    configCollection.configure(context = context)
 
     discoverWorkflow = DiscoveryWorkflow()
     discoverWorkflow.configure(configCollection)

@@ -1,9 +1,9 @@
 #
 # Discovery workflow class used by Django app and command line
 #
-from typing import List, Dict
+from typing import List, Dict, Any
 from typing_extensions import Self
-from logging import Logger
+import logging
 import json
 import sys
 import time
@@ -29,16 +29,12 @@ from pydantic_ai.providers.google import GoogleProvider
 
 from pydantic_ai.usage import RunUsage
 
-from openai import Model, AsyncOpenAI, ChatCompletion
-
 import pandas as pd
 
 import chromadb
-from chromadb import Collection, ClientAPI
+from chromadb import Collection
 from chromadb.config import DEFAULT_TENANT, DEFAULT_DATABASE, Settings
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
-
-from jira import JIRA
 
 from langchain_community.document_loaders.pdf import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -51,10 +47,11 @@ import bm25s
 import spacy
 from spacy import Language
 
+
 from anyascii import anyascii
 
 # local
-from common import COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
+from common import PROVIDERS, GLOBALPROVIDER, COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
 from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneChunkQueryResultList, IdentifierQueryResults, RRFScores, AllChunkQueryResults, CollectionChunkQueryResults
 from queryService import QueryService
 from workflowbase import WorkflowBase 
@@ -73,26 +70,37 @@ acceptedMimeTypes = [
 
 class DiscoveryWorkflow(WorkflowBase):
 
+    statusFileName : str = Field(default = "", description="Name of status log file")
+    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
+    globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
+    globalProvider : str = Field(default = "", description="Global provider of LLM service")
+    generalLLM : str = Field(default = "", strict=True, description="General LLM")
+    globalURL : str = Field(default = "", description="Global LLM service base URL")
+    embeddingLLM : str = Field(default = "", description="Embedding LLM")
+    embeddingURL : str = Field(default = "", description="Embedding LLM")
+    globalAPIkey : str = Field(default = "", description="Global API Key")
+
     # app specific configuration
     documentFolder : str = Field(default = "", description="Source document folder")
+    documentsList : List[str] = Field(default = [], description="List of source documents")
     dataFolder : str = Field(default = "", description="Intermediate data folder")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
-    fileExtensions : List[str] = Field(default = [], description="List of source file allowed file name extensions")
+    fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
     chunkSize : int = Field(default = 512, description="Chunk size for source documents")
     chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
 
     # text processing flags
-    stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text")
-    convertToLower : bool = Field(default = False, description="Covert all characters in source text to lowercase")
-    convertToASCII : bool = Field(default = False, description="Covert all characters in source text to ASCII")
-    singleSpaces : bool = Field(default = False, description="Replace multiple space characters with single space in source text")
+    stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
+    convertToLower : bool = Field(default = True, description="Covert all characters in source text to lowercase")
+    convertToASCII : bool = Field(default = True, description="Covert all characters in source text to ASCII")
+    singleSpaces : bool = Field(default = True, description="Replace multiple space characters with single space in source text")
 
     # workflow actions
-    loadDocument : bool = Field(default = False, description="Load text from source documents")
-    parseChunks : bool = Field(default = False, description="Create chunks out of text")
-    makeRawVector : bool = Field(default = False, description="Vectorize chunks in vector table")
-    bm25Process : bool = Field(default = False, description="Create bm25 index")
-    matchChunks : bool = Field(default = False, description="Match chunks against known topics")
+    loadDocument : bool = Field(default = True, description="Load text from source documents")
+    parseChunks : bool = Field(default = True, description="Create chunks out of text")
+    makeRawVector : bool = Field(default = True, description="Vectorize chunks in vector table")
+    bm25Process : bool = Field(default = True, description="Create bm25 index")
+    matchChunks : bool = Field(default = True, description="Match chunks against known topics")
     clear : bool = Field(default = False, description="Clear Intermediate data")
 
     # search configuration
@@ -118,10 +126,22 @@ class DiscoveryWorkflow(WorkflowBase):
 
     outputFileName : str = Field(default = "", description="File name for results")
 
-    stats : Dict[str, int] = Field(default = {}, description="Run statistics")
-
     @model_validator(mode='after')
-    def discoveryWorkflow_verify_configuration(self) -> Self:
+    def verify_configuration(self) -> Self:
+
+        if self.globalProvider:
+            if self.globalProvider not in PROVIDERS.keys():
+                raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
+            providerInfo = PROVIDERS[self.globalProvider]
+            if providerInfo["embed"] != self.embeddingURL:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown Embedding URL: {self.embeddingURL}')
+            if providerInfo["url"] != self.globalURL:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM API URL: {self.globalURL}')
+            if self.generalLLM not in providerInfo["llm"]:
+                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM: {self.generalLLM}')
+
+        # call base class validator first
+        super().verify_configuration()
 
         # verify access to Source document folder
         if not Path(self.documentFolder).is_dir:
@@ -170,6 +190,18 @@ class DiscoveryWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
+        self.globalProvider = configCollection["GLOBALllm_Provider"]
+        self.embeddingLLM = configCollection["GLOBALllm_Embed"]
+        self.embeddingURL = configCollection["GLOBALembedding_URL"]
+        self.generalLLM = configCollection["GLOBALllm_Version"]
+        self.globalURL = configCollection["GLOBALllm_URL"]
+        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+            self.globalAPIkey = configCollection['gemini_key']
+
+        self.logger = logging.getLogger(configCollection["DISCLIsession_key"])
+        self.statusFileName = configCollection["DISCLIstatus_FileName"]
+        self.ragDatapath = configCollection["GLOBALdataFolder"] +  configCollection["DISCOVdocumentFolder"] + configCollection["GLOBALrag_Datapath"]
+
         # workflow actions
         if configCollection.keyExists("loadDocument"): 
             self.loadDocument = configCollection["loadDocument"]
@@ -195,12 +227,17 @@ class DiscoveryWorkflow(WorkflowBase):
 
         # app-specific paths configuration
         self.documentFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"]
+        if configCollection.keyExists("source"):
+            self.documentsList = configCollection["source"]
         self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVdataFolder"]
         self.bm25IndexFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVbm25IndexFolder"]
         
-        self.fileExtensions = configCollection["fileExtensions"]
-        self.chunkSize = configCollection["chunkSize"]
-        self.chunkOverlap = configCollection["chunkOverlap"]
+        if configCollection.keyExists("fileExtensions"):
+            self.fileExtensions = configCollection["fileExtensions"]
+        if configCollection.keyExists("chunkSize"):
+            self.chunkSize = configCollection["chunkSize"]
+        if configCollection.keyExists("chunkOverlap"):
+            self.chunkOverlap = configCollection["chunkOverlap"]
 
         # search configuration
         if configCollection.keyExists("knownTopics"):
@@ -247,7 +284,7 @@ class DiscoveryWorkflow(WorkflowBase):
             self.outputFileName = configCollection["outputFileName"]
 
         # manually call model validator
-        self.discoveryWorkflow_verify_configuration()
+        self.verify_configuration()
 
 
     def processText(self, textIn : str) -> str:
@@ -285,7 +322,6 @@ class DiscoveryWorkflow(WorkflowBase):
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-            self.fails.append(f"loadDocument: PyPDFLoader failed to parse {inputFile}")
             return None       
 
         textCombined = ""
@@ -312,7 +348,6 @@ class DiscoveryWorkflow(WorkflowBase):
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-            self.fails.append(f"loadDocument: pymupdf4llm failed to parse {inputFile}")
             return None       
         
         docs = self.processText(docs)

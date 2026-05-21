@@ -112,18 +112,6 @@ def main():
     # ------ other configuration parameter
     #
     context['status'] = []
-    context["statusFileName"] = context["QUECLIstatus_FileName"]
-    context['session_key'] = context['QUECLIsession_key']
-    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["QUERYdataFolder"] + context["GLOBALrag_Datapath"]
-
-#    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.ORIGINALCOMPRESS|QUERYTYPES.HYDE|QUERYTYPES.HYDECOMPRESS|QUERYTYPES.MULTI|QUERYTYPES.MULTICOMPRESS|QUERYTYPES.REWRITE|QUERYTYPES.REWRITECOMPRESS|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25SORIGCOMPRESS|QUERYTYPES.BM25PREP|QUERYTYPES.BM25PREPCOMPRESS
-    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
-#    context["queryTransforms"] = QUERYTYPES.HYDE
-
-
-    # other app-specific configuration
-    context["dataFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"]
-    context["bm25IndexFolder"] = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + context["QUERYbm25IndexFolder"]
 
     context['semanticMaxCutItemDistance'] = 1.0         # distance cut-off for semantic matches
     context['semanticRetrieveNumber'] = 1000            # maximum number of semantic items to retrieve
@@ -137,8 +125,8 @@ def main():
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
-    configCollection = ConfigCollection(conf = context)
-    configCollection.configure()
+    configCollection = ConfigCollection()
+    configCollection.configure(context = context)
 
     queryWorkflow = QueryWorkflow()
     queryWorkflow.configure(configCollection)

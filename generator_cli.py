@@ -17,7 +17,7 @@ from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 # local
 import darlowie
-from common import OneRecord, ConfigSingleton, AllDesc, OpenFile
+from common import OneRecord, ConfigSingleton, AllDesc, OpenFile, ConfigCollection
 from generator_workflow import GeneratorWorkflow
 
 def testRun(context : dict) :
@@ -212,13 +212,15 @@ def main():
     #
     # configuration of base class
     context['status'] = []
-    context["statusFileName"] = context["GENCLIstatus_FileName"]
     context["ragDatapath"] = context["GLOBALdataFolder"] +  context["GENERAdocumentFolder"] + context["GLOBALrag_Datapath"]
 
     logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
-    logger = logging.getLogger(context["GENCLIsession_key"])
 
-    generatorWorkflow = GeneratorWorkflow(context, logger)
+    configCollection = ConfigCollection(conf = context)
+    configCollection.configure()
+
+    generatorWorkflow = GeneratorWorkflow()
+    generatorWorkflow.configure(configCollection)
 
     #testRun(context=context)
 

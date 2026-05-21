@@ -3,6 +3,7 @@
 #
 from typing import List, Dict, Any
 from typing_extensions import Self
+import logging
 import threading
 import json
 import re
@@ -41,8 +42,6 @@ from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
-    session_key : str = Field(default = "", description="logger session name for Indexer CLI")
-
     globalDataFolder : str = Field(default = "", description="Global data folder")
     documentFolder : str = Field(default = "", description="Source document folder")
     dataFolder : str = Field(default = "", description="INDEXER interim data folder")
@@ -59,21 +58,21 @@ class IndexerWorkflow(WorkflowBase):
     inputFileBaseName : str = Field(default = "", description="Base name of original document")
 
     # text processing flags
-    stripWhiteSpace : bool = Field(default = False, description="Strip excessive whitespace characters from source text")
-    convertToLower : bool = Field(default = False, description="Covert all characters in source text to lowercase")
-    convertToASCII : bool = Field(default = False, description="Covert all characters in source text to ASCII")
-    singleSpaces : bool = Field(default = False, description="Replace multiple space characters with single space in source text")
+    stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
+    convertToLower : bool = Field(default = True, description="Covert all characters in source text to lowercase")
+    convertToASCII : bool = Field(default = True, description="Covert all characters in source text to ASCII")
+    singleSpaces : bool = Field(default = True, description="Replace multiple space characters with single space in source text")
 
     # workflow actions
-    loadDocument : bool = Field(default = False, description="Load text from source documents")
-    rawTextFromDocument : bool = Field(default = False, description="preprocess text from source documents")
-    finalJSONfromRaw : bool = Field(default = False, description="create final JSON")
-    prepareBM25corpus : bool = Field(default = False, description="prepare BM25s corpus")
-    vectorizeFinalJSON : bool = Field(default = False, description="vectorize final JSON")
+    loadDocument : bool = Field(default = True, description="Load text from source documents")
+    rawTextFromDocument : bool = Field(default = True, description="preprocess text from source documents")
+    finalJSONfromRaw : bool = Field(default = True, description="create final JSON")
+    prepareBM25corpus : bool = Field(default = True, description="prepare BM25s corpus")
+    vectorizeFinalJSON : bool = Field(default = True, description="vectorize final JSON")
     clear : bool = Field(default = False, description="Clear intermediate files")
 
     # raw text parsing support
-    dictDocuments : Dict[str, Any] = Field(default = [], description="Template descriptions")
+    dictDocuments : Dict[str, Dict] = Field(default = {}, description="Template descriptions")
 
     issuePattern : str = Field(default = "", description="issue regexp pattern")
     issueTemplateName : str = Field(default = "", description="issue template name")
@@ -84,7 +83,10 @@ class IndexerWorkflow(WorkflowBase):
 
 
     @model_validator(mode='after')
-    def indexerWorkflow_verify_configuration(self) -> Self:
+    def verify_configuration(self) -> Self:
+
+        # call base class validator first
+        super().verify_configuration()
 
         if not Path(self.interimFolder).is_dir:
             raise ValueError(f'Full interim data folder path is invalid')
@@ -98,10 +100,12 @@ class IndexerWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
+        self.logger = logging.getLogger(configCollection["IDXCLIsession_key"])
+        self.statusFileName = configCollection["IDXCLIstatus_FileName"]
         self.globalDataFolder = configCollection["GLOBALdataFolder"]
         self.documentFolder = configCollection["INDEXEdocumentFolder"]
         self.dataFolder = configCollection["INDEXEdataFolder"]
-
+        self.ragDatapath = self.globalDataFolder +  self.documentFolder + configCollection["GLOBALrag_Datapath"]
         self.bm25IndexFolder = self.globalDataFolder + self.documentFolder + configCollection["INDEXEbm25IndexFolder"]
         # make bm25s index folder if does not exist
         Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
@@ -117,10 +121,6 @@ class IndexerWorkflow(WorkflowBase):
             raise ValueError(f'Cannot read template description file')
         else:
             self.dictDocuments = json.loads(fileContentOrError)
-
-
-        if configCollection.keyExists("session_key"):
-            self.session_key = configCollection["session_key"]
 
         if configCollection.keyExists("stripWhiteSpace"):
             self.stripWhiteSpace = configCollection["stripWhiteSpace"]
@@ -145,7 +145,7 @@ class IndexerWorkflow(WorkflowBase):
             self.clear = configCollection["clear"]
 
         # manually call model validator
-        self.indexerWorkflow_verify_configuration()
+        self.verify_configuration()
 
 
 
@@ -184,7 +184,6 @@ class IndexerWorkflow(WorkflowBase):
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-            self.fails.append(f"loadDocument: PyPDFLoader failed to parse {inputFile}")
             return None       
 
         textCombined = ""
@@ -211,7 +210,6 @@ class IndexerWorkflow(WorkflowBase):
         except Exception as e:
             msg = f"Exception: {e}"
             self.workerSnapshot(msg)
-            self.fails.append(f"loadDocument: pymupdf4llm failed to parse {inputFile}")
             return None       
         
         docs = self.processText(docs)

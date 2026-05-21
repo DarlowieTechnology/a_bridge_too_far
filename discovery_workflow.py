@@ -774,11 +774,11 @@ class DiscoveryWorkflow(WorkflowBase):
         )
 
         if not self.initRAGcomponents():
-            return {}
+            return allQueryResults
 
         chromaCollection = self.getChromaCollection(COLLECTION.RAWDATA.value)
         if not chromaCollection:
-            return {}
+            return allQueryResults
 
         model = self.createOpenAIModel()
 

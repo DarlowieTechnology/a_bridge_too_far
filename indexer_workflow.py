@@ -42,6 +42,8 @@ from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
+    statusFileName : str = Field(default = "", description="Name of status log file")
+    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     globalDataFolder : str = Field(default = "", description="Global data folder")
     documentFolder : str = Field(default = "", description="Source document folder")
     dataFolder : str = Field(default = "", description="INDEXER interim data folder")

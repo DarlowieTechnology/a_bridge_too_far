@@ -309,8 +309,6 @@ class ResultWithTypeList(BaseModel):
     results_list: list[OneResultWithType] = Field(..., description="list of results")
 
 
-
-
 class ConfigCollection(BaseModel):
     """
     Collection of settings from darlowie.py and ENV. 
@@ -390,7 +388,7 @@ class DebugUtils(object):
         if logger:
             filename = inspect.stack()[1].filename 
             logger.debug(f"Skipping manual breakpoint in the code called by {filename}")
-            return
+            return False
         if not os.getenv('DJANGO_SETTINGS_MODULE'):
             name = input(prompt)
             if name == "c":
@@ -413,6 +411,13 @@ class DebugUtils(object):
                 print(f"\n------{objLabel}---------\n{objToDump.model_dump_json(indent=2)}")
             else:
                 print("\n------dumpPydanticObject : None------")
+
+    @staticmethod
+    def convertLoggingLevelName(name : str) -> int :
+        dictNames = logging.getLevelNamesMapping()
+        if name.upper() in dictNames:
+            return dictNames[name.upper()]
+        return 0
 
 
 class OpenFile():

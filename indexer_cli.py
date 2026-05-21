@@ -61,7 +61,7 @@ def main():
     parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--input", help="File with reports to process, new line delimited")
     parser.add_argument("--load", action='store_const', const=True, help=f"Perform PDF load")
     parser.add_argument("--rawjson", action='store_const', const=True, help=f"Perform raw JSON extraction")
@@ -93,8 +93,7 @@ def main():
             CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
-        # can be any logging.XXXX values, so we don't check, see Python logging package for details
-        context['GLOBALloggerLevel'] = int(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
 
     # stages
     if args.load:
@@ -143,14 +142,16 @@ def main():
     else:
         fileList = []
 
-    # summary of command line
-    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
-
     # text extraction from PDF
     context["stripWhiteSpace"] = True
     context["convertToLower"] = True
     context["convertToASCII"] = True
     context["singleSpaces"] = True
+
+    # output some info about command line arguments
+    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
+
 
     configCollection = ConfigCollection()
     configCollection.configure(context = context)

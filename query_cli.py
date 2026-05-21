@@ -10,7 +10,7 @@ from pprint import pprint
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, DebugUtils
 from query_workflow import QueryWorkflow
 
 
@@ -51,7 +51,7 @@ def main():
     parser = argparse.ArgumentParser(description="Query CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['QUECLIoutputCount']}")
@@ -80,8 +80,7 @@ def main():
             CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
-        # can be any logging.XXXX values, so we don't check, see Python logging package for details
-        context['GLOBALloggerLevel'] = int(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
 
     if args.query:
         userQuery = args.query
@@ -105,9 +104,6 @@ def main():
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
 
-    # summary of command line
-    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
-
 
     # ------ other configuration parameter
     #
@@ -124,6 +120,11 @@ def main():
     
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
+
+    # output some info about command line arguments
+    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
+
 
     configCollection = ConfigCollection()
     configCollection.configure(context = context)

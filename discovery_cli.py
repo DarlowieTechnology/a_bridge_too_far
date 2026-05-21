@@ -17,7 +17,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, OpenFile
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, OpenFile, DebugUtils
 from discovery_workflow import DiscoveryWorkflow
 from queryService import QueryService
 from resultsQueryClasses import CollectionChunkQueryResults
@@ -202,7 +202,7 @@ def main():
     parser.add_argument("--input", help="User queries in text file, new line delimited")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [{logging.INFO}, {logging.WARN}]")
+    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--load", action='store_const', const=True, help=f"Load documents")
     parser.add_argument("--parsechunks", action='store_const', const=True, help=f"Parse chunks")
     parser.add_argument("--makerawvector", action='store_const', const=True, help=f"Create raw vector table")
@@ -249,8 +249,7 @@ def main():
         return
 
     if args.verbose:
-        # can be any logging.XXXX values, so we don't check, see Python logging package for details
-        context['GLOBALloggerLevel'] = int(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
 
     # stages
     if args.load:
@@ -309,9 +308,6 @@ def main():
     else:
         context["outputNumber"] = context['DISCLIoutputCount']
 
-    # summary of command line
-    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
-
     # ------ other configuration parameter
     #
 
@@ -344,6 +340,11 @@ def main():
     context["rrfCutOffValue"] = 0.00                # minimal RRF score to cut-off
     context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
     context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
+
+    # output some info about command line arguments
+    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
+
 
     configCollection = ConfigCollection()
     configCollection.configure(context = context)

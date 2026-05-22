@@ -335,9 +335,9 @@ class ConfigCollection(BaseModel):
             self.conf['gemini_key'] = os.environ['gemini_key']
         if 'mistral_key' in os.environ:
             self.conf['mistral_key'] = os.environ['mistral_key']
-        self.conf["jira_api_token"] = os.environ['Jira_api_token']
-        self.conf["jira_user"] = os.environ['Jira_user']
-        self.conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+#        self.conf["jira_api_token"] = os.environ['Jira_api_token']
+#        self.conf["jira_user"] = os.environ['Jira_user']
+#        self.conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
         if 'LMSTUDIO_API_KEY' in os.environ:
             self.conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
         

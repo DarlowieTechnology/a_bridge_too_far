@@ -331,15 +331,27 @@ class ConfigCollection(BaseModel):
 
         if 'OLLAMA_API_KEY' in os.environ:
             self.conf['OLLAMA_API_KEY'] = os.environ['OLLAMA_API_KEY']
+        else:
+            # Ollama does not need API key for local deployment. Pass-through cloud access requires valid key.
+            self.conf['OLLAMA_API_KEY'] = "dummy"
         if 'gemini_key' in os.environ:
             self.conf['gemini_key'] = os.environ['gemini_key']
         if 'mistral_key' in os.environ:
             self.conf['mistral_key'] = os.environ['mistral_key']
-#        self.conf["jira_api_token"] = os.environ['Jira_api_token']
-#        self.conf["jira_user"] = os.environ['Jira_user']
-#        self.conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+        if 'jira_api_token' in os.environ:
+            self.conf["jira_api_token"] = os.environ['Jira_api_token']
+        if 'jira_user' in os.environ:
+            self.conf["jira_user"] = os.environ['Jira_user']
+        if 'OPENAI_API_KEY' in os.environ:
+            self.conf["OPENAI_API_KEY"] = os.environ['OPENAI_API_KEY']
+        else:
+            # we do not need proper OpenAI key if we never access OpenAI services
+            self.conf["OPENAI_API_KEY"] = "dummy"
         if 'LMSTUDIO_API_KEY' in os.environ:
             self.conf["LMSTUDIO_API_KEY"] = os.environ['LMSTUDIO_API_KEY']
+        else:
+            # LM Studio accepts this key for local deployment. Pass-through cloud access requires valid key.
+            self.conf["LMSTUDIO_API_KEY"] = 'lm-studio'
         
         llmProvider = self.conf["GLOBALllm_Provider"]
         if llmProvider not in DEFAULTLLMSETS.keys():

@@ -119,7 +119,7 @@ class DiscoveryWorkflow(WorkflowBase):
     semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
     bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
-    rrfCutOffValue : float = Field(default = 1.0, description="Reciprocal Rank Fusion (RRF) value cut off")
+    rrfCutOffValue : float = Field(default = 0.0, description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     outputNumber : int = Field(default = 1, description="Maximum number of items to return")
@@ -988,7 +988,8 @@ class DiscoveryWorkflow(WorkflowBase):
 
         totalStart = time.time()
 
-        fileList = self.formFileList()
+        fileList = self.documentsList
+#        fileList = self.formFileList()
 
         msg = f"Discovered {len(fileList)} files for processing."
         self.workerSnapshot(msg)

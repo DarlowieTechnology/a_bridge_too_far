@@ -74,7 +74,7 @@ class WorkflowBase(BaseModel):
         return toUpdate
 
 
-    def updateStats(self, topKey : str, keyValList : List[tuple[str, int]]) :
+    def updateStats(self, topKey : str, keyValList : List[tuple[str, int|float]]) :
         """
         Update internal statistics. Attempt to update first, create key second.
         

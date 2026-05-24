@@ -88,6 +88,7 @@ class AllIndexerQueryResults(BaseModel):
 
 class CollectionChunkQueryResults(BaseModel):
     """represents collection of query result sets for Discovery app"""
+    rrfCutOffValue : float = Field(default = 0.0, description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     listAllQueryResults: List[ AllChunkQueryResults ] = Field(default = [], description="List of query results")

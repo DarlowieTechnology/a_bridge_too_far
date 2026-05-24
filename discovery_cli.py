@@ -131,12 +131,12 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) :
     ]
 
     
-#    fileList = fullFileList
-    
     fileList = discoveryWorkflow.documentsList
+#    fileList = fullFileList
 
-    msg = f"Discovered {len(fileList)} files for processing."
-    discoveryWorkflow.workerSnapshot(msg)
+    if discoveryWorkflow.loadDocument or discoveryWorkflow.parseChunks or discoveryWorkflow.makeRawVector or discoveryWorkflow.bm25Process or discoveryWorkflow.clear:
+        msg = f"Discovered {len(fileList)} files for processing."
+        discoveryWorkflow.workerSnapshot(msg)
 
     if discoveryWorkflow.loadDocument:
         startTime = time.time()
@@ -203,6 +203,7 @@ def main():
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
+    parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--load", action='store_const', const=True, help=f"Load documents")
     parser.add_argument("--parsechunks", action='store_const', const=True, help=f"Parse chunks")
     parser.add_argument("--makerawvector", action='store_const', const=True, help=f"Create raw vector table")
@@ -211,6 +212,16 @@ def main():
     parser.add_argument("--clear", action='store_const', const=True, help=f"Remove temp files")
 
     args = parser.parse_args()
+
+    # process advanced configuration first, all named parameters below supersede advanced configuration
+    if args.advanced:
+        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        advDict = json.loads(errOrContent)
+        for key in advDict:
+            context[key] = advDict[key]
 
     if args.provider:
         if args.provider == '?':
@@ -308,43 +319,65 @@ def main():
     else:
         context["outputNumber"] = context['DISCLIoutputCount']
 
-    # ------ other configuration parameter
+
+    # ------ configuration parameters default settings
     #
 
     # text extraction configuration
-    context["stripWhiteSpace"] = True
-    context["convertToLower"] = True
-    context["convertToASCII"] = True
-    context["singleSpaces"] = True
+    if "stripWhiteSpace" not in context.keys():
+        context["stripWhiteSpace"] = True
+    if "convertToLower" not in context.keys():
+        context["convertToLower"] = True
+    if "convertToASCII" not in context.keys():
+        context["convertToASCII"] = True
+    if "singleSpaces" not in context.keys():
+        context["singleSpaces"] = True
 
     # other app-specific configuration
-    context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
-    context["chunkSize"] = 256
-    context["chunkOverlap"] = 48
+    if "fileExtensions" not in context.keys():
+        context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
+    if "chunkSize" not in context.keys():
+        context["chunkSize"] = 256
+    if "chunkOverlap" not in context.keys():
+        context["chunkOverlap"] = 48
 
     # components of hybrid search
-    context["searchSemanticOriginal"] = False
-    context["searchBM25sOriginal"] = False
-    context["searchSemanticMulti"] = True
-    context["searchBM25sMulti"] = True
-    context["searchSemanticRewrite"] = False
-    context["searchBM25sRewrite"] = False
-    context["searchSemanticHyDE"] = False
-    context["searchBM25sHyDE"] = False
+    if "searchSemanticOriginal" not in context.keys():
+        context["searchSemanticOriginal"] = False
+    if "searchBM25sOriginal" not in context.keys():
+        context["searchBM25sOriginal"] = False
+    if "searchSemanticMulti" not in context.keys():
+        context["searchSemanticMulti"] = True
+    if "searchBM25sMulti" not in context.keys():
+        context["searchBM25sMulti"] = True
+    if "searchSemanticRewrite" not in context.keys():
+        context["searchSemanticRewrite"] = False
+    if "searchBM25sRewrite" not in context.keys():
+        context["searchBM25sRewrite"] = False
+    if "searchSemanticHyDE" not in context.keys():
+        context["searchSemanticHyDE"] = False
+    if "searchBM25sHyDE" not in context.keys():
+        context["searchBM25sHyDE"] = False
 
     # retrieval configuration
-    context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
-    context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
-    context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
-    context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
-    context["rrfCutOffValue"] = 0.00                # minimal RRF score to cut-off
-    context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
-    context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
+    if "semanticRetrieveNumber" not in context.keys():
+        context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
+    if "semanticMaxCutItemDistance" not in context.keys():
+        context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
+    if "bm25sRetrieveNumber" not in context.keys():
+        context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
+    if "bm25sMinCutOffScore" not in context.keys():
+        context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
+    if "rrfCutOffValue" not in context.keys():
+        context["rrfCutOffValue"] = 0.00            # minimal RRF score to cut-off
+    if "rrfOutlierZScoreThreshold" not in context.keys():
+        context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
+    if "rrfOutlierIQRCoefficient" not in context.keys():
+        context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
     # output some info about command line arguments
     print(f"Verbosity level {context['GLOBALloggerLevel']}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
-
 
     configCollection = ConfigCollection()
     configCollection.configure(context = context)
@@ -352,11 +385,11 @@ def main():
     discoverWorkflow = DiscoveryWorkflow()
     discoverWorkflow.configure(configCollection)
 
-    testRun(discoverWorkflow)
+#    testRun(discoverWorkflow)
 
-#    thread = threading.Thread( target=discoverWorkflow.threadWorker)
-#    thread.start()
-#    thread.join()
+    thread = threading.Thread( target=discoverWorkflow.threadWorker)
+    thread.start()
+    thread.join()
 
 
 if __name__ == "__main__":

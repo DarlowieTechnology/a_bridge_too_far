@@ -928,6 +928,7 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         collectionChunkQueryResults = CollectionChunkQueryResults(
+            rrfCutOffValue = self.rrfCutOffValue,
             rrfOutlierZScoreThreshold = self.rrfOutlierZScoreThreshold,
             rrfOutlierIQRCoefficient = self.rrfOutlierIQRCoefficient
         )

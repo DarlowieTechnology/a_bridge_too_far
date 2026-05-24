@@ -425,11 +425,15 @@ class DebugUtils(object):
                 print("\n------dumpPydanticObject : None------")
 
     @staticmethod
-    def convertLoggingLevelName(name : str) -> int :
+    def convertName2LoggingLevel(name : str) -> int :
         dictNames = logging.getLevelNamesMapping()
         if name.upper() in dictNames:
             return dictNames[name.upper()]
         return 0
+
+    @staticmethod
+    def convertLoggingLevel2Name(level : int) -> str :
+        return logging.getLevelName(level)
 
 
 class OpenFile():

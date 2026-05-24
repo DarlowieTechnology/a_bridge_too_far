@@ -93,7 +93,7 @@ def main():
             CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
 
     # stages
     if args.load:
@@ -149,7 +149,7 @@ def main():
     context["singleSpaces"] = True
 
     # output some info about command line arguments
-    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
 

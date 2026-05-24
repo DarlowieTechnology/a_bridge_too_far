@@ -260,7 +260,7 @@ def main():
         return
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
 
     # stages
     if args.load:
@@ -343,21 +343,21 @@ def main():
 
     # components of hybrid search
     if "searchSemanticOriginal" not in context.keys():
-        context["searchSemanticOriginal"] = False
+        context["searchSemanticOriginal"] = True
     if "searchBM25sOriginal" not in context.keys():
-        context["searchBM25sOriginal"] = False
+        context["searchBM25sOriginal"] = True
     if "searchSemanticMulti" not in context.keys():
         context["searchSemanticMulti"] = True
     if "searchBM25sMulti" not in context.keys():
         context["searchBM25sMulti"] = True
     if "searchSemanticRewrite" not in context.keys():
-        context["searchSemanticRewrite"] = False
+        context["searchSemanticRewrite"] = True
     if "searchBM25sRewrite" not in context.keys():
-        context["searchBM25sRewrite"] = False
+        context["searchBM25sRewrite"] = True
     if "searchSemanticHyDE" not in context.keys():
-        context["searchSemanticHyDE"] = False
+        context["searchSemanticHyDE"] = True
     if "searchBM25sHyDE" not in context.keys():
-        context["searchBM25sHyDE"] = False
+        context["searchBM25sHyDE"] = True
 
     # retrieval configuration
     if "semanticRetrieveNumber" not in context.keys():
@@ -376,7 +376,7 @@ def main():
         context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
     # output some info about command line arguments
-    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
     configCollection = ConfigCollection()

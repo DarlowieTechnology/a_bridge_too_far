@@ -80,7 +80,7 @@ def main():
             CommonHelper.setLLMName(provider, args.llm)
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertLoggingLevelName(args.verbose)
+        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
 
     if args.query:
         userQuery = args.query
@@ -122,7 +122,7 @@ def main():
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
     # output some info about command line arguments
-    print(f"Verbosity level {context['GLOBALloggerLevel']}")
+    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
 

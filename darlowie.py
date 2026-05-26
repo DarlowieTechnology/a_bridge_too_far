@@ -20,14 +20,17 @@
 import logging
 
 
+GLOBALdataFolder = "../testdata/"
+
 context = {
 
     # Global
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
-    "GLOBALloggerLevel" : logging.INFO,      # WARN or INFO
+    "GLOBALloggerLevel" : logging.INFO,      # CRITICAL, ERROR, WARN, INFO
     "GLOBALllm_Provider" : "lmstudio",
     "GLOBALrag_Datapath" : "chromadb",
+    "GLOBALloggerSessionKey" : "APPLOG",
 
     # Generator app settings
 
@@ -38,29 +41,18 @@ context = {
     "GENERAad_JSONName": "jobDescriptions/2025-10-02-0001.txt.json", # file name of JSON results
     "GENERAword_FileName": "jobDescriptions/2025-10-02-0001.txt.resume.docx", # file name of Word results
 
-    # Generator CLI settings
-
-    "GENCLIsession_key": "GENERATOR",   # session name for Generator CLI
-    "GENCLIstatus_FileName": "status.GENERATOR.json",  # status file name for Generator CLI
-
     # Indexer app settings
 
-    "INDEXEjira_url": "https://darlowie-security.atlassian.net",   # Jira Cloud API
-    "INDEXEdocumentFolder" : "indexerdocuments/",   # folder for indexer source documents
-    "INDEXEdataFolder" : "indexerdata/",            # indexer interim data folder
-    "INDEXEbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
+    "INDEXEdocumentFolder" : GLOBALdataFolder + "indexerdocuments/",   # folder for indexer source documents
+    "INDEXEdataFolder" : GLOBALdataFolder + "indexerdocuments/indexerdata/",  # indexer interim data folder
+    "INDEXEbm25IndexFolder" : GLOBALdataFolder + "indexerdocuments/__combined.bm25/",   # folder for combined BM25 index
+    "INDEXERAGFolder" : GLOBALdataFolder + "indexerdocuments/chromadb/",   # folder for RAG database
     
-    # Indexer CLI settings
-
-    "IDXCLIsession_key": "INDEXER",   # session name for Indexer CLI
-    "IDXCLIstatus_FileName": "status.INDEXER.json",  # status file name for Indexer CLI
-
     # Jira Export CLI settings
 
+    "JEXCLIjira_url": "https://darlowie-security.atlassian.net",   # Jira Cloud API
     "JEXCLIdocumentFolder" : "indexerdocuments/",    # jira export source document folder
     "JEXCLIdataFolder" : "jiraexport/",  # jira export interim data folder
-    "JEXCLIsession_key": "JIRAEXPORT",   # session name for Jira Export CLI
-    "JEXCLIstatus_FileName": "status.JIRAEXPORT.json",  # status file name for Jira Export CLI
     "JEXCLIjira_max_results" : 999,  # maximum number of Jira records to export
 
     # Query app settings
@@ -70,8 +62,6 @@ context = {
 
     # Query CLI settings
 
-    "QUECLIsession_key": "QUERY",   # session name  for Query CLI
-    "QUECLIstatus_FileName": "status.QUERY.json",  # status file name for Query CLI
     "QUECLIoutputCount": 50,     # default number of results in output
 
     # Discovery app settings
@@ -82,8 +72,6 @@ context = {
 
     # Discovery CLI settings
 
-    "DISCLIsession_key": "DISCOVERY",   # session name  for Discovery CLI
-    "DISCLIstatus_FileName": "status.DISCOVERY.json",  # status file name for Discovery CLI
     "DISCLIoutputCount": 50     # default number of results in output
 
 }

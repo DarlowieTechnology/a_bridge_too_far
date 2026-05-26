@@ -27,8 +27,8 @@ from parserClasses import ParserClassFactory
 class GeneratorWorkflow(WorkflowBase):
 
     def configure(self, configCollection : ConfigCollection) :
-        self.logger = logging.getLogger(configCollection("GENCLIsession_key"))
-        self.statusFileName = configCollection("GENCLIstatus_FileName")
+        self.logger = logging.getLogger(configCollection("GLOBALloggerSessionKey"))
+        self.statusFileName = configCollection("statusFileName")
 
 
     def threadWorker(self):

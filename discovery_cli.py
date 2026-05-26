@@ -213,7 +213,7 @@ def main():
 
     args = parser.parse_args()
 
-    # process advanced configuration first, all named parameters below supersede advanced configuration
+    # process advanced configuration first, named parameters below supersede advanced configuration
     if args.advanced:
         res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
         if not res:
@@ -374,6 +374,10 @@ def main():
         context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
     if "rrfOutlierIQRCoefficient" not in context.keys():
         context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
+
+    if "ragDatapath" not in context.keys():
+        context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
+
 
     # output some info about command line arguments
     print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")

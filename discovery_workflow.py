@@ -73,12 +73,12 @@ class DiscoveryWorkflow(WorkflowBase):
     statusFileName : str = Field(default = "", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
-    globalProvider : str = Field(default = "", description="Global provider of LLM service")
-    generalLLM : str = Field(default = "", strict=True, description="General LLM")
-    globalURL : str = Field(default = "", description="Global LLM service base URL")
-    embeddingLLM : str = Field(default = "", description="Embedding LLM")
-    embeddingURL : str = Field(default = "", description="Embedding LLM")
-    globalAPIkey : str = Field(default = "", description="Global API Key")
+    GLOBALllm_Provider : str = Field(default = "", description="Global provider of LLM service")
+    GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
+    GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
+    GLOBALllm_Embed : str = Field(default = "", description="Embedding LLM")
+    GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
+    gemini_key : str = Field(default = "", description="Global Google Gemini API Key")
 
     # app specific configuration
     documentFolder : str = Field(default = "", description="Source document folder")
@@ -115,33 +115,30 @@ class DiscoveryWorkflow(WorkflowBase):
     searchBM25sHyDE : bool = Field(default = True, description="Perform bm25s query on HyDE transform")
 
     # retrieval configuration
-    semanticRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with semantic query")
+    semanticRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with semantic query")
     semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
-    bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
+    bm25sRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with bm25s query")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     rrfCutOffValue : float = Field(default = 0.0, description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
-    outputNumber : int = Field(default = 1, description="Maximum number of items to return")
+    outputNumber : int = Field(default = 50, description="Maximum number of items to return")
 
     outputFileName : str = Field(default = "", description="File name for results")
 
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
 
-        if self.globalProvider:
-            if self.globalProvider not in PROVIDERS.keys():
-                raise ValueError(f'Unknown LLM provider: {self.globalProvider}')
-            providerInfo = PROVIDERS[self.globalProvider]
-            if providerInfo["embed"] != self.embeddingURL:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown Embedding URL: {self.embeddingURL}')
-            if providerInfo["url"] != self.globalURL:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM API URL: {self.globalURL}')
-            if self.generalLLM not in providerInfo["llm"]:
-                raise ValueError(f'LLM provider: {self.globalProvider} - Unknown LLM: {self.generalLLM}')
-
-        # call base class validator first
-        super().verify_configuration()
+        if self.GLOBALllm_Provider:
+            if self.GLOBALllm_Provider not in PROVIDERS.keys():
+                raise ValueError(f'Unknown LLM provider: {self.GLOBALllm_Provider}')
+#            providerInfo = PROVIDERS[self.GLOBALllm_Provider]
+#            if providerInfo["embed"] != self.GLOBALembedding_URL:
+#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown Embedding URL: {self.GLOBALembedding_URL}')
+#            if providerInfo["url"] != self.GLOBALllm_URL:
+#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM API URL: {self.GLOBALllm_URL}')
+#            if self.GLOBALllm_Version not in providerInfo["llm"]:
+#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM: {self.GLOBALllm_Version}')
 
         # verify access to Source document folder
         if not Path(self.documentFolder).is_dir:
@@ -176,7 +173,7 @@ class DiscoveryWorkflow(WorkflowBase):
             raise ValueError(f'Z Score threshold for outliers is invalid')
         if not (self.rrfOutlierIQRCoefficient >= 0):
             raise ValueError(f'IQR Coefficient for outliers is invalid')
-        if not self.outputNumber in range(1, 100):
+        if not self.outputNumber in range(1, 2049):
             raise ValueError(f'output number is invalid')
 
         if not Path(self.outputFileName).is_file:
@@ -190,17 +187,17 @@ class DiscoveryWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
-        self.globalProvider = configCollection["GLOBALllm_Provider"]
-        self.embeddingLLM = configCollection["GLOBALllm_Embed"]
-        self.embeddingURL = configCollection["GLOBALembedding_URL"]
-        self.generalLLM = configCollection["GLOBALllm_Version"]
-        self.globalURL = configCollection["GLOBALllm_URL"]
-        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
-            self.globalAPIkey = configCollection['gemini_key']
+        self.GLOBALllm_Provider = configCollection["GLOBALllm_Provider"]
+        self.GLOBALllm_Embed = configCollection["GLOBALllm_Embed"]
+        self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
+        self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
+        self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.GEMINI.value:
+            self.gemini_key = configCollection['gemini_key']
 
-        self.logger = logging.getLogger(configCollection["DISCLIsession_key"])
-        self.statusFileName = configCollection["DISCLIstatus_FileName"]
-        self.ragDatapath = configCollection["GLOBALdataFolder"] +  configCollection["DISCOVdocumentFolder"] + configCollection["GLOBALrag_Datapath"]
+        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+        self.statusFileName = configCollection["statusFileName"]
+        self.ragDatapath = configCollection["ragDatapath"]
 
         # workflow actions
         if configCollection.keyExists("loadDocument"): 

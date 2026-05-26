@@ -367,7 +367,6 @@ class ConfigCollection(BaseModel):
     def update(self, updatedContext : Dict[str, Any]) -> bool:
         for key in updatedContext:
             self.conf[key] = updatedContext[key]
-        self.conf["GLOBALllm_Provider"] = updatedContext["globalProvider"]
         llmProvider = self.conf["GLOBALllm_Provider"]
         if llmProvider not in DEFAULTLLMSETS.keys():
             print(f"Unknown LLM provider: {llmProvider}")

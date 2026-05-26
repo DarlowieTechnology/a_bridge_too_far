@@ -2,10 +2,10 @@ from typing import Dict, Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
-
+from pprint import pprint
 
 # local
-from common import ConfigCollection
+from common import ConfigCollection, DebugUtils
 from indexer_workflow import IndexerWorkflow
 from query_workflow import QueryWorkflow
 from discovery_workflow import DiscoveryWorkflow
@@ -105,10 +105,17 @@ async def discovery():
         discoveryWorkflow = DiscoveryWorkflow()
         discoveryWorkflow.configure(configCollection)
         app.state.DISCOVERY = discoveryWorkflow
+
+        DebugUtils.logPydanticObject(discoveryWorkflow, "EXISTING STATE")
+
         return discoveryWorkflow
 
 @app.post("/discovery/config")
 async def discoveryconfiguration( updatedWorkflow : Dict[str, Any] ):
+
+    print("WHAT WE GET")
+    pprint(updatedWorkflow)
+
     if hasattr(app.state, "DISCOVERY"):
         discoveryWorkflow = app.state.DISCOVERY
         if not discoveryWorkflow.needsUpdate(updatedWorkflow):
@@ -119,4 +126,5 @@ async def discoveryconfiguration( updatedWorkflow : Dict[str, Any] ):
     discoveryWorkflow = DiscoveryWorkflow()
     discoveryWorkflow.configure(configCollection)
     app.state.DISCOVERY = discoveryWorkflow
+    DebugUtils.logPydanticObject(discoveryWorkflow, "NEW STATE")
     return discoveryWorkflow

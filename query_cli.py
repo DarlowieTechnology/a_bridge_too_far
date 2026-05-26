@@ -5,12 +5,13 @@ import time
 import threading
 import logging
 import argparse
+import json
 from pprint import pprint
 
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, DebugUtils
+from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, OpenFile, DebugUtils
 from query_workflow import QueryWorkflow
 
 
@@ -52,11 +53,22 @@ def main():
     parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
+    parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
     parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['QUECLIoutputCount']}")
 
     args = parser.parse_args()
+
+    # process advanced configuration first, named parameters below supersede advanced configuration
+    if args.advanced:
+        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        advDict = json.loads(errOrContent)
+        for key in advDict:
+            context[key] = advDict[key]
 
     if args.provider:
         if args.provider == '?':

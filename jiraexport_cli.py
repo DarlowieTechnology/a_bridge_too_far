@@ -18,8 +18,8 @@ from parserClasses import ParserClassFactory
 
 
 def jiraExportPhase(
-        INDEXEjira_url : str, 
-        INDEXEjira_max_results : int, 
+        JEXCLIjira_url : str, 
+        JEXCLIjira_max_results : int, 
         jira_user : str, 
         jira_api_token : str, 
         inputFileName : str, 
@@ -39,7 +39,7 @@ def jiraExportPhase(
 
     # Connect to Jira
     try:
-        jira = JIRA(server=INDEXEjira_url, basic_auth=(jira_user, jira_api_token))
+        jira = JIRA(server=JEXCLIjira_url, basic_auth=(jira_user, jira_api_token))
     except Exception as e:
         print(f"Jira API exception: {e}")
         return 0
@@ -55,7 +55,7 @@ def jiraExportPhase(
 
     # Fetch issues from Jira
     # default maxResults is 50, we need more than that
-    issues = jira.search_issues(jql_query, maxResults=INDEXEjira_max_results, json_result = True)
+    issues = jira.search_issues(jql_query, maxResults=JEXCLIjira_max_results, json_result = True)
     for val in issues["issues"]:
         issueTemplate = ClassTemplate(
             identifier = val["key"],
@@ -79,11 +79,8 @@ def jiraExportPhase(
 def main():
     context = darlowie.context
 
-    context["statusFileName"] = context["JEXCLIstatus_FileName"]
-    context["session_key"] = context["JEXCLIsession_key"]
-
     logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
-    logger = logging.getLogger(context["JEXCLIsession_key"])
+    logger = logging.getLogger(context["GLOBALloggerSessionKey"])
 
     context["inputFileName"] = context["GLOBALdataFolder"] + context["JEXCLIdataFolder"] + "SCRUM"
     context["rawTextFromDoc"] = context["inputFileName"] + ".raw.txt"
@@ -100,8 +97,8 @@ def main():
     issueTemplate = ParserClassFactory.factory("JiraIssueRAG")
 
     exportedIssues = jiraExportPhase(
-        INDEXEjira_url = configCollection["INDEXEjira_url"],
-        INDEXEjira_max_results = configCollection["INDEXEjira_max_results"],
+        JEXCLIjira_url = configCollection["JEXCLIjira_url"],
+        JEXCLIjira_max_results = configCollection["JEXCLIjira_max_results"],
         jira_user = configCollection["jira_user"],
         jira_api_token = configCollection["jira_api_token"],
         inputFileName = configCollection["inputFileName"],

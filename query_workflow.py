@@ -65,7 +65,7 @@ class QueryWorkflow(WorkflowBase):
             raise ValueError(f'Minimum bm25s score cut off is invalid')
         if not self.bm25sRetrieveNumber in range(0, 2049):
             raise ValueError(f'Number of bm25s search items is invalid')
-        if not self.outputNumber in range(1, 100):
+        if not self.outputNumber in range(1, 2049):
             raise ValueError(f'output number is invalid')
         if not Path(self.outputFileName).is_file:
             raise ValueError(f'Output file name is invalid')
@@ -77,8 +77,8 @@ class QueryWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
-        self.logger = logging.getLogger(configCollection["QUECLIsession_key"])
-        self.statusFileName = configCollection["QUECLIstatus_FileName"]
+        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+        self.statusFileName = configCollection["statusFileName"]
         self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["QUERYdataFolder"]
         self.ragDatapath = self.dataFolder + configCollection["GLOBALrag_Datapath"]
         self.bm25IndexFolder = self.dataFolder + configCollection["QUERYbm25IndexFolder"]

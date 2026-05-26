@@ -42,17 +42,15 @@ from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
-    statusFileName : str = Field(default = "", description="Name of status log file")
+    statusFileName : str = Field(default = "APPLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
-    globalDataFolder : str = Field(default = "", description="Global data folder")
     documentFolder : str = Field(default = "", description="Source document folder")
-    dataFolder : str = Field(default = "", description="INDEXER interim data folder")
+    dataFolder : str = Field(default = "", description="interim data folder")
+    bm25IndexFolder: str = Field(default = "", description="bm25s index folder path")
 
     # file names : Original -> Raw Text -> Raw JSON -> Final JSON
     #
     inputFileName : str = Field(default = "", description="Original document name")
-    interimFolder : str = Field(default = "", description="Full interim folder path")
-    bm25IndexFolder: str = Field(default = "", description="Full bm25s index folder path")
     rawTextFromDoc : str = Field(default = "", description="Raw text name")
     rawJSON : str = Field(default = "", description="Raw JSON name")
     finalJSON : str = Field(default = "", description="Final JSON name")
@@ -90,10 +88,11 @@ class IndexerWorkflow(WorkflowBase):
         # call base class validator first
         super().verify_configuration()
 
-        if not Path(self.interimFolder).is_dir:
-            raise ValueError(f'Full interim data folder path is invalid')
+        if not Path(self.dataFolder).is_dir:
+            raise ValueError(f'Data folder path is invalid')
+        
         if not Path(self.bm25IndexFolder).is_dir:
-            raise ValueError(f'Full bm25s index folder path is invalid')
+            raise ValueError(f'BM25s index folder path is invalid')
         return self
 
 
@@ -102,22 +101,46 @@ class IndexerWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
-        self.logger = logging.getLogger(configCollection["IDXCLIsession_key"])
-        self.statusFileName = configCollection["IDXCLIstatus_FileName"]
-        self.globalDataFolder = configCollection["GLOBALdataFolder"]
-        self.documentFolder = configCollection["INDEXEdocumentFolder"]
-        self.dataFolder = configCollection["INDEXEdataFolder"]
-        self.ragDatapath = self.globalDataFolder +  self.documentFolder + configCollection["GLOBALrag_Datapath"]
-        self.bm25IndexFolder = self.globalDataFolder + self.documentFolder + configCollection["INDEXEbm25IndexFolder"]
+        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+        if configCollection.keyExists("statusFileName"):
+            self.statusFileName = configCollection["statusFileName"]
+
+        if configCollection.keyExists("documentFolder"):
+            # WEB update
+            self.documentFolder = configCollection["documentFolder"]
+        else:
+            # CLI and WEB init
+            self.documentFolder = configCollection["INDEXEdocumentFolder"]
+
+        if configCollection.keyExists("dataFolder"):
+            # WEB update
+            self.dataFolder = configCollection["dataFolder"]
+        else:
+            # CLI and WEB init
+            self.dataFolder = configCollection["INDEXEdataFolder"]
+
+        if configCollection.keyExists("bm25IndexFolder"):
+            # WEB update
+            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        else:
+            # CLI and WEB init
+            self.bm25IndexFolder = configCollection["INDEXEbm25IndexFolder"]
+
+        if configCollection.keyExists("ragDatapath"):
+            # WEB update
+            self.ragDatapath = configCollection["ragDatapath"]
+        else:
+            # CLI and WEB init
+            self.ragDatapath = configCollection["INDEXERAGFolder"]
+
         # make bm25s index folder if does not exist
         Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
 
-        self.interimFolder = self.globalDataFolder + self.documentFolder + self.dataFolder
-        # make interim data folder if does not exist
-        Path(self.interimFolder).mkdir(parents=True, exist_ok=True)
+        # make data folder if does not exist
+        Path(self.dataFolder).mkdir(parents=True, exist_ok=True)
 
         # template description
-        documentJSONName = configCollection["GLOBALdataFolder"] + configCollection["INDEXEdocumentFolder"] + "documents.json"
+        documentJSONName = self.documentFolder + "documents.json"
         result, fileContentOrError = OpenFile.open(filePath = documentJSONName, readContent = True)
         if not result:
             raise ValueError(f'Cannot read template description file')
@@ -252,8 +275,8 @@ class IndexerWorkflow(WorkflowBase):
         """
         for inputFileName in inputFileList:
             self.updateStats(topKey = "Load Document", keyValList = [ ("Load Document", inputFileName)])
-            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
-            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
+            self.inputFileName = self.documentFolder + inputFileName
+            self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
             self.loadDocumentPhase()
             print(self.showStats(topKey = "Load Document", showKey = "Load Document", label="Loaded"))
         self.removeStats(topKey = "Load Document", removeKey = "Load Document")
@@ -562,11 +585,11 @@ class IndexerWorkflow(WorkflowBase):
         """
 
         for inputFileName in inputFileList:
-            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.inputFileName = self.documentFolder + inputFileName
             self.inputFileBaseName = str(Path(inputFileName).name)
-            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
-            self.rawJSON = self.interimFolder + inputFileName + ".raw.json"
-            self.finalJSON = self.interimFolder + inputFileName + ".json"
+            self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
+            self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
+            self.finalJSON = self.dataFolder + inputFileName + ".json"
 
             # set raw text parsing configuration
             self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
@@ -640,10 +663,10 @@ class IndexerWorkflow(WorkflowBase):
         """
         for inputFileName in inputFileList:
             self.updateStats(topKey = "Raw JSON", keyValList = [ ("Raw JSON", inputFileName)])
-            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.inputFileName = self.documentFolder + inputFileName
             self.inputFileBaseName = str(Path(inputFileName).name)
-            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
-            self.rawJSON = self.interimFolder + inputFileName + ".raw.json"
+            self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
+            self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
 
             # set raw text parsing configuration
             self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
@@ -697,11 +720,11 @@ class IndexerWorkflow(WorkflowBase):
         """
         for inputFileName in inputFileList:
             self.updateStats(topKey = "Final JSON", keyValList = [ ("Final JSON", inputFileName)])
-            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.inputFileName = self.documentFolder + inputFileName
             self.inputFileBaseName = str(Path(inputFileName).name)
-            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
-            self.rawJSON = self.interimFolder + inputFileName + ".raw.json"
-            self.finalJSON = self.interimFolder + inputFileName + ".json"
+            self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
+            self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
+            self.finalJSON = self.dataFolder + inputFileName + ".json"
 
             # set raw text parsing configuration
             self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
@@ -765,11 +788,11 @@ class IndexerWorkflow(WorkflowBase):
         corpus : List[str] = []
 
         for inputFileName in inputFileList:
-            self.inputFileName = self.globalDataFolder + self.documentFolder + inputFileName
+            self.inputFileName = self.documentFolder + inputFileName
             self.inputFileBaseName = str(Path(inputFileName).name)
-            self.rawTextFromDoc = self.interimFolder + inputFileName + ".raw.txt"
-            self.rawJSON = self.interimFolder + inputFileName + ".raw.json"
-            self.finalJSON = self.interimFolder + inputFileName + ".json"
+            self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
+            self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
+            self.finalJSON = self.dataFolder + inputFileName + ".json"
 
             # set raw text parsing configuration
             self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
@@ -789,12 +812,23 @@ class IndexerWorkflow(WorkflowBase):
         retriever.save(self.bm25IndexFolder)
 
 
-    def threadWorker(self, fileList : List[List[str]]):
+    def showConfiguration(self) :
+        print("====INDEXER Configuration==========")
+        print(f"Status file: {self.statusFileName}")
+        print(f"RAG database path: {self.ragDatapath}")
+        print(f"Document folder: {self.documentFolder}")
+        print(f"Interim data folder: {self.dataFolder}")
+        print(f"BM25s folder: {self.bm25IndexFolder}")
+        
+        print("==============")
+
+
+    def threadWorker(self, fileList : List[str]):
         """
         Workflow to read, parse, vectorize records
         
         Args:
-            fileList (List[List[str]]) - list of files to process
+            fileList (List[str]) - list of files to process
         
         Returns:
             None

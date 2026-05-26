@@ -59,17 +59,30 @@ def main():
     context = darlowie.context
 
     parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
-    parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
-    parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
+    parser.add_argument("--provider", help=f"LLM service provider, for full list: \"--provider ?\"")
+    parser.add_argument("--llm", help=f"LLM name, for full list:  \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
+    parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--input", help="File with reports to process, new line delimited")
+    parser.add_argument("--showconfiguration", action='store_const', const=True, help="Show workflow configuration")
     parser.add_argument("--load", action='store_const', const=True, help=f"Perform PDF load")
     parser.add_argument("--rawjson", action='store_const', const=True, help=f"Perform raw JSON extraction")
     parser.add_argument("--finaljson", action='store_const', const=True, help=f"Perform final JSON extraction")
     parser.add_argument("--bm25s", action='store_const', const=True, help=f"Create bm25s index")
     parser.add_argument("--vectorize", action='store_const', const=True, help=f"Perform vectorization")
     parser.add_argument("--clear", action='store_const', const=True, help=f"Perform temp files removal")
+
     args = parser.parse_args()
+
+    # process advanced configuration first, named parameters below supersede advanced configuration
+    if args.advanced:
+        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
+        if not res:
+            print(errOrContent)
+            return
+        advDict = json.loads(errOrContent)
+        for key in advDict:
+            context[key] = advDict[key]
 
     if args.provider:
         if args.provider == '?':
@@ -142,6 +155,11 @@ def main():
     else:
         fileList = []
 
+    if args.showconfiguration:
+        showFlag = True
+    else:
+        showFlag = False
+
     # text extraction from PDF
     context["stripWhiteSpace"] = True
     context["convertToLower"] = True
@@ -158,6 +176,9 @@ def main():
 
     indexerWorkflow = IndexerWorkflow()
     indexerWorkflow.configure(configCollection)
+
+    if showFlag:
+        indexerWorkflow.showConfiguration()
 
 #    testRun(indexerWorkflow = indexerWorkflow, fileList = [fileList])
 

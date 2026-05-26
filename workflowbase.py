@@ -187,30 +187,30 @@ class WorkflowBase(BaseModel):
 
         if modelType == OPENAIAPI.CHAT:
 
-#            print(f"globalURL: {self.globalURL}  general LLM: {self.generalLLM}")
+#            print(f"GLOBALllm_URL: {self.GLOBALllm_URL}  general LLM: {self.generGLOBALllm_VersionalLLM}")
 
-            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.GLOBALllm_URL)
             OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-            model = OpenAIChatModel(model_name=self.generalLLM, 
+            model = OpenAIChatModel(model_name=self.GLOBALllm_Version, 
                                 provider=OpenAIprovider)
             return model
 
         if modelType == OPENAIAPI.RESPONSES:
-            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.globalURL)
+            OpenAIclient = AsyncOpenAI(max_retries=3, base_url=self.GLOBALllm_URL)
             OpenAIprovider = OpenAIProvider(openai_client=OpenAIclient)
-            model = OpenAIResponsesModel(model_name=self.generalLLM, 
+            model = OpenAIResponsesModel(model_name=self.GLOBALllm_Version, 
                                 provider=OpenAIprovider)
             return model
 
         if modelType == OPENAIAPI.CHATOLLAMA:
-            ollamaProvider=OllamaProvider(base_url=self.globalURL)
-            model = OpenAIChatModel(model_name=self.generalLLM, 
+            ollamaProvider=OllamaProvider(base_url=self.GLOBALllm_URL)
+            model = OpenAIChatModel(model_name=self.GLOBALllm_Version, 
                                     provider=ollamaProvider)
             return model
         
         if modelType == OPENAIAPI.CHATGEMINI:
-            provider = GoogleProvider(api_key=self.globalAPIkey)
-            model =  GoogleModel(self.generalLLM , provider=provider)
+            provider = GoogleProvider(api_key=self.gemini_key)
+            model =  GoogleModel(self.GLOBALllm_Version , provider=provider)
             return model
 
         msg = f"Error: unknown OpenAI model type."
@@ -249,35 +249,35 @@ class WorkflowBase(BaseModel):
         """
 
         ollamaEmbeddingFunction = OllamaEmbeddingFunction(
-            model_name=self.embeddingLLM,
-            url=self.embeddingURL
+            model_name=self.GLOBALllm_Embed,
+            url=self.GLOBALembedding_URL
         )
         return ollamaEmbeddingFunction
 
 
-        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.OLLAMA.value:
             
             ollamaEmbeddingFunction = OllamaEmbeddingFunction(
-                model_name=self.embeddingLLM,
-                url=self.embeddingURL
+                model_name=self.GLOBALllm_Embed,
+                url=self.GLOBALembedding_URL
             )
             return ollamaEmbeddingFunction
 
-        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.LMSTUDIO.value:
 
             model = OpenAIEmbeddingModel(
-                self.embeddingLLM,
+                self.GLOBALllm_Embed,
                 provider=OpenAIProvider(
-                    base_url=self.embeddingURL
+                    base_url=self.GLOBALembedding_URL
                 ),
             )
             return Embedder(model)
 
-        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.GEMINI.value:
 
             return OllamaEmbeddingFunction(
-                model_name=self.embeddingLLM,
-                url=self.embeddingURL
+                model_name=self.GLOBALllm_Embed,
+                url=self.GLOBALembedding_URL
             )
 
         msg = f"Error: Unknown provider. Cannot create embedding function."
@@ -293,26 +293,26 @@ class WorkflowBase(BaseModel):
         :rtype: OpenAI Model
         """
 
-        if self.globalProvider == GLOBALPROVIDER.OLLAMA.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.OLLAMA.value:
 
             # Ollama uses OpenAI Chat API
             return self.getModel(OPENAIAPI.CHATOLLAMA)
             
-        if self.globalProvider == GLOBALPROVIDER.LMSTUDIO.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.LMSTUDIO.value:
 
-            if (self.generalLLM == LLMNAMES.GPTOSS120BLMSTUDIO.value) or (self.generalLLM == LLMNAMES.GPTOSS20BLMSTUDIO.value):
+            if (self.GLOBALllm_Version == LLMNAMES.GPTOSS120BLMSTUDIO.value) or (self.GLOBALllm_Version == LLMNAMES.GPTOSS20BLMSTUDIO.value):
 
                 # LM Studio uses OpenAI Responses API for gpt-oss models
                 return self.getModel(OPENAIAPI.RESPONSES)
 #                return self.getModel(OPENAIAPI.CHAT)
             
-            if (self.generalLLM == LLMNAMES.LLAMA3370BLMSTUDIO.value) or (self.generalLLM == LLMNAMES.GEMMA4LMSTUDIO.value):
+            if (self.GLOBALllm_Version == LLMNAMES.LLAMA3370BLMSTUDIO.value) or (self.GLOBALllm_Version == LLMNAMES.GEMMA4LMSTUDIO.value):
 
                 # LM Studio uses OpenAI Chat API for LLama models and Google Gemma models
 #                print("Creating OPENAIAPI.CHAT")
                 return self.getModel(OPENAIAPI.CHAT)
 
-        if self.globalProvider == GLOBALPROVIDER.GEMINI.value:
+        if self.GLOBALllm_Provider == GLOBALPROVIDER.GEMINI.value:
 
             # Google Gemini uses OpenAI Chat API
             return self.getModel(OPENAIAPI.CHATGEMINI)

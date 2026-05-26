@@ -33,7 +33,7 @@ def testRun(context : dict) :
     
     # redirect all logs to console
     logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
-    logger = logging.getLogger(context["GENCLIsession_key"])
+    logger = logging.getLogger(context["GLOBALloggerSessionKey"])
 
     generatorWorkflow = GeneratorWorkflow(context, logger)
     

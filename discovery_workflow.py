@@ -70,7 +70,7 @@ acceptedMimeTypes = [
 
 class DiscoveryWorkflow(WorkflowBase):
 
-    statusFileName : str = Field(default = "", description="Name of status log file")
+    statusFileName : str = Field(default = "DISCOVERYLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
     GLOBALllm_Provider : str = Field(default = "", description="Global provider of LLM service")
@@ -196,7 +196,9 @@ class DiscoveryWorkflow(WorkflowBase):
             self.gemini_key = configCollection['gemini_key']
 
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
-        self.statusFileName = configCollection["statusFileName"]
+        if configCollection.keyExists("statusFileName"): 
+            self.statusFileName = configCollection["statusFileName"]
+
         self.ragDatapath = configCollection["ragDatapath"]
 
         # workflow actions
@@ -970,6 +972,17 @@ class DiscoveryWorkflow(WorkflowBase):
                 count += 1
             allChunkQueryResultsNew.listQueryResults.append(oneChunkQueryResultList)
         return allChunkQueryResultsNew
+
+
+    def showConfiguration(self) :
+        print("====DISCOVERY Configuration==========")
+        print(f"Status file: {self.statusFileName}")
+        print(f"RAG database path: {self.ragDatapath}")
+        print(f"Document folder: {self.documentFolder}")
+        print(f"Interim data folder: {self.dataFolder}")
+        print(f"BM25s folder: {self.bm25IndexFolder}")
+        
+        print("==============")
 
 
     def threadWorker(self):

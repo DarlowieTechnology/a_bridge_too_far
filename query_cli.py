@@ -29,15 +29,14 @@ def testRun(queryWorkflow : QueryWorkflow) :
 
     totalStart = time.time()
 
-    queryWorkflow._llmModel = queryWorkflow.createOpenAIModel()
-
-    allQueryResults = queryWorkflow.performQueries()
-
-    # output results files
-
-    print(f"Output file name: {queryWorkflow.outputFileName}")
-    with open(queryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-        jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+    if len(queryWorkflow.query):
+        queryWorkflow._llmModel = queryWorkflow.createOpenAIModel()
+        allQueryResults = queryWorkflow.performQueries()
+        if allQueryResults:
+            # output results files
+            print(f"Output file name: {queryWorkflow.outputFileName}")
+            with open(queryWorkflow.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+                jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
     queryWorkflow.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", queryWorkflow.totalUsageFormat(insertHTML = False) ) ])
     pprint(queryWorkflow.stats)
@@ -47,16 +46,15 @@ def main():
 
     context = darlowie.context
 
-    defaultOutputFileName = context["GLOBALdataFolder"] + context["QUERYdataFolder"] + "QUERY.results.json"
-
     parser = argparse.ArgumentParser(description="Query CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
-    parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
+    parser.add_argument("--output", help=f"Output file with search results, default \"{context['INDEXEOutFile']}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['QUECLIoutputCount']}")
+    parser.add_argument("--showconfiguration", action='store_const', const=True, help="Show workflow configuration")
 
     args = parser.parse_args()
 
@@ -95,24 +93,28 @@ def main():
         context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
 
     if args.query:
-        userQuery = args.query
+        userQuery = [args.query]
     else:
-        print("Provide user query")
-        return
+        userQuery = []
 
     if args.output:
         context['outputFileName'] = args.output
     else:
-        context['outputFileName'] = defaultOutputFileName
+        context['outputFileName'] = context['INDEXEOutFile']
 
     if args.count:
         context['outputNumber'] = args.output
     else:
         context['outputNumber'] = context["QUECLIoutputCount"]
 
+    if args.showconfiguration:
+        showFlag = True
+    else:
+        showFlag = False
+
     # ------ configurable on command line
     #
-    context['query'] = [userQuery]                      # query - configurable on command line
+    context['query'] = userQuery                      # query - configurable on command line
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
 
@@ -133,6 +135,10 @@ def main():
     context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
     context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
 
+    #context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.ORIGINALCOMPRESS|QUERYTYPES.HYDE|QUERYTYPES.HYDECOMPRESS|QUERYTYPES.MULTI|QUERYTYPES.MULTICOMPRESS|QUERYTYPES.REWRITE|QUERYTYPES.REWRITECOMPRESS|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25SORIGCOMPRESS|QUERYTYPES.BM25PREP|QUERYTYPES.BM25PREPCOMPRESS
+    #context["queryTransforms"] = QUERYTYPES.HYDE
+    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+
     # output some info about command line arguments
     print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
@@ -144,11 +150,14 @@ def main():
     queryWorkflow = QueryWorkflow()
     queryWorkflow.configure(configCollection)
 
-    testRun(queryWorkflow=queryWorkflow)
+    if showFlag:
+        queryWorkflow.showConfiguration()
 
-#    thread = threading.Thread( target=queryWorkflow.threadWorker)
-#    thread.start()
-#    thread.join()
+#    testRun(queryWorkflow=queryWorkflow)
+
+    thread = threading.Thread( target=queryWorkflow.threadWorker)
+    thread.start()
+    thread.join()
 
 if __name__ == "__main__":
     main()

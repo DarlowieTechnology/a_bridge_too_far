@@ -47,6 +47,7 @@ context = {
     "INDEXEdataFolder" : GLOBALdataFolder + "indexerdocuments/indexerdata/",  # indexer interim data folder
     "INDEXEbm25IndexFolder" : GLOBALdataFolder + "indexerdocuments/__combined.bm25/",   # folder for combined BM25 index
     "INDEXERAGFolder" : GLOBALdataFolder + "indexerdocuments/chromadb/",   # folder for RAG database
+    "INDEXEOutFile" : GLOBALdataFolder + "indexerdocuments/indexerdata/QUERY.results.json", # name of search output file
     
     # Jira Export CLI settings
 
@@ -54,11 +55,6 @@ context = {
     "JEXCLIdocumentFolder" : "indexerdocuments/",    # jira export source document folder
     "JEXCLIdataFolder" : "jiraexport/",  # jira export interim data folder
     "JEXCLIjira_max_results" : 999,  # maximum number of Jira records to export
-
-    # Query app settings
-
-    "QUERYdataFolder" : "indexerdocuments/",          # Interim data folder
-    "QUERYbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
 
     # Query CLI settings
 

@@ -25,7 +25,7 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, ConfigCollection
+from common import COLLECTION, QUERYTYPES, TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, ConfigCollection, DebugUtils
 from resultsQueryClasses import SEARCH, OneIndexerQueryResult, IdentifierQueryResults, RRFScores, OneIndexerQueryResultList, AllIndexerQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
@@ -33,19 +33,31 @@ from parserClasses import ParserClassFactory
 
 class QueryWorkflow(WorkflowBase):
 
+    statusFileName : str = Field(default = "QUERYLOG", description="Name of status log file")
+    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     dataFolder : str = Field(default = "", description="Intermediate data folder")
+    bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
+    outputFileName : str = Field(default = "QUERY.results.json", description="File name for results")
+
+    GLOBALllm_Provider : str = Field(default = "", description="Global provider of LLM service")
+    GLOBALllm_Embed : str = Field(default = "", description="Embedding LLM")
+    GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
+    GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
+    GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
+
+    globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
+
+
     query : list[str] = Field(default = [], description="List of queries for this workflow")
     queryTransforms : QUERYTYPES = Field(default = "", description="List of query transformation flags")
-    bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
     semanticMaxCutItemDistance : float = Field(default = 0.5, description = "Maximum distance in semantic search")
-    semanticRetrieveNumber : int = Field(default = 512, description = "Number of items retrieved with semantic query")
+    semanticRetrieveNumber : int = Field(default = 50, description = "Number of items retrieved with semantic query")
     queryBM25Options : TOKENIZERTYPES = Field(default = TOKENIZERTYPES.STOPWORDSEN, description = "Options for BM25 query tokenizer")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
-    bm25sRetrieveNumber : int = Field(default = 512, description="Number of items retrieved with bm25s query")
+    bm25sRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with bm25s query")
     outputNumber : int = Field(default = 1, description="Maximum number of items to return")
-    outputFileName : str = Field(default = "", description="File name for results")
-    queryPreprocessFlag : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
-    queryCompressFlag : bool = Field(default = True, description="Call Telegraphic Semantic Compression (TSC) after every query transform")
+    queryPreprocess : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
+    queryCompress : bool = Field(default = False, description="Call Telegraphic Semantic Compression (TSC) after every query transform")
 
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
@@ -77,18 +89,52 @@ class QueryWorkflow(WorkflowBase):
         # call base class configuration first
         super().configure(configCollection)
 
+        self.GLOBALllm_Provider = configCollection["GLOBALllm_Provider"]
+        self.GLOBALllm_Embed = configCollection["GLOBALllm_Embed"]
+        self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
+        self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
+        self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
+
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
-        self.statusFileName = configCollection["statusFileName"]
-        self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["QUERYdataFolder"]
-        self.ragDatapath = self.dataFolder + configCollection["GLOBALrag_Datapath"]
-        self.bm25IndexFolder = self.dataFolder + configCollection["QUERYbm25IndexFolder"]
-
-        # self.queryTransforms = QUERYTYPES.ORIGINAL|QUERYTYPES.ORIGINALCOMPRESS|QUERYTYPES.HYDE|QUERYTYPES.HYDECOMPRESS|QUERYTYPES.MULTI|QUERYTYPES.MULTICOMPRESS|QUERYTYPES.REWRITE|QUERYTYPES.REWRITECOMPRESS|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25SORIGCOMPRESS|QUERYTYPES.BM25PREP|QUERYTYPES.BM25PREPCOMPRESS
-        # self.queryTransforms = QUERYTYPES.HYDE
-        self.queryTransforms = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
 
 
-        if configCollection.keyExists("query"): 
+        if configCollection.keyExists("statusFileName"):
+            self.statusFileName = configCollection["statusFileName"]
+
+        if configCollection.keyExists("ragDatapath"):
+            # WEB update, CLI advanced settings
+            self.ragDatapath = configCollection["ragDatapath"]
+        else:
+            # CLI and WEB init
+            self.ragDatapath = configCollection["INDEXERAGFolder"]
+
+        if configCollection.keyExists("dataFolder"):
+            # WEB update, CLI advanced settings
+            self.dataFolder = configCollection["dataFolder"]
+        else:
+            # CLI and WEB init
+            self.dataFolder = configCollection["INDEXEdataFolder"]
+
+        if configCollection.keyExists("bm25IndexFolder"):
+            # WEB update, CLI advanced settings
+            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        else:
+            # CLI and WEB init
+            self.bm25IndexFolder = configCollection["INDEXEbm25IndexFolder"]
+
+        if configCollection.keyExists("outputFileName"):
+            # WEB update, CLI advanced settings
+            self.outputFileName = configCollection["outputFileName"]
+        else:
+            # CLI and WEB init
+            self.outputFileName = configCollection["INDEXEOutFile"]
+
+        if configCollection.keyExists("queryTransforms"):
+            self.queryTransforms = configCollection["queryTransforms"]
+        else:
+            self.queryTransforms = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+
+        if configCollection.keyExists("query"):
             self.query = configCollection["query"]
 
         if configCollection.keyExists("semanticMaxCutItemDistance"):
@@ -103,12 +149,10 @@ class QueryWorkflow(WorkflowBase):
             self.bm25sRetrieveNumber = configCollection["bm25sRetrieveNumber"]
         if configCollection.keyExists("outputNumber"):
             self.outputNumber = configCollection["outputNumber"]
-        if configCollection.keyExists("outputFileName"):
-            self.outputFileName = configCollection["outputFileName"]
         if configCollection.keyExists("queryPreprocess"):
-            self.queryPreprocessFlag = configCollection["queryPreprocess"]
+            self.queryPreprocess = configCollection["queryPreprocess"]
         if configCollection.keyExists("queryCompress"):
-            self.queryCompressFlag = configCollection["queryCompress"]
+            self.queryCompress = configCollection["queryCompress"]
 
         self.stats = {}
 
@@ -206,14 +250,14 @@ class QueryWorkflow(WorkflowBase):
         return query_tokens
 
 
-    def hydeQuery(self, queryList : list[str]) -> list[str]:
+    def hydeQuery(self, queryList : list[str]) -> list[str]|None:
         """ 
         Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. 
 
         :param queryList:  original query 
         :type queryList: list[str]
         :return: HyDE query
-        :rtype: list[str]
+        :rtype: list[str]|None
         """
 
         startHyDE = time.time()
@@ -234,18 +278,21 @@ class QueryWorkflow(WorkflowBase):
                     self.updateStats(topKey = "HyDE", keyValList = [("Count", 1), ("Time", time.time() - startHyDE)])
                 queryHyDE.append(resultQuery)
             except Exception as e:
+                msg = f"EXCEPTION: {e}"
+                self.workerSnapshot(msg)
                 self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
+                return None
         return queryHyDE
 
 
-    def multiQuery(self, queryList : list[str]) -> list[str]:
+    def multiQuery(self, queryList : list[str]) -> list[str]|None:
         """
         Generate multiple queries form the original query for semantic search. 
 
         :param queryList:  original query 
         :type queryList: list[str]
         :return: Multi query
-        :rtype: list[str]
+        :rtype: list[str]|None
         """
 
         # Prompt for generating multiple queries
@@ -273,19 +320,21 @@ class QueryWorkflow(WorkflowBase):
                     self.updateStats(topKey = "Multi", keyValList = [("Count", 1), ("Time", time.time() - startMulti)])
                 queryMultiple.append(resultQuery)
             except Exception as e:
+                msg = f"EXCEPTION: {e}"
+                self.workerSnapshot(msg)
                 self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
-
+                return None
         return queryMultiple
 
 
-    def rewriteQuery(self, queryList : list[str]) -> list[str]:
+    def rewriteQuery(self, queryList : list[str]) -> list[str]|None:
         """
         Rewrite the query 
 
         :param queryList:  original query 
         :type queryList: list[str]
         :return: Rewrite query
-        :rtype: list[str]
+        :rtype: list[str]|None
         """
 
         # Query rewriting prompt
@@ -317,18 +366,20 @@ class QueryWorkflow(WorkflowBase):
                     self.updateStats(topKey = "Rewrite", keyValList = [("Count", 1), ("Time", time.time() - startRewrite)])
                 queryRewrite.append(resultQuery)
             except Exception as e:
+                msg = f"EXCEPTION: {e}"
+                self.workerSnapshot(msg)
                 self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
-
+                return None
         return queryRewrite
 
 
-    def prepBM25S(self, queryList : list[str]) -> list[str]:
+    def prepBM25S(self, queryList : list[str]) -> list[str]|None:
         """Prepare query for BM25S search using LLM. 
 
         :param queryList:  original query 
         :type queryList: list[str]
         :return: BM25S query
-        :rtype: list[str]
+        :rtype: list[str]|None
         """
 
         # Prompt for generating prepared query
@@ -354,8 +405,10 @@ class QueryWorkflow(WorkflowBase):
                     self.updateStats(topKey = "PrepBM25S", keyValList = [("Count", 1), ("Time", time.time() - startPrepBM25s)])
                 queryBM25SPrep.append(resultQuery)
             except Exception as e:
+                msg = f"EXCEPTION: {e}"
+                self.workerSnapshot(msg)
                 self.updateStats(topKey = "prepBM25S", keyValList = [("Exception", 1)])
-
+                return None
         return queryBM25SPrep
 
 
@@ -544,7 +597,10 @@ class QueryWorkflow(WorkflowBase):
         return allIndexerQueryResultsNew
 
 
-    def performQueries(self) -> AllIndexerQueryResults :
+    def performQueries(self) -> AllIndexerQueryResults|None :
+
+        if not len(self.query):
+            return None
 
         allQueryResults = AllIndexerQueryResults(
             query = self.query,
@@ -553,7 +609,7 @@ class QueryWorkflow(WorkflowBase):
         )
 
         if not self.initRAGcomponents():
-            return {}
+            return None
 
         originalQuery  = self.query
 
@@ -561,14 +617,14 @@ class QueryWorkflow(WorkflowBase):
         self.workerSnapshot(msg)
 
         if QUERYTYPES.ORIGINAL in self.queryTransforms:
-            if self.queryPreprocessFlag :
+            if self.queryPreprocess :
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed: {originalQuery}"
                 self.workerSnapshot(msg)
             allQueryResults.listQueryResults.append(self.vectorQuery(originalQuery, COLLECTION.ISSUES.value, "ORIG"))
 
         if QUERYTYPES.ORIGINALCOMPRESS in self.queryTransforms:
-            if self.queryPreprocessFlag :
+            if self.queryPreprocess :
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed: {originalQuery}"
                 self.workerSnapshot(msg)
@@ -579,75 +635,81 @@ class QueryWorkflow(WorkflowBase):
 
         if QUERYTYPES.HYDE in self.queryTransforms:
             hydeQuery = self.hydeQuery(originalQuery)
-            msg = f"hyde: {hydeQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                hydeQuery = self.preprocessQuery(hydeQuery)
-                msg = f"preprocessed: {hydeQuery}"
+            if hydeQuery:
+                msg = f"hyde: {hydeQuery}"
                 self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(hydeQuery, COLLECTION.ISSUES.value, "HYDE"))
+                if self.queryPreprocess :
+                    hydeQuery = self.preprocessQuery(hydeQuery)
+                    msg = f"preprocessed: {hydeQuery}"
+                    self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(hydeQuery, COLLECTION.ISSUES.value, "HYDE"))
 
         if QUERYTYPES.HYDECOMPRESS in self.queryTransforms:
             hydeQuery = self.hydeQuery(originalQuery)
-            msg = f"hyde: {hydeQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                hydeQuery = self.preprocessQuery(hydeQuery)
-                msg = f"preprocessed: {hydeQuery}"
+            if hydeQuery:
+                msg = f"hyde compress: {hydeQuery}"
                 self.workerSnapshot(msg)
-            compressedQuery = self.compressQuery(hydeQuery)
-            msg = f"compress: {compressedQuery}"
-            self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "HYDECOMPRESS"))
+                if self.queryPreprocess :
+                    hydeQuery = self.preprocessQuery(hydeQuery)
+                    msg = f"preprocessed: {hydeQuery}"
+                    self.workerSnapshot(msg)
+                compressedQuery = self.compressQuery(hydeQuery)
+                msg = f"compress: {compressedQuery}"
+                self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "HYDECOMPRESS"))
 
         if QUERYTYPES.MULTI in self.queryTransforms:
             multiQuery = self.multiQuery(originalQuery)
-            msg = f"multi: {json.dumps(multiQuery)}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                multiQuery = self.preprocessQuery(multiQuery)
-                msg = f"preprocessed: {multiQuery}"
+            if multiQuery:
+                msg = f"multi: {json.dumps(multiQuery)}"
                 self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(multiQuery, COLLECTION.ISSUES.value, "MULTI"))
+                if self.queryPreprocess :
+                    multiQuery = self.preprocessQuery(multiQuery)
+                    msg = f"preprocessed: {multiQuery}"
+                    self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(multiQuery, COLLECTION.ISSUES.value, "MULTI"))
 
         if QUERYTYPES.MULTICOMPRESS in self.queryTransforms:
             multiQuery = self.multiQuery(originalQuery)
-            msg = f"multi: {json.dumps(multiQuery)}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                multiQuery = self.preprocessQuery(multiQuery)
-                msg = f"preprocessed: {multiQuery}"
+            if multiQuery:
+                msg = f"multi compress: {json.dumps(multiQuery)}"
                 self.workerSnapshot(msg)
-            compressedQuery = self.compressQuery(multiQuery)
-            msg = f"compress: {compressedQuery}"
-            self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "MULTICOMPRESS"))
+                if self.queryPreprocess :
+                    multiQuery = self.preprocessQuery(multiQuery)
+                    msg = f"preprocessed: {multiQuery}"
+                    self.workerSnapshot(msg)
+                compressedQuery = self.compressQuery(multiQuery)
+                msg = f"compress: {compressedQuery}"
+                self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, COLLECTION.ISSUES.value, "MULTICOMPRESS"))
 
         if QUERYTYPES.REWRITE in self.queryTransforms:
             rewriteQuery = self.rewriteQuery(originalQuery)
-            msg = f"rewrite: {rewriteQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                rewriteQuery = self.preprocessQuery(rewriteQuery)
-                msg = f"preprocessed: {rewriteQuery}"
+            if rewriteQuery:
+                msg = f"rewrite: {rewriteQuery}"
                 self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITE"))
+                if self.queryPreprocess :
+                    rewriteQuery = self.preprocessQuery(rewriteQuery)
+                    msg = f"preprocessed: {rewriteQuery}"
+                    self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITE"))
 
         if QUERYTYPES.REWRITECOMPRESS in self.queryTransforms:
             rewriteQuery = self.rewriteQuery(originalQuery)
-            msg = f"rewrite: {rewriteQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                rewriteQuery = self.preprocessQuery(rewriteQuery)
-                msg = f"preprocessed: {rewriteQuery}"
+            if rewriteQuery:
+                msg = f"rewrite: {rewriteQuery}"
                 self.workerSnapshot(msg)
-            compressedQuery = self.compressQuery(rewriteQuery)
-            msg = f"compress: {compressedQuery}"
-            self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITECOMPRESS"))
+                if self.queryPreprocess :
+                    rewriteQuery = self.preprocessQuery(rewriteQuery)
+                    msg = f"preprocessed: {rewriteQuery}"
+                    self.workerSnapshot(msg)
+                compressedQuery = self.compressQuery(rewriteQuery)
+                msg = f"rewrite compress: {compressedQuery}"
+                self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, COLLECTION.ISSUES.value, "REWRITECOMPRESS"))
 
         if QUERYTYPES.BM25SORIG in self.queryTransforms:
-            if self.queryPreprocessFlag :
+            if self.queryPreprocess :
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed for BM25s: {originalQuery}"
                 self.workerSnapshot(msg)
@@ -657,7 +719,7 @@ class QueryWorkflow(WorkflowBase):
             allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIG"))
 
         if QUERYTYPES.BM25SORIGCOMPRESS in self.queryTransforms:
-            if self.queryPreprocessFlag :
+            if self.queryPreprocess :
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed for TSC: {originalQuery}"
                 self.workerSnapshot(msg)
@@ -665,38 +727,40 @@ class QueryWorkflow(WorkflowBase):
             msg = f"compressed for BM25s: {compressedQuery}"
             self.workerSnapshot(msg)
             tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
-            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
+            msg = f"tokenized compress: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIGCOMPRESS"))
 
         if QUERYTYPES.BM25PREP in self.queryTransforms:
             bm25sQuery = self.prepBM25S(originalQuery)
-            msg = f"prepared for BM25s: {bm25sQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                bm25sQuery = self.preprocessQuery(bm25sQuery)
-                msg = f"preprocessed for BM25s: {bm25sQuery}"
+            if bm25sQuery:
+                msg = f"prepared for BM25s: {bm25sQuery}"
                 self.workerSnapshot(msg)
-            tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.queryBM25Options)
-            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
-            self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREP"))
+                if self.queryPreprocess :
+                    bm25sQuery = self.preprocessQuery(bm25sQuery)
+                    msg = f"preprocessed for BM25s: {bm25sQuery}"
+                    self.workerSnapshot(msg)
+                tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.queryBM25Options)
+                msg = f"tokenized prepared: {json.dumps(tokenizedQuery)}"
+                self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREP"))
 
         if QUERYTYPES.BM25PREPCOMPRESS in self.queryTransforms:
             bm25sQuery = self.prepBM25S(originalQuery)
-            msg = f"prepared for TSC: {bm25sQuery}"
-            self.workerSnapshot(msg)
-            if self.queryPreprocessFlag :
-                bm25sQuery = self.preprocessQuery(bm25sQuery)
-                msg = f"preprocessed for TSC: {bm25sQuery}"
+            if bm25sQuery:
+                msg = f"bm25s prepared: {bm25sQuery}"
                 self.workerSnapshot(msg)
-            compressedQuery = self.compressQuery(bm25sQuery)
-            msg = f"compressed for BM25s: {compressedQuery}"
-            self.workerSnapshot(msg)
-            tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
-            msg = f"tokenized: {json.dumps(tokenizedQuery)}"
-            self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS"))
+                if self.queryPreprocess :
+                    bm25sQuery = self.preprocessQuery(bm25sQuery)
+                    msg = f"bm25s prepared preprocessed: {bm25sQuery}"
+                    self.workerSnapshot(msg)
+                compressedQuery = self.compressQuery(bm25sQuery)
+                msg = f"bm25s prepared compressed: {compressedQuery}"
+                self.workerSnapshot(msg)
+                tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
+                msg = f"tokenized bm25s prepared compressed: {json.dumps(tokenizedQuery)}"
+                self.workerSnapshot(msg)
+                allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS"))
 
         # re-rank as per RRF
         allQueryResults = self.rrfReRanking(allQueryResults)
@@ -704,6 +768,16 @@ class QueryWorkflow(WorkflowBase):
         # reduce output as per configuration
         allQueryResults = self.configureOutput(allQueryResults)
         return allQueryResults
+
+
+    def showConfiguration(self) :
+        print("====QUERY Configuration==========")
+        print(f"Status file: {self.statusFileName}")
+        print(f"RAG database path: {self.ragDatapath}")
+        print(f"Interim data folder: {self.dataFolder}")
+        print(f"BM25s folder: {self.bm25IndexFolder}")
+        print(f"Output file name: {self.outputFileName}")
+        print("==============")
 
 
     def threadWorker(self):
@@ -719,13 +793,13 @@ class QueryWorkflow(WorkflowBase):
         """
         totalStart = time.time()
 
-        self._llmModel = self.createOpenAIModel()
-
-        allQueryResults = self.performQueries()
-
-        # output results files
-        with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
-            jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
+        if len(self.query):
+            self._llmModel = self.createOpenAIModel()
+            allQueryResults = self.performQueries()
+            if allQueryResults:
+                # output results files
+                with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
+                    jsonOut.writelines(allQueryResults.model_dump_json(indent=2))
 
         self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart), ("Usage", self.totalUsageFormat(insertHTML = False) ) ])
         pprint(self.stats)

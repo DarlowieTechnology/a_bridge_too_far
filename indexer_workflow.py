@@ -42,7 +42,7 @@ from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
-    statusFileName : str = Field(default = "APPLOG", description="Name of status log file")
+    statusFileName : str = Field(default = "INDEXERLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     documentFolder : str = Field(default = "", description="Source document folder")
     dataFolder : str = Field(default = "", description="interim data folder")
@@ -102,36 +102,37 @@ class IndexerWorkflow(WorkflowBase):
         super().configure(configCollection)
 
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+
         if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
 
+        if configCollection.keyExists("ragDatapath"):
+            # WEB update, CLI advanced settings
+            self.ragDatapath = configCollection["ragDatapath"]
+        else:
+            # CLI and WEB init
+            self.ragDatapath = configCollection["INDEXERAGFolder"]
+
         if configCollection.keyExists("documentFolder"):
-            # WEB update
+            # WEB update, CLI advanced settings
             self.documentFolder = configCollection["documentFolder"]
         else:
             # CLI and WEB init
             self.documentFolder = configCollection["INDEXEdocumentFolder"]
 
         if configCollection.keyExists("dataFolder"):
-            # WEB update
+            # WEB update, CLI advanced settings
             self.dataFolder = configCollection["dataFolder"]
         else:
             # CLI and WEB init
             self.dataFolder = configCollection["INDEXEdataFolder"]
 
         if configCollection.keyExists("bm25IndexFolder"):
-            # WEB update
+            # WEB update, CLI advanced settings
             self.bm25IndexFolder = configCollection["bm25IndexFolder"]
         else:
             # CLI and WEB init
             self.bm25IndexFolder = configCollection["INDEXEbm25IndexFolder"]
-
-        if configCollection.keyExists("ragDatapath"):
-            # WEB update
-            self.ragDatapath = configCollection["ragDatapath"]
-        else:
-            # CLI and WEB init
-            self.ragDatapath = configCollection["INDEXERAGFolder"]
 
         # make bm25s index folder if does not exist
         Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)

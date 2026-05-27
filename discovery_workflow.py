@@ -70,9 +70,6 @@ acceptedMimeTypes = [
 
 class DiscoveryWorkflow(WorkflowBase):
 
-    statusFileName : str = Field(default = "DISCOVERYLOG", description="Name of status log file")
-    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
-    globalRAGHNSWspace : str = Field(default = "cosine", description="Hierarchical Navigable Small World (HNSW) search algorithm similarity metric")
     GLOBALllm_Provider : str = Field(default = "", description="Global provider of LLM service")
     GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
     GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
@@ -81,10 +78,13 @@ class DiscoveryWorkflow(WorkflowBase):
     gemini_key : str = Field(default = "", description="Global Google Gemini API Key")
 
     # app specific configuration
+    statusFileName : str = Field(default = "DISCOVERYLOG", description="Name of status log file")
+    ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     documentFolder : str = Field(default = "", description="Source document folder")
-    documentsList : List[str] = Field(default = [], description="List of source documents")
     dataFolder : str = Field(default = "", description="Intermediate data folder")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
+
+    documentsList : List[str] = Field(default = [], description="List of source documents")
     fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
     chunkSize : int = Field(default = 512, description="Chunk size for source documents")
     chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
@@ -196,10 +196,44 @@ class DiscoveryWorkflow(WorkflowBase):
             self.gemini_key = configCollection['gemini_key']
 
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+
         if configCollection.keyExists("statusFileName"): 
             self.statusFileName = configCollection["statusFileName"]
 
-        self.ragDatapath = configCollection["ragDatapath"]
+        if configCollection.keyExists("ragDatapath"):
+            # WEB update, CLI advanced settings
+            self.ragDatapath = configCollection["ragDatapath"]
+        else:
+            # CLI and WEB init
+            self.ragDatapath = configCollection["DISCOVRAGFolder"]
+
+        if configCollection.keyExists("documentFolder"):
+            # WEB update, CLI advanced settings
+            self.documentFolder = configCollection["documentFolder"]
+        else:
+            # CLI and WEB init
+            self.documentFolder = configCollection["DISCOVdocumentFolder"]
+
+        if configCollection.keyExists("dataFolder"):
+            # WEB update, CLI advanced settings
+            self.dataFolder = configCollection["dataFolder"]
+        else:
+            # CLI and WEB init
+            self.dataFolder = configCollection["DISCOVdataFolder"]
+
+        if configCollection.keyExists("bm25IndexFolder"):
+            # WEB update, CLI advanced settings
+            self.bm25IndexFolder = configCollection["bm25IndexFolder"]
+        else:
+            # CLI and WEB init
+            self.bm25IndexFolder = configCollection["DISCOVbm25IndexFolder"]
+
+        # make bm25s index folder if does not exist
+        Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
+
+        # make data folder if does not exist
+        Path(self.dataFolder).mkdir(parents=True, exist_ok=True)
+
 
         # workflow actions
         if configCollection.keyExists("loadDocument"): 
@@ -224,13 +258,6 @@ class DiscoveryWorkflow(WorkflowBase):
         if configCollection.keyExists("singleSpaces"): 
             self.singleSpaces = configCollection["singleSpaces"]
 
-        # app-specific paths configuration
-        self.documentFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"]
-        if configCollection.keyExists("source"):
-            self.documentsList = configCollection["source"]
-        self.dataFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVdataFolder"]
-        self.bm25IndexFolder = configCollection["GLOBALdataFolder"] + configCollection["DISCOVdocumentFolder"] + configCollection["DISCOVbm25IndexFolder"]
-        
         if configCollection.keyExists("fileExtensions"):
             self.fileExtensions = configCollection["fileExtensions"]
         if configCollection.keyExists("chunkSize"):
@@ -492,9 +519,6 @@ class DiscoveryWorkflow(WorkflowBase):
             self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
             return 0
 
-        # make data path if does not exist
-        Path(dataFolder).mkdir(parents=True, exist_ok=True)
-
         if mime_type == "application/pdf":
             textCombined = self.loadPDFPyPDFLoader(inputFileName)
             if not textCombined:
@@ -685,9 +709,6 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: 
         """
 
-        # make bm25 index folder if does not exist
-        Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
-
         # Load spaCy English model
         nlp = spacy.load("en_core_web_sm")
 
@@ -797,9 +818,6 @@ class DiscoveryWorkflow(WorkflowBase):
         # bm25s search for original query
         if self.searchBM25sOriginal:
             tokenList = queryService.tokenizeQuery(query = [queryText])
-
-            # make bm25 index folder if does not exist
-            Path(self.bm25IndexFolder).mkdir(parents=True, exist_ok=True)
 
             oneQueryResultList = queryService.bm25sQuery(
                 query = tokenList, 
@@ -1004,9 +1022,6 @@ class DiscoveryWorkflow(WorkflowBase):
 
         msg = f"Discovered {len(fileList)} files for processing."
         self.workerSnapshot(msg)
-
-        # make root data path if does not exist
-        Path(self.dataFolder).mkdir(parents=True, exist_ok=True)
 
         #------------------loadDocument---------------------
 

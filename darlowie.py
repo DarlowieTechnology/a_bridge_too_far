@@ -29,7 +29,6 @@ context = {
     "GLOBALdataFolder" : "../testdata/",     # root data folder
     "GLOBALloggerLevel" : logging.INFO,      # CRITICAL, ERROR, WARN, INFO
     "GLOBALllm_Provider" : "lmstudio",
-    "GLOBALrag_Datapath" : "chromadb",
     "GLOBALloggerSessionKey" : "APPLOG",
 
     # Generator app settings
@@ -62,9 +61,11 @@ context = {
 
     # Discovery app settings
 
-    "DISCOVdocumentFolder" : "discoverydocuments/",          # folder for source documents
-    "DISCOVdataFolder" : "discoverydata/",          # Interim data folder
-    "DISCOVbm25IndexFolder" : "__combined.bm25/",   # folder for combined BM25 index
+    "DISCOVdocumentFolder" : GLOBALdataFolder + "discoverydocuments/",          # folder for source documents
+    "DISCOVdataFolder" : GLOBALdataFolder + "discoverydocuments/discoverydata/",          # Interim data folder
+    "DISCOVbm25IndexFolder" : GLOBALdataFolder + "discoverydocuments/__combined.bm25/",   # folder for combined BM25 index
+    "DISCOVRAGFolder" : GLOBALdataFolder + "discoverydocuments/chromadb/",   # folder for RAG database
+    "DISCOVOutFile" : GLOBALdataFolder + "discoverydocuments/discoverydata/DISCOVERY.results.json", # name of search output file
 
     # Discovery CLI settings
 

@@ -42,6 +42,12 @@ from parserClasses import ParserClassFactory
 
 class IndexerWorkflow(WorkflowBase):
 
+    GLOBALllm_Provider : str = Field(default = "", description="Global provider of LLM service")
+    GLOBALllm_Embed : str = Field(default = "", description="Embedding LLM")
+    GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
+    GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
+    GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
+
     statusFileName : str = Field(default = "INDEXERLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     documentFolder : str = Field(default = "", description="Source document folder")
@@ -85,9 +91,6 @@ class IndexerWorkflow(WorkflowBase):
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
 
-        # call base class validator first
-        super().verify_configuration()
-
         if not Path(self.dataFolder).is_dir:
             raise ValueError(f'Data folder path is invalid')
         
@@ -100,6 +103,12 @@ class IndexerWorkflow(WorkflowBase):
 
         # call base class configuration first
         super().configure(configCollection)
+
+        self.GLOBALllm_Provider = configCollection["GLOBALllm_Provider"]
+        self.GLOBALllm_Embed = configCollection["GLOBALllm_Embed"]
+        self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
+        self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
+        self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
 
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 

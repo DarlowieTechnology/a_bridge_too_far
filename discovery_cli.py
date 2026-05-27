@@ -191,8 +191,6 @@ def main():
 
     context = darlowie.context
 
-    defaultOutputFileName = context["GLOBALdataFolder"] + context["DISCOVdocumentFolder"] + "DISCOVERY.results.json"
-
     parser = argparse.ArgumentParser(description="Discovery CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list use \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list use \"---llm ?\"")
@@ -200,7 +198,7 @@ def main():
     parser.add_argument("--sourcefiles", help=f"List of sources in text file, new line delimited")
     parser.add_argument("--query", help="User query string, for example \"Bell's palsy\"")
     parser.add_argument("--input", help="User queries in text file, new line delimited")
-    parser.add_argument("--output", help=f"Output file with search results, default \"{defaultOutputFileName}\"")
+    parser.add_argument("--output", help=f"Output file with search results, default \"{context['DISCOVOutFile']}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
@@ -313,7 +311,7 @@ def main():
     if args.output:
         context['outputFileName'] = args.output
     else:
-        context['outputFileName'] = defaultOutputFileName
+        context['outputFileName'] = context['DISCOVOutFile']
 
     if args.count:
         context["outputNumber"] = args.output
@@ -379,10 +377,6 @@ def main():
         context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
     if "rrfOutlierIQRCoefficient" not in context.keys():
         context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
-
-    if "ragDatapath" not in context.keys():
-        context["ragDatapath"] = context["GLOBALdataFolder"] +  context["DISCOVdocumentFolder"] + context["GLOBALrag_Datapath"]
-
 
     # output some info about command line arguments
     print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")

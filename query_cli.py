@@ -118,26 +118,52 @@ def main():
 #    context['query'] = ["xss issues"]
 #    context['query'] = ["credentials issues"]
 
+    # components of hybrid search
+    if "searchSemanticOriginal" not in context.keys():
+        context["searchSemanticOriginal"] = True
+    if "searchSemanticOriginalCompress" not in context.keys():
+        context["searchSemanticOriginalCompress"] = True
+    if "searchSemanticHyDE" not in context.keys():
+        context["searchSemanticHyDE"] = True
+    if "searchSemanticHyDECompress" not in context.keys():
+        context["searchSemanticHyDECompress"] = True
+    if "searchSemanticMulti" not in context.keys():
+        context["searchSemanticMulti"] = True
+    if "searchSemanticMultiCompress" not in context.keys():
+        context["searchSemanticMultiCompress"] = True
+    if "searchSemanticRewrite" not in context.keys():
+        context["searchSemanticRewrite"] = True
+    if "searchSemanticRewriteCompress" not in context.keys():
+        context["searchSemanticRewriteCompress"] = True
+    if "searchBM25sOriginal" not in context.keys():
+        context["searchBM25sOriginal"] = True
+    if "searchBM25sOriginalCompress" not in context.keys():
+        context["searchBM25sOriginalCompress"] = True
+    if "searchBM25sPrep" not in context.keys():
+        context["searchBM25sPrep"] = True
+    if "searchBM25sPrepCompress" not in context.keys():
+        context["searchBM25sPrepCompress"] = True
 
     # ------ other configuration parameter
     #
-    context['status'] = []
 
-    context['semanticMaxCutItemDistance'] = 1.0         # distance cut-off for semantic matches
-    context['semanticRetrieveNumber'] = 1000            # maximum number of semantic items to retrieve
+    if "semanticMaxCutItemDistance" not in context.keys():
+        context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
+
+    if "semanticRetrieveNumber" not in context.keys():
+        context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
 
 #    context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER
     context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN
 
-    context['bm25sMinCutOffScore'] = 0.0                # bm25s score cut-off
-    context['bm25sRetrieveNumber'] = 1000               # maximum number of bm25s items to retrieve
-    
-    context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
-    context["queryCompress"] = False    # by default Telegraphic Semantic Compression (TSC) is disabled
+    if "bm25sMinCutOffScore" not in context.keys():
+        context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
 
-    #context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.ORIGINALCOMPRESS|QUERYTYPES.HYDE|QUERYTYPES.HYDECOMPRESS|QUERYTYPES.MULTI|QUERYTYPES.MULTICOMPRESS|QUERYTYPES.REWRITE|QUERYTYPES.REWRITECOMPRESS|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25SORIGCOMPRESS|QUERYTYPES.BM25PREP|QUERYTYPES.BM25PREPCOMPRESS
-    #context["queryTransforms"] = QUERYTYPES.HYDE
-    context["queryTransforms"] = QUERYTYPES.ORIGINAL|QUERYTYPES.HYDE|QUERYTYPES.MULTI|QUERYTYPES.REWRITE|QUERYTYPES.BM25SORIG|QUERYTYPES.BM25PREP
+    if "bm25sRetrieveNumber" not in context.keys():
+        context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
+
+    if "queryPreprocess" not in context.keys():
+        context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
 
     # output some info about command line arguments
     print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")

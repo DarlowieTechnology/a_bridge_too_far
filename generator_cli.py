@@ -212,7 +212,7 @@ def main():
     #
     # configuration of base class
     context['status'] = []
-    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["GENERAdocumentFolder"] + context["GLOBALrag_Datapath"]
+    context["ragDatapath"] = context["GLOBALdataFolder"] +  context["GENERAdocumentFolder"] + "chromadb"
 
     logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
 

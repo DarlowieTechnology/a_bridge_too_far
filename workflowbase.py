@@ -55,11 +55,6 @@ class WorkflowBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True, exclude=True)
 
 
-    @model_validator(mode='after')
-    def verify_configuration(self) -> Self:
-        return self
-
-
     def configure(self, configCollection : ConfigCollection):
 
         logging.basicConfig(stream=sys.stdout, level=configCollection["GLOBALloggerLevel"])
@@ -352,7 +347,7 @@ class WorkflowBase(BaseModel):
                     chromaCollection = self.chromaClient.create_collection(
                         name=collectionName,
                         embedding_function=self.embeddingFunction,
-                        metadata={ "hnsw:space": self.globalRAGHNSWspace }
+                        metadata={ "hnsw:space": "cosine" }
                     )
                     msg = f"Created collection {collectionName}"
                     self.workerSnapshot(msg)

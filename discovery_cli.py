@@ -131,7 +131,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) :
     ]
 
     
-    fileList = discoveryWorkflow.documentsList
+    fileList = discoveryWorkflow.source
 #    fileList = fullFileList
 
     if discoveryWorkflow.loadDocument or discoveryWorkflow.parseChunks or discoveryWorkflow.makeRawVector or discoveryWorkflow.bm25Process or discoveryWorkflow.clear:
@@ -158,11 +158,11 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) :
         discoveryWorkflow.bm25ProcessPhaseAllFiles(inputFileList = fileList)
         discoveryWorkflow.updateStats(topKey = "BM25 Process", keyValList = [("Time", time.time() - startTime)])
 
-    if discoveryWorkflow.matchChunks:
+    if discoveryWorkflow.search:
         startTime = time.time()
         queryService = QueryService()
 
-        collectionChunkQueryResults = discoveryWorkflow.matchChunksPhaseAllQueries(queryTexts = discoveryWorkflow.knownTopics, queryService = queryService)
+        collectionChunkQueryResults = discoveryWorkflow.matchChunksPhaseAllQueries(queryTexts = discoveryWorkflow.query, queryService = queryService)
 
         # output results files
         print(f"Output file name: {discoveryWorkflow.outputFileName}")
@@ -255,7 +255,7 @@ def main():
         context["source"] = [x for x in context["source"] if x]   # remove empty strings
 
     if ("source" not in context.keys()) and (args.load or args.parsechunks or args.makerawvector or args.bm25s):
-        print("ERROR: Provide either source file name or list of source files")
+        print("ERROR: Provide --source or --sourcefiles parameters")
         return
 
     if args.verbose:
@@ -283,30 +283,35 @@ def main():
         context["bm25Process"] = False
 
     if args.search:
-        context["matchChunks"] = True
+        context["search"] = True
     else:
-        context["matchChunks"] = False
+        context["search"] = False
 
     if args.clear:
         context["clear"] = True
     else:
         context["clear"] = False
 
-    if context["matchChunks"]:
-        # enforce command line query or input file for matching chunks stage
-        if args.query:
-            context["knownTopics"] = [args.query]    # make list out of single query string on command line
-        else:
-            if args.input:
-                res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
-                if not res:
-                    print(errOrContent)
-                    return
-                context["knownTopics"] = errOrContent.split('\n')
-                context["knownTopics"] = [x for x in context["knownTopics"] if x]   # remove empty strings
-            else:
-                print("ERROR: For search provide query on command line or input file name")
+    if context["search"]:
+        # combine --query and --input values
+        queryList = []
+        if args.input:
+            res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
+            if not res:
+                print(errOrContent)
                 return
+            queryList = errOrContent.split('\n')
+            queryList = [x for x in queryList if x]   # remove empty strings
+        if args.query:
+            queryList.append(args.query)
+        if not len(queryList):
+            print("ERROR: Provide --query or --input parameters")
+            return
+        context["query"] = queryList
+    else:
+        if args.input or args.query:
+            print("ERROR: Provide --search to perform search phase")
+            return
 
     if args.output:
         context['outputFileName'] = args.output

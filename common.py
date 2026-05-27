@@ -444,11 +444,14 @@ class OpenFile():
         if not folder_path.is_dir():
             return False, [f"***ERROR: data path is not a folder: {folder_path}"]
         fileNames = list(folder_path.glob(globPattern))
-        for file in fileNames:
-            boolResult, sourceStr = OpenFile.open(filePath = file, readContent = False)
+        retList = []
+        for filePath in fileNames:
+            fileName = str(filePath)
+            boolResult, sourceStr = OpenFile.open(filePath = fileName, readContent = False)
             if not boolResult:
                 return False, [sourceStr]
-        return True, fileNames
+            retList.append(fileName)
+        return True, retList
 
     @staticmethod
     def open(filePath : str, readContent : bool) -> tuple[bool, str] :
@@ -478,6 +481,13 @@ class OpenFile():
     def remove(filePath : str) :
         try:
             os.remove(filePath)
+        except OSError:
+            pass
+
+    @staticmethod
+    def removedir(folderPath : str) :
+        try:
+            os.rmdir(folderPath)
         except OSError:
             pass
 

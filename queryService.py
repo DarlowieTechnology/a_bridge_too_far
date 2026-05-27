@@ -127,7 +127,7 @@ class QueryService(BaseModel):
         return oneChunkQueryResultList
 
 
-    def bm25sQuery(self, query : List[str], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> OneChunkQueryResultList : 
+    def bm25sQuery(self, query : List[str], folderName : str, queryLabel : str, bm25sRetrieveNumber : int, bm25sMinCutOffScore : float) -> tuple[OneChunkQueryResultList|None, str] :
         """
         Perform bm25s query for combined corpus of documents
         data in corpus is encoded as documentFileName + '|' + chunkId + '\n' + chunkText
@@ -144,8 +144,8 @@ class QueryService(BaseModel):
         :type bm25sRetrieveNumber: int
         :param bm25sMinCutOffScore: cut off for bm25s score, items with lower score are discarded
         :type bm25sMinCutOffScore: float
-        :return: search result object
-        :rtype: OneChunkQueryResultList
+        :return: tuple of search result object and error string
+        :rtype: tuple[OneChunkQueryResultList|None, str]
         """
 
         combinedQuery = " ".join(query)
@@ -156,7 +156,11 @@ class QueryService(BaseModel):
 
 #        print(f"BM25S=========\n'{queryLabel}' : {query}\n===================")
 
-        retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
+        try:
+            retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
+        except Exception as e:
+            msg = f"EXCEPTION: {e}"
+            return None, msg
 
         max_items = bm25sRetrieveNumber
         if retriever.scores["num_docs"] < bm25sRetrieveNumber:
@@ -190,7 +194,7 @@ class QueryService(BaseModel):
 #            print(f"Rank:{rankIdx+1}  score: {score}    doc: {documentName}   chunk ID: {chunkID}")
 #            print(f"chunk:\n{chunkText}")
 
-        return oneChunkQueryResultList
+        return oneChunkQueryResultList, ""
 
 
     def rrfReRanking(self, allChunkQueryResults : AllChunkQueryResults) -> AllChunkQueryResults:

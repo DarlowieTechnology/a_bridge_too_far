@@ -436,7 +436,7 @@ class QueryWorkflow(WorkflowBase):
         return queryBM25SPrep
 
 
-    def bm25sQuery(self, queryList : list[str], folderName : str, queryLabel : str) -> OneIndexerQueryResultList : 
+    def bm25sQuery(self, queryList : list[str], folderName : str, queryLabel : str) -> OneIndexerQueryResultList|None :
         """
         Perform bm25s query for combined corpus of documents
         data in corpus is encoded as 'identifier\\ntitle'
@@ -450,22 +450,28 @@ class QueryWorkflow(WorkflowBase):
         :param queryLabel: unique label to query run
         :type queryLabel: str
         :return: search result object
-        :rtype: OneIndexerQueryResultList
+        :rtype: OneIndexerQueryResultList|None
         """
 
         startBM25sQuery = time.time()
         oneIndexerQueryResultList = OneIndexerQueryResultList(
-            query = queryList[0],
+            query = queryList,
             label = queryLabel
         )
 
-        retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
+        try:
+            retriever = bm25s.BM25.load(f"{folderName}", mmap=True, load_corpus=True)
+        except Exception as e:
+            msg = f"EXCEPTION: {e}"
+            self.workerSnapshot(msg)
+            self.updateStats(topKey = "bm25s", keyValList = [("Exception", 1)])
+            return None
 
         max_items = self.bm25sRetrieveNumber
         if retriever.scores["num_docs"] < self.bm25sRetrieveNumber:
             max_items = retriever.scores["num_docs"]
 
-        results, scores = retriever.retrieve(queryList, k=max_items)
+        results, scores = retriever.retrieve([queryList], k=max_items)
         for rankIdx in range(results.shape[1]):
             docN, score = results[0, rankIdx], scores[0, rankIdx]
             docN = docN["text"].splitlines()
@@ -738,7 +744,9 @@ class QueryWorkflow(WorkflowBase):
             tokenizedQuery = self.tokenizeQuery(originalQuery, self.queryBM25Options)
             msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIG"))
+            oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIG")
+            if oneIndexQueryResultList:
+                allQueryResults.listQueryResults.append(oneIndexQueryResultList)
 
         if self.searchBM25sOriginalCompress:
             if self.queryPreprocess :
@@ -751,7 +759,9 @@ class QueryWorkflow(WorkflowBase):
             tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
             msg = f"tokenized compress: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIGCOMPRESS"))
+            oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIGCOMPRESS")
+            if oneIndexQueryResultList:
+                allQueryResults.listQueryResults.append(oneIndexQueryResultList)
 
         if self.searchBM25sPrep:
             bm25sQuery = self.prepBM25S(originalQuery)
@@ -765,7 +775,9 @@ class QueryWorkflow(WorkflowBase):
                 tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.queryBM25Options)
                 msg = f"tokenized prepared: {json.dumps(tokenizedQuery)}"
                 self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREP"))
+                oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREP")
+                if oneIndexQueryResultList:
+                    allQueryResults.listQueryResults.append(oneIndexQueryResultList)
 
         if self.searchBM25sPrepCompress:
             bm25sQuery = self.prepBM25S(originalQuery)
@@ -782,7 +794,9 @@ class QueryWorkflow(WorkflowBase):
                 tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
                 msg = f"tokenized bm25s prepared compressed: {json.dumps(tokenizedQuery)}"
                 self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS"))
+                oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS")
+                if oneIndexQueryResultList:
+                    allQueryResults.listQueryResults.append(oneIndexQueryResultList)
 
         # re-rank as per RRF
         allQueryResults = self.rrfReRanking(allQueryResults)

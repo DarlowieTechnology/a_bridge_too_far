@@ -647,7 +647,7 @@ class IndexerWorkflow(WorkflowBase):
 
         result, fileContentOrError = OpenFile.open(filePath = self.rawTextFromDoc, readContent = True)
         if not result:
-            msg = f"preprocess: {fileContentOrError} - perform 'Load Document' phase first"
+            msg = f"preprocess: {fileContentOrError} - perform '--load' phase first"
             print(msg)
             return
         else:
@@ -705,7 +705,7 @@ class IndexerWorkflow(WorkflowBase):
         # read raw JSON into dict
         result, fileContentOrError = OpenFile.open(filePath = self.rawJSON, readContent = True)
         if not result:
-            msg = f"finalJSONfromRawPhase: {fileContentOrError} - perform 'Raw JSON' phase first"
+            msg = f"finalJSONfromRawPhase: {fileContentOrError} - perform '--rawjson' phase first"
             self.workerSnapshot(msg)
             return
         else:
@@ -767,7 +767,7 @@ class IndexerWorkflow(WorkflowBase):
 
         result, fileContentOrError = OpenFile.open(filePath = self.finalJSON, readContent = True)
         if not result:
-            msg = f"prepareBM25corpusPhase: {fileContentOrError} - perform 'finalJSONfromRaw' phase first"
+            msg = f"prepareBM25corpusPhase: {fileContentOrError} - perform '--finaljson' phase first"
             self.workerSnapshot(msg)
             return
         else:

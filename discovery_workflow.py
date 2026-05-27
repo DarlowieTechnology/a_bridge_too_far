@@ -84,7 +84,7 @@ class DiscoveryWorkflow(WorkflowBase):
     dataFolder : str = Field(default = "", description="Intermediate data folder")
     bm25IndexFolder : str = Field(default = "", description="bm25 index folder")
 
-    documentsList : List[str] = Field(default = [], description="List of source documents")
+    source : List[str] = Field(default = [], description="List of source documents")
     fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
     chunkSize : int = Field(default = 512, description="Chunk size for source documents")
     chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
@@ -100,11 +100,11 @@ class DiscoveryWorkflow(WorkflowBase):
     parseChunks : bool = Field(default = True, description="Create chunks out of text")
     makeRawVector : bool = Field(default = True, description="Vectorize chunks in vector table")
     bm25Process : bool = Field(default = True, description="Create bm25 index")
-    matchChunks : bool = Field(default = True, description="Match chunks against known topics")
+    search : bool = Field(default = True, description="Search chunks for known topics")
     clear : bool = Field(default = False, description="Clear Intermediate data")
 
     # search configuration
-    knownTopics : List[str] = Field(default = [], description="List of known topics to use in queries")
+    query : List[str] = Field(default = [], description="List of known topics to use in queries")
     searchSemanticOriginal : bool = Field(default = True, description="Perform original semantic query")
     searchBM25sOriginal : bool = Field(default = True, description="Perform original bm25s query")
     searchSemanticMulti : bool = Field(default = True, description="Perform semantic query on multi transform")
@@ -244,8 +244,8 @@ class DiscoveryWorkflow(WorkflowBase):
             self.makeRawVector = configCollection["makeRawVector"]
         if configCollection.keyExists("bm25Process"): 
             self.bm25Process = configCollection["bm25Process"]
-        if configCollection.keyExists("matchChunks"): 
-            self.matchChunks = configCollection["matchChunks"]
+        if configCollection.keyExists("search"): 
+            self.search = configCollection["search"]
         if configCollection.keyExists("clear"): 
             self.clear = configCollection["clear"]
 
@@ -258,6 +258,17 @@ class DiscoveryWorkflow(WorkflowBase):
         if configCollection.keyExists("singleSpaces"): 
             self.singleSpaces = configCollection["singleSpaces"]
 
+        if configCollection.keyExists("source"):
+            fileList = configCollection["source"]
+            self.source = []
+            for fileName in fileList:
+                res, err = OpenFile.open(fileName, False)
+                if not res:
+                    fileName = self.documentFolder + fileName
+                    res, err = OpenFile.open(fileName, False)
+                if res:
+                    self.source.append(fileName)        
+
         if configCollection.keyExists("fileExtensions"):
             self.fileExtensions = configCollection["fileExtensions"]
         if configCollection.keyExists("chunkSize"):
@@ -266,8 +277,8 @@ class DiscoveryWorkflow(WorkflowBase):
             self.chunkOverlap = configCollection["chunkOverlap"]
 
         # search configuration
-        if configCollection.keyExists("knownTopics"):
-            self.knownTopics = configCollection["knownTopics"]
+        if configCollection.keyExists("query"):
+            self.query = configCollection["query"]
 
         if configCollection.keyExists("searchSemanticOriginal"):
             self.searchSemanticOriginal = configCollection["searchSemanticOriginal"]
@@ -333,7 +344,7 @@ class DiscoveryWorkflow(WorkflowBase):
         return textIn
 
 
-    def loadPDFPyPDFLoader(self, inputFile : str) -> str :
+    def loadPDFPyPDFLoader(self, inputFile : str) -> str|None :
         """
         Load text from PDF using PyPDFLoader
         
@@ -359,7 +370,7 @@ class DiscoveryWorkflow(WorkflowBase):
         return textCombined
 
 
-    def loadPDFpymupdf4llm(self, inputFile : str) -> str :
+    def loadPDFpymupdf4llm(self, inputFile : str) -> str|None :
         """
         Load text from PDF using pymupdf4llm
         
@@ -553,9 +564,9 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: 
         """
         for inputFileName in inputFileList:
-            fullInputFileName = self.documentFolder + inputFileName
-            intermediateDataFolder = self.dataFolder + inputFileName + "-data/"
-            self.loadDocumentPhase(fullInputFileName, intermediateDataFolder, "raw.txt")
+            intermediateDataFolder = self.dataFolder + Path(inputFileName).name + "-data/"
+            Path(intermediateDataFolder).mkdir(parents=True, exist_ok=True)            
+            self.loadDocumentPhase(inputFileName, intermediateDataFolder, "raw.txt")
 
 
     def parseChunksPhase(self, docs : str) -> List[str] :
@@ -587,15 +598,15 @@ class DiscoveryWorkflow(WorkflowBase):
         for inputFileName in inputFileList:
 
             # read raw text into string
-            rawTextFileName = self.dataFolder + inputFileName + "-data/raw.txt"
+            rawTextFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.txt"
             result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
             if not result:
-                msg = f"parseChunks: {fileContentOrError} - perform 'loadDocument' phase first"
+                msg = f"parseChunks: {fileContentOrError} - perform '--load' phase first"
                 self.workerSnapshot(msg)
                 return
             else:
                 chunksList = self.parseChunksPhase(fileContentOrError)
-                chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+                chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
 
                 with open(chunkListFileName, "w" , encoding="utf-8", errors="ignore") as jsonOut:
                     jsonOut.writelines(json.dumps(chunksList, indent=2))
@@ -683,10 +694,10 @@ class DiscoveryWorkflow(WorkflowBase):
         for inputFileName in inputFileList:
 
             # read list of chunks
-            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
-                msg = f"makeRawVector: {fileContentOrError} - perform 'parseChunks' phase first"
+                msg = f"makeRawVector: {fileContentOrError} - perform '--parsechunks' phase first"
                 self.workerSnapshot(msg)
             else:
                 chunksList = json.loads(fileContentOrError)
@@ -719,10 +730,10 @@ class DiscoveryWorkflow(WorkflowBase):
             startFileTime = time.time()
 
             # read list of chunks
-            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
-                msg = f"bm25Process: {fileContentOrError} - perform 'parseChunks' phase first"
+                msg = f"bm25Process: {fileContentOrError} - perform '--parsechunks' phase first"
                 self.workerSnapshot(msg)
                 return
             else:
@@ -753,12 +764,13 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: 
         """
         for inputFileName in inputFileList:
-            rawTextFileName = self.dataFolder + inputFileName + "-data/raw.txt"
+            rawTextFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.txt"
             OpenFile.remove(rawTextFileName)
-            chunkListFileName = self.dataFolder + inputFileName + "-data/raw.chunks.txt"
+            chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
             OpenFile.remove(chunkListFileName)
+            OpenFile.removedir(self.dataFolder + Path(inputFileName).name + "-data")
 
-        result, fileNameListOrError = OpenFile.readListOfFileNames(self.dataFolder + self.bm25IndexFolder, "*.*")
+        result, fileNameListOrError = OpenFile.readListOfFileNames(self.bm25IndexFolder, "*.*")
         if result:
             for fileName in fileNameListOrError:
                 OpenFile.remove(fileName)
@@ -773,7 +785,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 print(f"{ident}")
 
 
-    def matchChunksPhase(self, queryText: str, queryService : QueryService) -> AllChunkQueryResults :
+    def matchChunksPhase(self, queryText: str, queryService : QueryService) -> AllChunkQueryResults|None :
         """
         match chunks against known topics
         
@@ -782,7 +794,7 @@ class DiscoveryWorkflow(WorkflowBase):
         :param queryService: Query service object
         :type queryService: QueryService
         :return: collection of all results
-        :rtype: AllChunkQueryResults
+        :rtype: AllChunkQueryResults|None
         """
 
         allQueryResults = AllChunkQueryResults(
@@ -819,13 +831,17 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.searchBM25sOriginal:
             tokenList = queryService.tokenizeQuery(query = [queryText])
 
-            oneQueryResultList = queryService.bm25sQuery(
+            oneQueryResultList, err = queryService.bm25sQuery(
                 query = tokenList, 
                 folderName=self.bm25IndexFolder, 
                 queryLabel = "BM25SORIG", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore
             )
+            if not oneQueryResultList:
+                self.workerSnapshot(err)
+                return None
+
             allQueryResults.listQueryResults.append(oneQueryResultList)
 
  #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
@@ -851,12 +867,15 @@ class DiscoveryWorkflow(WorkflowBase):
                 multiQueryTexts, usage = queryService.multiQuery(queryText, model)
                 self.addUsage(usage)
             multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
-            oneQueryResultList = queryService.bm25sQuery(
+            oneQueryResultList, err = queryService.bm25sQuery(
                 query = multiTokenList,
                 folderName = self.bm25IndexFolder, 
                 queryLabel = "BM25SMULTI", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            if not oneQueryResultList:
+                self.workerSnapshot(err)
+                return None
             allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
@@ -881,12 +900,15 @@ class DiscoveryWorkflow(WorkflowBase):
                 rewriteQueryTexts, usage = queryService.rewriteQuery(queryText, model)
                 self.addUsage(usage)
             rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
-            oneQueryResultList = queryService.bm25sQuery(
+            oneQueryResultList, err = queryService.bm25sQuery(
                 query = rewriteTokenList, 
                 folderName = self.bm25IndexFolder, 
                 queryLabel = "BM25SREWRITE", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            if not oneQueryResultList:
+                self.workerSnapshot(err)
+                return None
             allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
@@ -912,12 +934,15 @@ class DiscoveryWorkflow(WorkflowBase):
                 hydeQueryTexts, usage = queryService.hydeQuery(queryText, model)
                 self.addUsage(usage)
             hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
-            oneQueryResultList = queryService.bm25sQuery(
+            oneQueryResultList, err = queryService.bm25sQuery(
                 query = hydeTokenList, 
                 folderName = self.bm25IndexFolder, 
                 queryLabel = "BM25SHYDE", 
                 bm25sRetrieveNumber = self.bm25sRetrieveNumber,
                 bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+            if not oneQueryResultList:
+                self.workerSnapshot(err)
+                return None
             allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
@@ -955,7 +980,8 @@ class DiscoveryWorkflow(WorkflowBase):
             print(f"Processing query: {oneQuery}")
 
             allChunkQueryResults = self.matchChunksPhase(queryText = oneQuery, queryService = queryService)
-            collectionChunkQueryResults.listAllQueryResults.append(allChunkQueryResults)
+            if allChunkQueryResults:
+                collectionChunkQueryResults.listAllQueryResults.append(allChunkQueryResults)
 
         return collectionChunkQueryResults
 
@@ -1017,7 +1043,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         totalStart = time.time()
 
-        fileList = self.documentsList
+        fileList = self.source
 #        fileList = self.formFileList()
 
         msg = f"Discovered {len(fileList)} files for processing."
@@ -1051,12 +1077,12 @@ class DiscoveryWorkflow(WorkflowBase):
             self.bm25ProcessPhaseAllFiles(inputFileList = fileList)
             self.updateStats(topKey = "BM25 Process", keyValList = [("Time", time.time() - startTime)])
 
-        # --------------matchChunks------------------
+        # --------------search------------------
 
-        if self.matchChunks:
+        if self.search:
             startTime = time.time()
             queryService = QueryService()
-            collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.knownTopics, queryService = queryService)
+            collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.query, queryService = queryService)
 
             # output results files
             print(f"Output file name: {self.outputFileName}")

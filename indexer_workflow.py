@@ -3,6 +3,7 @@
 #
 from typing import List, Dict, Any
 from typing_extensions import Self
+import sys
 import logging
 import threading
 import json
@@ -36,7 +37,7 @@ from anyascii import anyascii
 
 
 # local
-from common import COLLECTION, RecordCollection, ConfigCollection, DebugUtils, OpenFile
+from common import COLLECTION, CommonHelper, RecordCollection, ConfigCollection, DebugUtils, OpenFile
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
 
@@ -47,6 +48,8 @@ class IndexerWorkflow(WorkflowBase):
     GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
     GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
     GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
+
+    logginglevel : int = Field(default = logging.WARN, description="Logging level")
 
     statusFileName : str = Field(default = "INDEXERLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
@@ -109,6 +112,10 @@ class IndexerWorkflow(WorkflowBase):
         self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
         self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
         self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
+
+        if configCollection.keyExists("logginglevel"):
+            self.logginglevel = configCollection["logginglevel"]
+        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
 
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 
@@ -823,14 +830,12 @@ class IndexerWorkflow(WorkflowBase):
 
 
     def showConfiguration(self) :
-        print("====INDEXER Configuration==========")
-        print(f"Status file: {self.statusFileName}")
-        print(f"RAG database path: {self.ragDatapath}")
-        print(f"Document folder: {self.documentFolder}")
-        print(f"Interim data folder: {self.dataFolder}")
-        print(f"BM25s folder: {self.bm25IndexFolder}")
-        
-        print("==============")
+        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
+        print(f"Status file:\t{self.statusFileName}")
+        print(f"Documents:\t{self.documentFolder}")
+        print(f"RAG database:\t{self.ragDatapath}")
+        print(f"Interim data:\t{self.dataFolder}")
+        print(f"BM25s folder:\t{self.bm25IndexFolder}")
 
 
     def threadWorker(self, fileList : List[str]):

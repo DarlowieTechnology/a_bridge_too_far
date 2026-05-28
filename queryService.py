@@ -4,6 +4,7 @@ import json
 
 import Stemmer
 import bm25s
+from pathlib import Path
 
 
 from pydantic import BaseModel, Field, model_validator
@@ -115,7 +116,8 @@ class QueryService(BaseModel):
                 document = queryResult["metadatas"][0][resultIdx]["document"],
                 searchTypeName = SEARCH.SEMANTIC.value
             )
-            ident = queryResult["metadatas"][0][resultIdx]["document"] + "|" + queryResult["metadatas"][0][resultIdx]["chunkid"]
+            documentFileName = Path(queryResult["metadatas"][0][resultIdx]["document"]).name
+            ident = documentFileName + "|" + queryResult["metadatas"][0][resultIdx]["chunkid"]
             oneChunkQueryResultList.appendQueryResult(
                 identifier = ident,
                 queryResult = oneQueryChunkResult

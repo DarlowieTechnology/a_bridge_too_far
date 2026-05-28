@@ -17,7 +17,7 @@ from anyascii import anyascii
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, OpenFile, DebugUtils
+from common import GLOBALPROVIDER, LLMNAMES, CommonCLIArguments, CommonHelper, ConfigCollection, OpenFile, DebugUtils
 from discovery_workflow import DiscoveryWorkflow
 from queryService import QueryService
 from resultsQueryClasses import CollectionChunkQueryResults
@@ -214,87 +214,74 @@ def main():
 
     # process advanced configuration first, named parameters below supersede advanced configuration
     if args.advanced:
-        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
-        if not res:
-            print(errOrContent)
-            return
-        advDict = json.loads(errOrContent)
-        for key in advDict:
-            context[key] = advDict[key]
-
+        context = CommonCLIArguments.processAdvanced(args.advanced, context)
     if args.provider:
-        if args.provider == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.provider not in GLOBALPROVIDER:
-            print(f"Unknown provider {args.provider}")
-            return
-        else:
-            context['GLOBALllm_Provider'] = args.provider
-
+        context = CommonCLIArguments.processProvider(args.provider, context)
     if args.llm:
-        if args.llm == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.llm not in LLMNAMES:
-            print(f"Unknown LLM {args.llm}")
-            return
-        else:
-            provider = context["GLOBALllm_Provider"]
-            CommonHelper.setLLMName(provider, args.llm)
+        context = CommonCLIArguments.processLLM(args.llm, context)
 
     if args.source:
-        context["source"] = [args.source]
+        # merge without duplicates with list from advanced
+        if "source" in context.keys():
+            context["source"] = list(set(context["source"] + [args.source]))
+        else:
+            context["source"] = [args.source]
 
     if args.sourcefiles:
         res, errOrContent = OpenFile.open(filePath = args.sourcefiles, readContent = True)
         if not res:
             print(errOrContent)
             return
-        context["source"] = errOrContent.split('\n')
-        context["source"] = [x for x in context["source"] if x]   # remove empty strings
+        fileList = errOrContent.split('\n')
+        fileList = [x for x in fileList if x]   # remove empty strings
+        if "source" in context.keys():
+            # merge without duplicates with list from --advanced and --source
+            context["source"] = list(set(context["source"] + fileList))
+        else:
+            context["source"] = fileList
 
     if ("source" not in context.keys()) and (args.load or args.parsechunks or args.makerawvector or args.bm25s):
         print("ERROR: Provide --source or --sourcefiles parameters")
         return
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
+        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
-    # stages
+    # phases
     if args.load:
         context["loadDocument"] = True
     else:
-        context["loadDocument"] = False
+        context.setdefault("loadDocument", False)
 
     if args.parsechunks:
         context["parseChunks"] = True
     else:
-        context["parseChunks"] = False
+        context.setdefault("parseChunks", False)
 
     if args.makerawvector:
         context["makeRawVector"] = True
     else:
-        context["makeRawVector"] = False
+        context.setdefault("makeRawVector", False)
 
     if args.bm25s:
         context["bm25Process"] = True
     else:
-        context["bm25Process"] = False
+        context.setdefault("bm25Process", False)
 
     if args.search:
         context["search"] = True
     else:
-        context["search"] = False
+        context.setdefault("search", False)
 
     if args.clear:
         context["clear"] = True
     else:
-        context["clear"] = False
+        context.setdefault("clear", False)
 
     if context["search"]:
-        # combine --query and --input values
-        queryList = []
+        # combine --query, --input and --advanced values
+        querySet = set()
+
         if args.input:
             res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
             if not res:
@@ -302,26 +289,36 @@ def main():
                 return
             queryList = errOrContent.split('\n')
             queryList = [x for x in queryList if x]   # remove empty strings
+            querySet.update(queryList)
+
         if args.query:
-            queryList.append(args.query)
-        if not len(queryList):
+            querySet.add(args.query)
+
+        if "query" in context.keys():
+            # process --advanced, could be str or list[str]
+            if type(context['query']) == str:
+                querySet.add(context['query'])
+            else:
+                querySet.update(context['query'])
+
+        context["query"] = list(querySet)
+        if (not len(context["query"])):
             print("ERROR: Provide --query or --input parameters")
             return
-        context["query"] = queryList
-    else:
-        if args.input or args.query:
-            print("ERROR: Provide --search to perform search phase")
-            return
+
+    if (len(context["query"]) and not context["search"]):
+        print("ERROR: Provide --search to perform search phase")
+        return
 
     if args.output:
         context['outputFileName'] = args.output
     else:
-        context['outputFileName'] = context['DISCOVOutFile']
+        context.setdefault('outputFileName', context['DISCOVOutFile'])
 
     if args.count:
         context["outputNumber"] = args.output
     else:
-        context["outputNumber"] = context['DISCLIoutputCount']
+        context.setdefault('outputNumber', context['DISCLIoutputCount'])
 
     if args.showconfiguration:
         showFlag = True
@@ -332,59 +329,36 @@ def main():
     #
 
     # text extraction configuration
-    if "stripWhiteSpace" not in context.keys():
-        context["stripWhiteSpace"] = True
-    if "convertToLower" not in context.keys():
-        context["convertToLower"] = True
-    if "convertToASCII" not in context.keys():
-        context["convertToASCII"] = True
-    if "singleSpaces" not in context.keys():
-        context["singleSpaces"] = True
+    context.setdefault("stripWhiteSpace", True)
+    context.setdefault("convertToLower", True)
+    context.setdefault("convertToASCII", True)
+    context.setdefault("singleSpaces", True)
 
     # other app-specific configuration
-    if "fileExtensions" not in context.keys():
-        context["fileExtensions"] = ["*.txt", "*.pdf", "*.json"]
-    if "chunkSize" not in context.keys():
-        context["chunkSize"] = 256
-    if "chunkOverlap" not in context.keys():
-        context["chunkOverlap"] = 48
+    context.setdefault("fileExtensions", ["*.txt", "*.pdf", "*.json"])
+    context.setdefault("chunkSize", 256)    
+    context.setdefault("chunkOverlap", 48)    
 
     # components of hybrid search
-    if "searchSemanticOriginal" not in context.keys():
-        context["searchSemanticOriginal"] = True
-    if "searchBM25sOriginal" not in context.keys():
-        context["searchBM25sOriginal"] = True
-    if "searchSemanticMulti" not in context.keys():
-        context["searchSemanticMulti"] = True
-    if "searchBM25sMulti" not in context.keys():
-        context["searchBM25sMulti"] = True
-    if "searchSemanticRewrite" not in context.keys():
-        context["searchSemanticRewrite"] = True
-    if "searchBM25sRewrite" not in context.keys():
-        context["searchBM25sRewrite"] = True
-    if "searchSemanticHyDE" not in context.keys():
-        context["searchSemanticHyDE"] = True
-    if "searchBM25sHyDE" not in context.keys():
-        context["searchBM25sHyDE"] = True
+    context.setdefault("searchSemanticOriginal", True)
+    context.setdefault("searchBM25sOriginal", True)
+    context.setdefault("searchSemanticMulti", True)
+    context.setdefault("searchBM25sMulti", True)
+    context.setdefault("searchSemanticRewrite", True)
+    context.setdefault("searchBM25sRewrite", True)
+    context.setdefault("searchSemanticHyDE", True)
+    context.setdefault("searchBM25sHyDE", True)
 
     # retrieval configuration
-    if "semanticRetrieveNumber" not in context.keys():
-        context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
-    if "semanticMaxCutItemDistance" not in context.keys():
-        context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
-    if "bm25sRetrieveNumber" not in context.keys():
-        context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
-    if "bm25sMinCutOffScore" not in context.keys():
-        context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
-    if "rrfCutOffValue" not in context.keys():
-        context["rrfCutOffValue"] = 0.00            # minimal RRF score to cut-off
-    if "rrfOutlierZScoreThreshold" not in context.keys():
-        context["rrfOutlierZScoreThreshold"] = 15       # Z-score threshold for outliers (typically 3)
-    if "rrfOutlierIQRCoefficient" not in context.keys():
-        context["rrfOutlierIQRCoefficient"] = 20.0      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
+    context.setdefault("semanticRetrieveNumber", 1000)        # maximum number of semantic items to retrieve
+    context.setdefault("semanticMaxCutItemDistance", 1.0)     # distance cut-off for semantic matches
+    context.setdefault("bm25sRetrieveNumber", 1000)           # maximum number of bm25s items to retrieve
+    context.setdefault("bm25sMinCutOffScore", 0.0)            # bm25s score cut-off
+    context.setdefault("rrfCutOffValue", 0.0)                 # minimal RRF score to cut-off
+    context.setdefault("rrfOutlierZScoreThreshold", 15)       # Z-score threshold for outliers (typically 3)
+    context.setdefault("rrfOutlierIQRCoefficient", 20.0)      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 
     # output some info about command line arguments
-    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
     configCollection = ConfigCollection()

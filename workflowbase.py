@@ -57,7 +57,6 @@ class WorkflowBase(BaseModel):
 
     def configure(self, configCollection : ConfigCollection):
 
-        logging.basicConfig(stream=sys.stdout, level=configCollection["GLOBALloggerLevel"])
         self.usage = RunUsage()
 
 

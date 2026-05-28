@@ -1,6 +1,7 @@
 #
 # Query workflow class used by Django app and command line
 #
+import sys
 import json
 import logging
 from typing import List, Dict
@@ -25,7 +26,7 @@ from anyascii import anyascii
 
 
 # local
-from common import TOKENIZERTYPES, OneResultWithType, ResultWithTypeList, ConfigCollection, DebugUtils
+from common import TOKENIZERTYPES, CommonHelper, OneResultWithType, ResultWithTypeList, ConfigCollection, DebugUtils
 from resultsQueryClasses import SEARCH, OneIndexerQueryResult, IdentifierQueryResults, RRFScores, OneIndexerQueryResultList, AllIndexerQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
@@ -38,6 +39,8 @@ class QueryWorkflow(WorkflowBase):
     GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
     GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
     GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
+
+    logginglevel : int = Field(default = logging.WARN, description="Logging level")
 
     statusFileName : str = Field(default = "QUERYLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
@@ -101,8 +104,11 @@ class QueryWorkflow(WorkflowBase):
         self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
         self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
 
-        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
+        if configCollection.keyExists("logginglevel"):
+            self.logginglevel = configCollection["logginglevel"]
+        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
 
+        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 
         if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
@@ -807,13 +813,12 @@ class QueryWorkflow(WorkflowBase):
 
 
     def showConfiguration(self) :
-        print("====QUERY Configuration==========")
-        print(f"Status file: {self.statusFileName}")
-        print(f"RAG database path: {self.ragDatapath}")
-        print(f"Interim data folder: {self.dataFolder}")
-        print(f"BM25s folder: {self.bm25IndexFolder}")
-        print(f"Output file name: {self.outputFileName}")
-        print("==============")
+        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
+        print(f"Status file:\t{self.statusFileName}")
+        print(f"RAG database:\t{self.ragDatapath}")
+        print(f"Interim data:\t{self.dataFolder}")
+        print(f"BM25s folder:\t{self.bm25IndexFolder}")
+        print(f"Output file:\t{self.outputFileName}")
 
 
     def threadWorker(self):

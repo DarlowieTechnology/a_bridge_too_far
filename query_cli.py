@@ -11,7 +11,7 @@ from pprint import pprint
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, OpenFile, DebugUtils
+from common import GLOBALPROVIDER, LLMNAMES, CommonCLIArguments, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, OpenFile, DebugUtils
 from query_workflow import QueryWorkflow
 
 
@@ -60,113 +60,75 @@ def main():
 
     # process advanced configuration first, named parameters below supersede advanced configuration
     if args.advanced:
-        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
-        if not res:
-            print(errOrContent)
-            return
-        advDict = json.loads(errOrContent)
-        for key in advDict:
-            context[key] = advDict[key]
-
+        context = CommonCLIArguments.processAdvanced(args.advanced, context)
     if args.provider:
-        if args.provider == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.provider not in GLOBALPROVIDER:
-            print(f"Unknown provider {args.provider}")
-            return
-        else:
-            context['GLOBALllm_Provider'] = args.provider
-
+        context = CommonCLIArguments.processProvider(args.provider, context)
     if args.llm:
-        if args.llm == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.llm not in LLMNAMES:
-            print(f"Unknown LLM {args.llm}")
-            return
-        else:
-            provider = context["GLOBALllm_Provider"]
-            CommonHelper.setLLMName(provider, args.llm)
+        context = CommonCLIArguments.processLLM(args.llm, context)
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
+        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
     if args.query:
-        userQuery = [args.query]
-    else:
-        userQuery = []
+        # combine --query, --advanced values
+        querySet = set()
+        querySet.add(args.query)
+
+        if "query" in context.keys():
+            # process --advanced, could be str or list[str]
+            if type(context['query']) == str:
+                querySet.add(context['query'])
+            else:
+                querySet.update(context['query'])
+
+        context["query"] = list(querySet)
+        if (not len(context["query"])):
+            print("ERROR: Provide --query parameter")
+            return
 
     if args.output:
         context['outputFileName'] = args.output
     else:
-        context['outputFileName'] = context['INDEXEOutFile']
+        context.setdefault('outputFileName', context['INDEXEOutFile'])
 
     if args.count:
         context['outputNumber'] = args.output
     else:
-        context['outputNumber'] = context["QUECLIoutputCount"]
+        context.setdefault('outputNumber', context['QUECLIoutputCount'])
 
     if args.showconfiguration:
         showFlag = True
     else:
         showFlag = False
 
-    # ------ configurable on command line
-    #
-    context['query'] = userQuery                      # query - configurable on command line
-#    context['query'] = ["xss issues"]
-#    context['query'] = ["credentials issues"]
-
     # components of hybrid search
-    if "searchSemanticOriginal" not in context.keys():
-        context["searchSemanticOriginal"] = True
-    if "searchSemanticOriginalCompress" not in context.keys():
-        context["searchSemanticOriginalCompress"] = True
-    if "searchSemanticHyDE" not in context.keys():
-        context["searchSemanticHyDE"] = True
-    if "searchSemanticHyDECompress" not in context.keys():
-        context["searchSemanticHyDECompress"] = True
-    if "searchSemanticMulti" not in context.keys():
-        context["searchSemanticMulti"] = True
-    if "searchSemanticMultiCompress" not in context.keys():
-        context["searchSemanticMultiCompress"] = True
-    if "searchSemanticRewrite" not in context.keys():
-        context["searchSemanticRewrite"] = True
-    if "searchSemanticRewriteCompress" not in context.keys():
-        context["searchSemanticRewriteCompress"] = True
-    if "searchBM25sOriginal" not in context.keys():
-        context["searchBM25sOriginal"] = True
-    if "searchBM25sOriginalCompress" not in context.keys():
-        context["searchBM25sOriginalCompress"] = True
-    if "searchBM25sPrep" not in context.keys():
-        context["searchBM25sPrep"] = True
-    if "searchBM25sPrepCompress" not in context.keys():
-        context["searchBM25sPrepCompress"] = True
+    context.setdefault("searchSemanticOriginal", True)
+    context.setdefault("searchSemanticOriginalCompress", True)
+    context.setdefault("searchSemanticHyDE", True)
+    context.setdefault("searchSemanticHyDECompress", True
+    context.setdefault("searchSemanticMulti", True)
+    context.setdefault("searchSemanticMultiCompress", True)
+    context.setdefault("searchSemanticRewrite", True)
+    context.setdefault("searchSemanticRewriteCompress", True)
+    context.setdefault("searchBM25sOriginal", True)
+    context.setdefault("searchBM25sOriginalCompress", True)
+    context.setdefault("searchBM25sPrep", True)
+    context.setdefault("searchBM25sPrepCompress", True)
 
     # ------ other configuration parameter
     #
 
-    if "semanticMaxCutItemDistance" not in context.keys():
-        context["semanticMaxCutItemDistance"] = 1.0     # distance cut-off for semantic matches
+    context.setdefault("semanticMaxCutItemDistance", 1.0)     # distance cut-off for semantic matches
+    context.setdefault("semanticRetrieveNumber", 1000)        # maximum number of semantic items to retrieve
 
-    if "semanticRetrieveNumber" not in context.keys():
-        context["semanticRetrieveNumber"] = 1000        # maximum number of semantic items to retrieve
+#    context.setdefault("queryBM25Options", TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
+    context.setdefault("queryBM25Options", TOKENIZERTYPES.STOPWORDSEN)
 
-#    context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER
-    context["queryBM25Options"] = TOKENIZERTYPES.STOPWORDSEN
-
-    if "bm25sMinCutOffScore" not in context.keys():
-        context["bm25sMinCutOffScore"] = 0.0            # bm25s score cut-off
-
-    if "bm25sRetrieveNumber" not in context.keys():
-        context["bm25sRetrieveNumber"] = 1000           # maximum number of bm25s items to retrieve
-
-    if "queryPreprocess" not in context.keys():
-        context['queryPreprocess'] = True         # call preprocessQuery() after every query transform
+    context.setdefault("bm25sMinCutOffScore", 0.0)            # bm25s score cut-off
+    context.setdefault("bm25sRetrieveNumber", 1000)           # maximum number of bm25s items to retrieve
+    context.setdefault("queryPreprocess", True)               # call preprocessQuery() after every query transform
 
     # output some info about command line arguments
-    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
 

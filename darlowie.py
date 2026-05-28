@@ -27,7 +27,7 @@ context = {
     # Global
 
     "GLOBALdataFolder" : "../testdata/",     # root data folder
-    "GLOBALloggerLevel" : logging.INFO,      # CRITICAL, ERROR, WARN, INFO
+    "logginglevel" : logging.INFO,      # CRITICAL, ERROR, WARN, INFO
     "GLOBALllm_Provider" : "lmstudio",
     "GLOBALloggerSessionKey" : "APPLOG",
 

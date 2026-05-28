@@ -79,7 +79,7 @@ def jiraExportPhase(
 def main():
     context = darlowie.context
 
-    logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
+    logging.basicConfig(stream=sys.stdout, level=context["logginglevel"])
     logger = logging.getLogger(context["GLOBALloggerSessionKey"])
 
     context["inputFileName"] = context["GLOBALdataFolder"] + context["JEXCLIdataFolder"] + "SCRUM"

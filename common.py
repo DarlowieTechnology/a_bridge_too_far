@@ -146,6 +146,46 @@ class TOKENIZERTYPES(IntFlag) :
     STEMMER = auto()
 
 
+class CommonCLIArguments(BaseModel):
+
+    @staticmethod
+    def processAdvanced(fileName : str, context : Dict[str, Any]) -> Dict[str, Any]:
+        res, errOrContent = OpenFile.open(filePath = fileName, readContent = True)
+        if not res:
+            print(errOrContent)
+            return context
+        advDict = json.loads(errOrContent)
+        for key in advDict:
+            context[key] = advDict[key]
+        return context
+
+    @staticmethod
+    def processProvider(providerName : str, context : Dict[str, Any]) -> Dict[str, Any]:
+        if providerName == '?':
+            CommonHelper.displayProviderLLM(context)
+            return context
+        if providerName not in GLOBALPROVIDER:
+            print(f"Unknown provider {providerName}")
+            return context
+        # provider is initially configured in darlowie.py
+        # --advanced may change provider
+        # command line supersedes initial and --advanced values
+        context['GLOBALllm_Provider'] = providerName
+        return context
+
+    @staticmethod
+    def processLLM(llmName : str, context : Dict[str, Any]) -> Dict[str, Any]:
+        if llmName == '?':
+            CommonHelper.displayProviderLLM(context)
+            return context
+        if llmName not in LLMNAMES:
+            print(f"Unknown LLM {llmName}")
+            return context
+        # command line supersedes --advanced values
+        context["GLOBALllm_Version"] = llmName
+        return context
+
+
 class CommonHelper(BaseModel):
 
     @staticmethod
@@ -177,6 +217,17 @@ class CommonHelper(BaseModel):
     @ staticmethod
     def currentLLMName(providerName : str) -> str :
         return DEFAULTLLMSETS[providerName]["GLOBALllm_Version"]
+
+    @staticmethod
+    def convertName2LoggingLevel(name : str) -> int :
+        dictNames = logging.getLevelNamesMapping()
+        if name.upper() in dictNames:
+            return dictNames[name.upper()]
+        return 0
+
+    @staticmethod
+    def convertLoggingLevel2Name(level : int) -> str :
+        return logging.getLevelName(level)
 
 
 class OneDiscoveryBM25File(BaseModel):
@@ -360,7 +411,9 @@ class ConfigCollection(BaseModel):
         
         expansionDict = DEFAULTLLMSETS[llmProvider]
         for key in expansionDict:
-            self.conf[key] = expansionDict[key]
+            # do not overwrite values supplied in --llm and --advanced
+            self.conf.setdefault(key, expansionDict[key])
+#            self.conf[key] = expansionDict[key]
         return True
 
 
@@ -422,17 +475,6 @@ class DebugUtils(object):
                 print(f"\n------{objLabel}---------\n{objToDump.model_dump_json(indent=2)}")
             else:
                 print("\n------dumpPydanticObject : None------")
-
-    @staticmethod
-    def convertName2LoggingLevel(name : str) -> int :
-        dictNames = logging.getLevelNamesMapping()
-        if name.upper() in dictNames:
-            return dictNames[name.upper()]
-        return 0
-
-    @staticmethod
-    def convertLoggingLevel2Name(level : int) -> str :
-        return logging.getLevelName(level)
 
 
 class OpenFile():

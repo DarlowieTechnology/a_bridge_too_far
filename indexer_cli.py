@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonHelper, ConfigCollection, DebugUtils, OpenFile, RecordCollection
+from common import GLOBALPROVIDER, LLMNAMES, CommonCLIArguments, CommonHelper, ConfigCollection, DebugUtils, OpenFile, RecordCollection
 from indexer_workflow import IndexerWorkflow
 from parserClasses import ParserClassFactory
 
@@ -76,75 +76,52 @@ def main():
 
     # process advanced configuration first, named parameters below supersede advanced configuration
     if args.advanced:
-        res, errOrContent = OpenFile.open(filePath = args.advanced, readContent = True)
-        if not res:
-            print(errOrContent)
-            return
-        advDict = json.loads(errOrContent)
-        for key in advDict:
-            context[key] = advDict[key]
-
+        context = CommonCLIArguments.processAdvanced(args.advanced, context)
     if args.provider:
-        if args.provider == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.provider not in GLOBALPROVIDER:
-            print(f"Unknown provider {args.provider}")
-            return
-        else:
-            context['GLOBALllm_Provider'] = args.provider
-
+        context = CommonCLIArguments.processProvider(args.provider, context)
     if args.llm:
-        if args.llm == '?':
-            CommonHelper.displayProviderLLM(context)
-            return
-        if args.llm not in LLMNAMES:
-            print(f"Unknown LLM {args.llm}")
-            return
-        else:
-            provider = context["GLOBALllm_Provider"]
-            CommonHelper.setLLMName(provider, args.llm)
+        context = CommonCLIArguments.processLLM(args.llm, context)
 
     if args.verbose:
-        context['GLOBALloggerLevel'] = DebugUtils.convertName2LoggingLevel(args.verbose)
+        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
-    # stages
+    # phases
     if args.load:
         context["loadDocument"] = True
     else:
-        context["loadDocument"] = False
+        context.setdefault("loadDocument", False)
 
     if args.rawjson:
         context["rawTextFromDocument"] = True
     else:
-        context["rawTextFromDocument"] = False
+        context.setdefault("rawTextFromDocument", False)
 
     if args.finaljson:
         context["finalJSONfromRaw"] = True
     else:
-        context["finalJSONfromRaw"] = False
+        context.setdefault("finalJSONfromRaw", False)
 
     if args.bm25s:
         context["prepareBM25corpus"] = True
     else:
-        context["prepareBM25corpus"] = False
+        context.setdefault("prepareBM25corpus", False)
 
     if args.vectorize:
         context["vectorizeFinalJSON"] = True
     else:
-        context["vectorizeFinalJSON"] = False
+        context.setdefault("vectorizeFinalJSON", False)
 
     if args.clear:
         context["clear"] = True
     else:
-        context["clear"] = False
+        context.setdefault("clear", False)
 
     if context["loadDocument"] or context["rawTextFromDocument"] or context["finalJSONfromRaw"] or context["prepareBM25corpus"] or context["vectorizeFinalJSON"]:
         # enforce file list argument for all stages that require input files
         if not args.input:
             print("Provide list of reports to process")
             return
-        
+
     if args.input:
         res, errOrContent = OpenFile.open(filePath = args.input, readContent = True)
         if not res:
@@ -167,7 +144,6 @@ def main():
     context["singleSpaces"] = True
 
     # output some info about command line arguments
-    print(f"Verbosity level {DebugUtils.convertLoggingLevel2Name(context['GLOBALloggerLevel'])}")
     print(f"Provider: {context["GLOBALllm_Provider"]}   LLM: {CommonHelper.currentLLMName(context["GLOBALllm_Provider"])}")
 
 

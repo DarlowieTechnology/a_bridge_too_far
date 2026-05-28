@@ -18,8 +18,8 @@ class IndexerConfig(AppConfig):
     def ready(self):
         context = darlowie.context
 
-#        logging.basicConfig(level=context['GLOBALloggerLevel'], format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.basicConfig(stream=sys.stdout, level=context["GLOBALloggerLevel"])
+#        logging.basicConfig(level=context['logginglevel'], format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(stream=sys.stdout, level=context["logginglevel"])
         logger = logging.getLogger(__name__)
 
 

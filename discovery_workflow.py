@@ -51,7 +51,7 @@ from spacy import Language
 from anyascii import anyascii
 
 # local
-from common import PROVIDERS, GLOBALPROVIDER, COLLECTION, TOKENIZERTYPES, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
+from common import PROVIDERS, GLOBALPROVIDER, COLLECTION, TOKENIZERTYPES, CommonHelper, ConfigCollection, MatchingChunks, AllTopicMatches, ChunkInfo, OpenFile
 from resultsQueryClasses import SEARCH, OneQueryChunkResult, OneChunkQueryResultList, IdentifierQueryResults, RRFScores, AllChunkQueryResults, CollectionChunkQueryResults
 from queryService import QueryService
 from workflowbase import WorkflowBase 
@@ -77,6 +77,8 @@ class DiscoveryWorkflow(WorkflowBase):
     GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
     gemini_key : str = Field(default = "", description="Global Google Gemini API Key")
 
+    logginglevel : int = Field(default = logging.WARN, description="Logging level")
+
     # app specific configuration
     statusFileName : str = Field(default = "DISCOVERYLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
@@ -86,8 +88,8 @@ class DiscoveryWorkflow(WorkflowBase):
 
     source : List[str] = Field(default = [], description="List of source documents")
     fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
-    chunkSize : int = Field(default = 512, description="Chunk size for source documents")
-    chunkOverlap : int = Field(default = 32, description="Chunk overlap for source documents")
+    chunkSize : int = Field(default = 256, description="Chunk size for source documents")
+    chunkOverlap : int = Field(default = 48, description="Chunk overlap for source documents")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
@@ -115,9 +117,9 @@ class DiscoveryWorkflow(WorkflowBase):
     searchBM25sHyDE : bool = Field(default = True, description="Perform bm25s query on HyDE transform")
 
     # retrieval configuration
-    semanticRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with semantic query")
+    semanticRetrieveNumber : int = Field(default = 1000, description="Number of items retrieved with semantic query")
     semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
-    bm25sRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with bm25s query")
+    bm25sRetrieveNumber : int = Field(default = 1000, description="Number of items retrieved with bm25s query")
     bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
     rrfCutOffValue : float = Field(default = 0.0, description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
@@ -132,13 +134,13 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.GLOBALllm_Provider:
             if self.GLOBALllm_Provider not in PROVIDERS.keys():
                 raise ValueError(f'Unknown LLM provider: {self.GLOBALllm_Provider}')
-#            providerInfo = PROVIDERS[self.GLOBALllm_Provider]
-#            if providerInfo["embed"] != self.GLOBALembedding_URL:
-#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown Embedding URL: {self.GLOBALembedding_URL}')
-#            if providerInfo["url"] != self.GLOBALllm_URL:
-#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM API URL: {self.GLOBALllm_URL}')
-#            if self.GLOBALllm_Version not in providerInfo["llm"]:
-#                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM: {self.GLOBALllm_Version}')
+            providerInfo = PROVIDERS[self.GLOBALllm_Provider]
+            if providerInfo["embed"] != self.GLOBALembedding_URL:
+                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown Embedding URL: {self.GLOBALembedding_URL}')
+            if providerInfo["url"] != self.GLOBALllm_URL:
+                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM API URL: {self.GLOBALllm_URL}')
+            if self.GLOBALllm_Version not in providerInfo["llm"]:
+                raise ValueError(f'LLM provider: {self.GLOBALllm_Provider} - Unknown LLM: {self.GLOBALllm_Version}')
 
         # verify access to Source document folder
         if not Path(self.documentFolder).is_dir:
@@ -195,9 +197,13 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.GLOBALllm_Provider == GLOBALPROVIDER.GEMINI.value:
             self.gemini_key = configCollection['gemini_key']
 
+        if configCollection.keyExists("logginglevel"):
+            self.logginglevel = configCollection["logginglevel"]
+        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
+
         self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 
-        if configCollection.keyExists("statusFileName"): 
+        if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
 
         if configCollection.keyExists("ragDatapath"):
@@ -1019,14 +1025,13 @@ class DiscoveryWorkflow(WorkflowBase):
 
 
     def showConfiguration(self) :
-        print("====DISCOVERY Configuration==========")
-        print(f"Status file: {self.statusFileName}")
-        print(f"RAG database path: {self.ragDatapath}")
-        print(f"Document folder: {self.documentFolder}")
-        print(f"Interim data folder: {self.dataFolder}")
-        print(f"BM25s folder: {self.bm25IndexFolder}")
-        
-        print("==============")
+        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
+        print(f"Status file:\t{self.statusFileName}")
+        print(f"Documents:\t{self.documentFolder}")
+        print(f"RAG database:\t{self.ragDatapath}")
+        print(f"Interim data:\t{self.dataFolder}")
+        print(f"BM25s folder:\t{self.bm25IndexFolder}")
+        print(f"Output file:\t{self.outputFileName}")
 
 
     def threadWorker(self):

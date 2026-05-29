@@ -588,7 +588,7 @@ class IndexerWorkflow(WorkflowBase):
                 ids=ids,
                 metadatas=docMetadata
             )
-        self.updateStats(topKey = "Vectorize", keyValList = [ ("Time", time.time() - startTime),  ("Accepted", accepted), ("Rejected", rejected) ])
+        self.updateStats(topKey = "Vectorize", keyValList = [ ("Time", time.time() - startTime),  ("Vectors Accepted", accepted), ("Vectors Rejected", rejected) ])
 
 
     def vectorizeFinalJSONPhaseAllFiles(self, inputFileList : List[str]):
@@ -639,8 +639,6 @@ class IndexerWorkflow(WorkflowBase):
                 OpenFile.remove(fileName)
 
 
-
-
     def rawTextFromDocumentPhase(self) :
         """
         Perform conversion of raw text to raw JSON
@@ -649,7 +647,6 @@ class IndexerWorkflow(WorkflowBase):
         
         Returns:
         """
-
         startTime = time.time()
 
         result, fileContentOrError = OpenFile.open(filePath = self.rawTextFromDoc, readContent = True)
@@ -694,7 +691,6 @@ class IndexerWorkflow(WorkflowBase):
             self.rawTextFromDocumentPhase()
             print(self.showStats(topKey = "Raw JSON", showKey = "Raw JSON", label="Raw JSON"))
         self.removeStats(topKey = "Raw JSON", removeKey = "Raw JSON")
-
 
 
     def finalJSONfromRawPhase(self, issueTemplate : BaseModel) :

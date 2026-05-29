@@ -249,15 +249,15 @@ class QueryService(BaseModel):
         return allChunkQueryResults
 
 
-    def hydeQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
-        """ Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. Throws exceptions on LLM errors.
+    def hydeQuery(self, query : str, model : Model) -> tuple[str, RunUsage|None]:
+        """ Use HyDE (Hypothetical Document Embedding) to improve the query for semantic search. Returns tuple[errStr, None] on LLM exception.
 
             :param query: query for semantic search
             :type query: str
             :param model: OpenAI model instance
             :type model: Model
-            :return: tuple of results and run usage
-            :rtype: tuple[str, RunUsage]
+            :return: tuple of results and run usage.
+            :rtype: tuple[str, RunUsage|None]
 
         """
 
@@ -268,24 +268,28 @@ class QueryService(BaseModel):
             system_prompt = systemPrompt,
             retries = 3)
         userPrompt = query
-        result = agentHyDE.run_sync(userPrompt)
-        resOutput: str = ""
-        if type(result.output) == str:
-            resOutput = result.output
-        if type(result.output) == list:
-            resOutput = " ".join(result.output)
-        return resOutput, result.usage()
+        try:
+            result = agentHyDE.run_sync(userPrompt)
+            resOutput: str = ""
+            if type(result.output) == str:
+                resOutput = result.output
+            if type(result.output) == list:
+                resOutput = " ".join(result.output)
+            return resOutput, result.usage()
+        except Exception as e:
+            msg = f"EXCEPTION: {e}"
+            return msg, None
 
 
-    def multiQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
-        """Generate multiple queries form the original query for semantic search. Throws exceptions on LLM errors.
+    def multiQuery(self, query : str, model : Model) -> tuple[str, RunUsage|None]:
+        """Generate multiple queries form the original query for semantic search. Returns tuple[errStr, None] on LLM exception.
         
         :param query: query for semantic search
         :type query: str
         :param model: OpenAI model instance
         :type model: Model
         :return: tuple of results and run usage
-        :rtype: tuple[str, RunUsage]
+        :rtype: tuple[str, RunUsage|None]
         """
 
         # Prompt for generating multiple queries
@@ -302,25 +306,29 @@ class QueryService(BaseModel):
             output_type = str,
             retries = 3)
         userPrompt = query
-        result = agentMultipleQ.run_sync(userPrompt)
-        resOutput: str = ""
-        if type(result.output) == str:
-            resOutput = result.output
-        if type(result.output) == list:
-            resOutput = " ".join(result.output)
-        return resOutput, result.usage()
+        try:
+            result = agentMultipleQ.run_sync(userPrompt)
+            resOutput: str = ""
+            if type(result.output) == str:
+                resOutput = result.output
+            if type(result.output) == list:
+                resOutput = " ".join(result.output)
+            return resOutput, result.usage()
+        except Exception as e:
+            msg = f"EXCEPTION: {e}"
+            return msg, None
 
 
-    def rewriteQuery(self, query : str, model : Model) -> tuple[str, RunUsage]:
+    def rewriteQuery(self, query : str, model : Model) -> tuple[str, RunUsage|None]:
         """
-        Rewrite the query for semantic search.  Throws exceptions on LLM errors.
+        Rewrite the query for semantic search.  Returns tuple[errStr, None] on LLM exception.
         
         :param query: query for semantic search
         :type query: str
         :param model: OpenAI model instance
         :type model: Model
         :return: tuple of results and run usage
-        :rtype: tuple[str, RunUsage]
+        :rtype: tuple[str, RunUsage|None]
         """
         # Query rewriting prompt
         systemPrompt = """You are a query rewriting expert. The user's original query didn't retrieve relevant documents.
@@ -340,13 +348,18 @@ class QueryService(BaseModel):
             system_prompt = systemPrompt,
             retries = 3)
         userPrompt = query
-        result = agentRewriteQ.run_sync(userPrompt)
-        resOutput: str = ""
-        if type(result.output) == str:
-            resOutput = result.output
-        if type(result.output) == list:
-            resOutput = " ".join(result.output)
-        return resOutput, result.usage()
+
+        try:
+            result = agentRewriteQ.run_sync(userPrompt)
+            resOutput: str = ""
+            if type(result.output) == str:
+                resOutput = result.output
+            if type(result.output) == list:
+                resOutput = " ".join(result.output)
+            return resOutput, result.usage()
+        except Exception as e:
+            msg = f"EXCEPTION: {e}"
+            return msg, None
 
 
     def tokenizeQuery(self, query : str) -> List[str]:
@@ -425,7 +438,7 @@ class QueryService(BaseModel):
 
     def getOutliersFromRRF(self, allChunkQueryResults : AllChunkQueryResults, iqrCoefficient : float, zScoreThreshold : float) -> Dict[str, IdentifierQueryResults]:
         """
-        Select outliers in array of RRF ranks by Interquartile Range (IQR) and Z Score
+        Select outliers in array of RRF ranks by Interquartile Range (IQR) and Z Score.
 
         :param allChunkQueryResults: all query results
         :type allChunkQueryResults: AllChunkQueryResults
@@ -443,6 +456,10 @@ class QueryService(BaseModel):
             inData.append(round(identifierQueryResults.rrfRank, 10))
         
         inData = sorted(inData)
+        outDict : Dict[str, IdentifierQueryResults] = {}
+
+        if not len(inData):
+            return outDict
 
         data = np.array(inData)
         q1 = np.percentile(data, 25)
@@ -459,7 +476,6 @@ class QueryService(BaseModel):
             z_scores = [(y - mean_val) / std_dev for y in inData]
         outliers = [y for y, z_score in zip(inData, z_scores) if z_score > zScoreThreshold]
 
-        outDict : Dict[str, IdentifierQueryResults] = {}
         for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
             identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
             val = round(identifierQueryResults.rrfRank, 10)

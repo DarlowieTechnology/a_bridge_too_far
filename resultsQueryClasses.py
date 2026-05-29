@@ -81,8 +81,8 @@ class AllChunkQueryResults(BaseModel):
 class AllIndexerQueryResults(BaseModel):
     """represents collection of all query results for Indexer and Query"""
     query : list[str] = Field(default = [], description="Original query")
-    rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
-    listQueryResults: List[ OneIndexerQueryResultList ] = Field(default=None, description="List of OneIndexerQueryResultList")
+    rrfScores : RRFScores|None = Field(default=None, description="RRF ranks in descending order")
+    listQueryResults: List[ OneIndexerQueryResultList ] = Field(default=[], description="List of OneIndexerQueryResultList")
 
 #--------------------CollectionQueryResults-------------------------------------
 

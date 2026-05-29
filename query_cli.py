@@ -105,7 +105,7 @@ def main():
     context.setdefault("searchSemanticOriginal", True)
     context.setdefault("searchSemanticOriginalCompress", True)
     context.setdefault("searchSemanticHyDE", True)
-    context.setdefault("searchSemanticHyDECompress", True
+    context.setdefault("searchSemanticHyDECompress", True)
     context.setdefault("searchSemanticMulti", True)
     context.setdefault("searchSemanticMultiCompress", True)
     context.setdefault("searchSemanticRewrite", True)

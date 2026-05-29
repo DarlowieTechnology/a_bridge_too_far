@@ -17,6 +17,10 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.usage import RunUsage
 
+import chromadb
+from chromadb import Collection, ClientAPI
+from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
+
 from openai import OpenAI
 
 import Stemmer
@@ -26,7 +30,7 @@ from anyascii import anyascii
 
 
 # local
-from common import TOKENIZERTYPES, CommonHelper, OneResultWithType, ResultWithTypeList, ConfigCollection, DebugUtils
+from common import TOKENIZERTYPES, CommonHelper, COLLECTION, OneResultWithType, ResultWithTypeList, ConfigCollection, DebugUtils
 from resultsQueryClasses import SEARCH, OneIndexerQueryResult, IdentifierQueryResults, RRFScores, OneIndexerQueryResultList, AllIndexerQueryResults
 from workflowbase import WorkflowBase 
 from parserClasses import ParserClassFactory
@@ -499,7 +503,7 @@ class QueryWorkflow(WorkflowBase):
         return oneIndexerQueryResultList
 
 
-    def vectorQuery(self, queryList : list[str], queryLabel : str) -> OneIndexerQueryResultList:
+    def vectorQuery(self, queryList : list[str], queryLabel : str, chromaCollection : Collection ) -> OneIndexerQueryResultList:
         """
         Performs vector (semantic) query. Returns list of results
         Uses semanticMaxCutItemDistance to cut results off
@@ -518,7 +522,7 @@ class QueryWorkflow(WorkflowBase):
             label = queryLabel
         )
 
-        chromaCollection = self.collections["reportissues"]
+#        chromaCollection = self.collections["reportissues"]
 
         queryResult = chromaCollection.query(query_texts = queryList, n_results = self.semanticRetrieveNumber)
 
@@ -632,18 +636,36 @@ class QueryWorkflow(WorkflowBase):
 
 
     def performQueries(self) -> AllIndexerQueryResults|None :
+        """
+        Perform searches as per configuration 
+        
+        :return: collection of all different results for the query
+        :rtype: AllIndexerQueryResults
+        """
 
         if not len(self.query):
             return None
 
         allQueryResults = AllIndexerQueryResults(
             query = self.query,
-            listQueryResults = [],
-            rrfScores = {}
+            listQueryResults = []
         )
 
-        if not self.initRAGcomponents():
-            return None
+        embeddingFunction = OllamaEmbeddingFunction(
+            model_name=self.GLOBALllm_Embed,
+            url=self.GLOBALembedding_URL
+        )
+        if not embeddingFunction:
+            return
+        
+        chromaClient : ClientAPI = self.openChromaClient()
+        if not chromaClient:
+            return
+
+        collection : Collection = chromaClient.get_collection(
+            embedding_function = embeddingFunction,
+            name = "reportissues"
+        )
 
         originalQuery  = self.query
 
@@ -655,7 +677,7 @@ class QueryWorkflow(WorkflowBase):
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed: {originalQuery}"
                 self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(originalQuery, "ORIG"))
+            allQueryResults.listQueryResults.append(self.vectorQuery(originalQuery, "ORIG", collection))
 
         if self.searchSemanticOriginalCompress:
             if self.queryPreprocess :
@@ -665,7 +687,7 @@ class QueryWorkflow(WorkflowBase):
             compressedQuery = self.compressQuery(originalQuery)
             msg = f"compress: {compressedQuery}"
             self.workerSnapshot(msg)
-            allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "ORIGCOMPRESS"))
+            allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "ORIGCOMPRESS", collection))
 
         if self.searchSemanticHyDE:
             hydeQuery = self.hydeQuery(originalQuery)
@@ -676,7 +698,7 @@ class QueryWorkflow(WorkflowBase):
                     hydeQuery = self.preprocessQuery(hydeQuery)
                     msg = f"preprocessed: {hydeQuery}"
                     self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(hydeQuery, "HYDE"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(hydeQuery, "HYDE", collection))
 
         if self.searchSemanticHyDECompress:
             hydeQuery = self.hydeQuery(originalQuery)
@@ -690,7 +712,7 @@ class QueryWorkflow(WorkflowBase):
                 compressedQuery = self.compressQuery(hydeQuery)
                 msg = f"compress: {compressedQuery}"
                 self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "HYDECOMPRESS"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "HYDECOMPRESS", collection))
 
         if self.searchSemanticMulti:
             multiQuery = self.multiQuery(originalQuery)
@@ -701,7 +723,7 @@ class QueryWorkflow(WorkflowBase):
                     multiQuery = self.preprocessQuery(multiQuery)
                     msg = f"preprocessed: {multiQuery}"
                     self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(multiQuery, "MULTI"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(multiQuery, "MULTI", collection))
 
         if self.searchSemanticMultiCompress:
             multiQuery = self.multiQuery(originalQuery)
@@ -715,7 +737,7 @@ class QueryWorkflow(WorkflowBase):
                 compressedQuery = self.compressQuery(multiQuery)
                 msg = f"compress: {compressedQuery}"
                 self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "MULTICOMPRESS"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(compressedQuery, "MULTICOMPRESS", collection))
 
         if self.searchSemanticRewrite:
             rewriteQuery = self.rewriteQuery(originalQuery)
@@ -726,7 +748,7 @@ class QueryWorkflow(WorkflowBase):
                     rewriteQuery = self.preprocessQuery(rewriteQuery)
                     msg = f"preprocessed: {rewriteQuery}"
                     self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, "REWRITE"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, "REWRITE", collection))
 
         if self.searchSemanticRewriteCompress:
             rewriteQuery = self.rewriteQuery(originalQuery)
@@ -740,7 +762,7 @@ class QueryWorkflow(WorkflowBase):
                 compressedQuery = self.compressQuery(rewriteQuery)
                 msg = f"rewrite compress: {compressedQuery}"
                 self.workerSnapshot(msg)
-                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, "REWRITECOMPRESS"))
+                allQueryResults.listQueryResults.append(self.vectorQuery(rewriteQuery, "REWRITECOMPRESS", collection))
 
         if self.searchBM25sOriginal:
             if self.queryPreprocess :

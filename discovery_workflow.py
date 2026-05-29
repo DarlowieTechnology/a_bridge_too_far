@@ -853,103 +853,151 @@ class DiscoveryWorkflow(WorkflowBase):
  #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         # semantic search for multi query
+        multiQueryTexts : str = ""
         if self.searchSemanticMulti:
-            multiQueryTexts, usage = queryService.multiQuery(queryText, model)
-            self.addUsage(usage)
-            oneQueryResultList = queryService.semanticQuery(
-                query = multiQueryTexts, 
-                chromaCollection = chromaCollection, 
-                queryLabel = "MULTI",
-                maxRetrieveNumber = self.semanticRetrieveNumber,
-                maxCutItemDistance = self.semanticMaxCutItemDistance
-            )
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            multiQueryTextsOrError, usage = queryService.multiQuery(queryText, model)
+            if not usage:
+                # exception in LLM interface
+                self.workerSnapshot(multiQueryTextsOrError)
+                self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
+            else:
+                multiQueryTexts = multiQueryTextsOrError
+                self.addUsage(usage)
+                oneQueryResultList = queryService.semanticQuery(
+                    query = multiQueryTexts, 
+                    chromaCollection = chromaCollection, 
+                    queryLabel = "MULTI",
+                    maxRetrieveNumber = self.semanticRetrieveNumber,
+                    maxCutItemDistance = self.semanticMaxCutItemDistance
+                )
+                allQueryResults.listQueryResults.append(oneQueryResultList)
 
   #          self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
         # bm25s search for multi query
         if self.searchBM25sMulti:
-            if not self.searchSemanticMulti:
-                multiQueryTexts, usage = queryService.multiQuery(queryText, model)
-                self.addUsage(usage)
-            multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
-            oneQueryResultList, err = queryService.bm25sQuery(
-                query = multiTokenList,
-                folderName = self.bm25IndexFolder, 
-                queryLabel = "BM25SMULTI", 
-                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
-            if not oneQueryResultList:
-                self.workerSnapshot(err)
-                return None
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            if not len(multiQueryTexts):
+                # Semantic Multi is False OR previous error, BM25s Multi is True - need to attempt Semantic Multi first
+                multiQueryTextsOrError, usage = queryService.multiQuery(queryText, model)
+                if not usage:
+                    # exception in LLM interface
+                    self.workerSnapshot(multiQueryTextsOrError)
+                    self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
+                else:
+                    multiQueryTexts = multiQueryTextsOrError
+                    self.addUsage(usage)
+
+            if len(multiQueryTexts):
+                multiTokenList = queryService.tokenizeQuery(query = multiQueryTexts)
+                oneQueryResultList, err = queryService.bm25sQuery(
+                    query = multiTokenList,
+                    folderName = self.bm25IndexFolder, 
+                    queryLabel = "BM25SMULTI", 
+                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                if not oneQueryResultList:
+                    self.workerSnapshot(err)
+                    return None
+                allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         # semantic search for rewrite query
+        rewriteQueryTexts : str = ""
         if self.searchSemanticRewrite:
-            rewriteQueryTexts, usage = queryService.rewriteQuery(queryText, model)
-            self.addUsage(usage)
-            oneQueryResultList = queryService.semanticQuery(
-                query = rewriteQueryTexts, 
-                chromaCollection = chromaCollection, 
-                queryLabel = "REWRITE",
-                maxRetrieveNumber = self.semanticRetrieveNumber,
-                maxCutItemDistance = self.semanticMaxCutItemDistance)
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            rewriteQueryTextsOrError, usage = queryService.rewriteQuery(queryText, model)
+            if not usage:
+                # exception in LLM interface
+                self.workerSnapshot(rewriteQueryTextsOrError)
+                self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
+            else:
+                rewriteQueryTexts = rewriteQueryTextsOrError
+                self.addUsage(usage)
+                oneQueryResultList = queryService.semanticQuery(
+                    query = rewriteQueryTexts, 
+                    chromaCollection = chromaCollection, 
+                    queryLabel = "REWRITE",
+                    maxRetrieveNumber = self.semanticRetrieveNumber,
+                    maxCutItemDistance = self.semanticMaxCutItemDistance)
+                allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
         # bm25s search for rewrite query
         if self.searchBM25sRewrite:
-            if not self.searchSemanticRewrite:
-                rewriteQueryTexts, usage = queryService.rewriteQuery(queryText, model)
-                self.addUsage(usage)
-            rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
-            oneQueryResultList, err = queryService.bm25sQuery(
-                query = rewriteTokenList, 
-                folderName = self.bm25IndexFolder, 
-                queryLabel = "BM25SREWRITE", 
-                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
-            if not oneQueryResultList:
-                self.workerSnapshot(err)
-                return None
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            if not len(rewriteQueryTexts):
+                # Semantic Rewrite is False OR previous error, BM25s Rewrite is True - need to attempt Semantic Rewrite first
+                rewriteQueryTextsOrError, usage = queryService.rewriteQuery(queryText, model)
+                if not usage:
+                    # exception in LLM interface
+                    self.workerSnapshot(rewriteQueryTextsOrError)
+                    self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
+                else:
+                    rewriteQueryTexts = rewriteQueryTextsOrError
+                    self.addUsage(usage)
+
+            if len(rewriteQueryTexts):
+                rewriteTokenList = queryService.tokenizeQuery(query = rewriteQueryTexts)
+                oneQueryResultList, err = queryService.bm25sQuery(
+                    query = rewriteTokenList, 
+                    folderName = self.bm25IndexFolder, 
+                    queryLabel = "BM25SREWRITE", 
+                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                if not oneQueryResultList:
+                    self.workerSnapshot(err)
+                    return None
+                allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
         # search for semantic HyDE query
-        hydeQueryTexts = []
+        hydeQueryText : str = ""
         if self.searchSemanticHyDE:
-            hydeQueryTexts, usage = queryService.hydeQuery(queryText, model)
-            self.addUsage(usage)
-            oneQueryResultList = queryService.semanticQuery(
-                query = hydeQueryTexts, 
-                chromaCollection = chromaCollection, 
-                queryLabel = "HYDE",
-                maxRetrieveNumber = self.semanticRetrieveNumber,
-                maxCutItemDistance = self.semanticMaxCutItemDistance)
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            hydeQueryTextsOrError, usage = queryService.hydeQuery(queryText, model)
+            if not usage:
+                # exception in LLM interface
+                self.workerSnapshot(hydeQueryTextsOrError)
+                self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
+            else:
+                hydeQueryText = hydeQueryTextsOrError
+                self.addUsage(usage)
+                oneQueryResultList = queryService.semanticQuery(
+                    query = hydeQueryText, 
+                    chromaCollection = chromaCollection, 
+                    queryLabel = "HYDE",
+                    maxRetrieveNumber = self.semanticRetrieveNumber,
+                    maxCutItemDistance = self.semanticMaxCutItemDistance)
+                allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
         # search for bm25s HyDE query
         if self.searchBM25sHyDE:
-            if self.searchSemanticHyDE:
-                hydeQueryTexts, usage = queryService.hydeQuery(queryText, model)
-                self.addUsage(usage)
-            hydeTokenList = queryService.tokenizeQuery(query = hydeQueryTexts)
-            oneQueryResultList, err = queryService.bm25sQuery(
-                query = hydeTokenList, 
-                folderName = self.bm25IndexFolder, 
-                queryLabel = "BM25SHYDE", 
-                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                bm25sMinCutOffScore = self.bm25sMinCutOffScore)
-            if not oneQueryResultList:
-                self.workerSnapshot(err)
-                return None
-            allQueryResults.listQueryResults.append(oneQueryResultList)
+            if not len(hydeQueryText):
+                # Semantic HyDE is False OR previous error, BM25s HyDE is True - need to attempt Semantic HyDE first
+                hydeQueryTextsOrError, usage = queryService.hydeQuery(queryText, model)
+                if not usage:
+                    # exception in LLM interface
+                    self.workerSnapshot(hydeQueryTextsOrError)
+                    self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
+                else:
+                    self.addUsage(usage)
+                    hydeQueryText = hydeQueryTextsOrError
+            
+            if len(hydeQueryText):
+                hydeTokenList = queryService.tokenizeQuery(query = hydeQueryText)
+                oneQueryResultList, err = queryService.bm25sQuery(
+                    query = hydeTokenList, 
+                    folderName = self.bm25IndexFolder, 
+                    queryLabel = "BM25SHYDE", 
+                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
+                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                if oneQueryResultList:
+                    allQueryResults.listQueryResults.append(oneQueryResultList)    
+                else:
+                    self.workerSnapshot(err)
+                    return None
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -1073,7 +1121,7 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.makeRawVector:
             startTime = time.time()
             accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
-            self.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Chunks Accepted", accepted), ("Chunks Rejected", rejected)])
+            self.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
 
         # ------------bm25Process----------------------
 

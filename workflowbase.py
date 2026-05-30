@@ -60,14 +60,6 @@ class WorkflowBase(BaseModel):
         self.usage = RunUsage()
 
 
-    def needsUpdate(self, updatedDiscoveryWorkflow : Dict[str, Any]) -> bool:
-        toUpdate = False
-        for key in updatedDiscoveryWorkflow.keys():
-            if hasattr(self, key):
-                toUpdate = toUpdate or (self.__dict__[key] != updatedDiscoveryWorkflow[key])
-        return toUpdate
-
-
     def updateStats(self, topKey : str, keyValList : List[tuple[str, int|float]]) :
         """
         Update internal statistics. Attempt to update first, create key second.

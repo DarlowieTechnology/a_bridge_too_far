@@ -1,5 +1,8 @@
 from typing import Dict, Any
+import json
 from fastapi import FastAPI
+from fastapi import Body
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
 from pprint import pprint
@@ -98,6 +101,8 @@ async def queryconfiguration( updatedWorkflow : Dict[str, Any] ):
 @app.get("/discovery")
 async def discovery():
     if hasattr(app.state, "DISCOVERY"):
+#        DebugUtils.logPydanticObject(app.state.DISCOVERY, "FROM CACHE")
+        print("FROM CACHE")
         return app.state.DISCOVERY
     else:
         configCollection = ConfigCollection()
@@ -106,23 +111,19 @@ async def discovery():
         discoveryWorkflow.configure(configCollection)
         app.state.DISCOVERY = discoveryWorkflow
 
-        DebugUtils.logPydanticObject(discoveryWorkflow, "EXISTING STATE")
+#        DebugUtils.logPydanticObject(discoveryWorkflow, "CREATED NEW")
+        print("CREATED NEW")
 
         return discoveryWorkflow
 
+
 @app.post("/discovery/config")
-async def discoveryconfiguration( updatedWorkflow : Dict[str, Any] ):
-
-    print("WHAT WE GET")
-    pprint(updatedWorkflow)
-
-    if hasattr(app.state, "DISCOVERY"):
-        discoveryWorkflow = app.state.DISCOVERY
-        if not discoveryWorkflow.needsUpdate(updatedWorkflow):
-            return discoveryWorkflow
+async def discoveryconfiguration( request: Request ):
+    body = await request.body()
+    data_dict = json.loads(body.decode('utf-8'))
     configCollection = ConfigCollection()
     configCollection.configure()
-    configCollection.update(updatedWorkflow)
+    configCollection.update(data_dict)
     discoveryWorkflow = DiscoveryWorkflow()
     discoveryWorkflow.configure(configCollection)
     app.state.DISCOVERY = discoveryWorkflow

@@ -154,7 +154,11 @@ class CommonCLIArguments(BaseModel):
         if not res:
             print(errOrContent)
             return context
-        advDict = json.loads(errOrContent)
+        try:
+            advDict = json.loads(errOrContent)
+        except Exception as e:
+            print(f"ERROR: Cannot process advanced configuration JSON. Exception: {e}")
+            return context
         for key in advDict:
             context[key] = advDict[key]
         return context

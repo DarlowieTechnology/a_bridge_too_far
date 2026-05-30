@@ -88,8 +88,8 @@ class DiscoveryWorkflow(WorkflowBase):
 
     source : List[str] = Field(default = [], description="List of source documents")
     fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
-    chunkSize : int = Field(default = 256, description="Chunk size for source documents")
-    chunkOverlap : int = Field(default = 48, description="Chunk overlap for source documents")
+    chunkSize : str = Field(default = "256", description="Chunk size for source documents")
+    chunkOverlap : str = Field(default = "48", description="Chunk overlap for source documents")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
@@ -117,14 +117,14 @@ class DiscoveryWorkflow(WorkflowBase):
     searchBM25sHyDE : bool = Field(default = True, description="Perform bm25s query on HyDE transform")
 
     # retrieval configuration
-    semanticRetrieveNumber : int = Field(default = 1000, description="Number of items retrieved with semantic query")
-    semanticMaxCutItemDistance: float  = Field(default = 1.0, description="Maximum distance in semantic search")
-    bm25sRetrieveNumber : int = Field(default = 1000, description="Number of items retrieved with bm25s query")
-    bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
-    rrfCutOffValue : float = Field(default = 0.0, description="Reciprocal Rank Fusion (RRF) value cut off")
+    semanticRetrieveNumber : str = Field(default = "50", description="Number of items retrieved with semantic query")
+    semanticMaxCutItemDistance: str  = Field(default = "1.0", description="Maximum distance in semantic search")
+    bm25sRetrieveNumber : str = Field(default = "50", description="Number of items retrieved with bm25s query")
+    bm25sMinCutOffScore : str = Field(default = "0.0", description="Minimum bm25s score cut off")
+    rrfCutOffValue : str = Field(default = "0.0", description="Reciprocal Rank Fusion (RRF) value cut off")
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
-    outputNumber : int = Field(default = 50, description="Maximum number of items to return")
+    outputNumber : str = Field(default = "50", description="Maximum number of items to return")
 
     outputFileName : str = Field(default = "", description="File name for results")
 
@@ -156,26 +156,26 @@ class DiscoveryWorkflow(WorkflowBase):
             extPattern = r"\*\.[A-Za-z0-9]*$"
             if not re.match(extPattern, fileExt):
                 raise ValueError(f'File extension pattern is invalid')
-        if not self.chunkSize in range(128, 513):
+        if not int(self.chunkSize) in range(128, 513):
             raise ValueError(f'Chunk size is invalid')
-        if not self.chunkOverlap in range(0, 65):
+        if not int(self.chunkOverlap) in range(0, 65):
             raise ValueError(f'Chunk overlap is invalid')
         
-        if not self.semanticRetrieveNumber in range(0, 2049):
+        if not int(self.semanticRetrieveNumber) in range(0, 2049):
             raise ValueError(f'Number of semantic search items is invalid')
-        if not (self.semanticMaxCutItemDistance >= 0 and self.semanticMaxCutItemDistance <= 1.0):
+        if not float(self.semanticMaxCutItemDistance) >= 0 and float(self.semanticMaxCutItemDistance) <= 1.0:
             raise ValueError(f'Maximum distance of semantic search items is invalid')
-        if not self.bm25sRetrieveNumber in range(0, 2049):
+        if not int(self.bm25sRetrieveNumber) in range(0, 2049):
             raise ValueError(f'Number of bm25s search items is invalid')
-        if not (self.bm25sMinCutOffScore >= 0):
+        if not float(self.bm25sMinCutOffScore) >= 0:
             raise ValueError(f'bm25s score cut off value is invalid')
-        if not (self.rrfCutOffValue >= 0 and self.rrfCutOffValue <= 1.0):
+        if not (float(self.rrfCutOffValue) >= 0 and float(self.rrfCutOffValue) <= 1.0):
             raise ValueError(f'Reciprocal Rank Fusion (RRF) cut off value is invalid')
         if not (self.rrfOutlierZScoreThreshold >= 0):
             raise ValueError(f'Z Score threshold for outliers is invalid')
         if not (self.rrfOutlierIQRCoefficient >= 0):
             raise ValueError(f'IQR Coefficient for outliers is invalid')
-        if not self.outputNumber in range(1, 2049):
+        if not int(self.outputNumber) in range(1, 2049):
             raise ValueError(f'output number is invalid')
 
         if not Path(self.outputFileName).is_file:
@@ -505,7 +505,7 @@ class DiscoveryWorkflow(WorkflowBase):
         outStrings = []
         for ident in rrfScores.scoresDict.keys():
             identifierQueryResults = rrfScores.scoresDict[ident]
-            if identifierQueryResults.rrfRank < self.rrfCutOffValue:
+            if identifierQueryResults.rrfRank < float(self.rrfCutOffValue):
                 break
             if onlyOutliers:
                 if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
@@ -585,7 +585,7 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: List[str]
         """
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunkSize, chunk_overlap=self.chunkOverlap)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=int(self.chunkSize), chunk_overlap=int(self.chunkOverlap))
         texts = text_splitter.split_text(docs)
 
         self.updateStats(topKey = "Chunking", keyValList = [("Chunks", len(texts))])
@@ -826,8 +826,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 query = queryText, 
                 chromaCollection = chromaCollection, 
                 queryLabel = "ORIG",
-                maxRetrieveNumber = self.semanticRetrieveNumber,
-                maxCutItemDistance = self.semanticMaxCutItemDistance
+                maxRetrieveNumber = int(self.semanticRetrieveNumber),
+                maxCutItemDistance = float(self.semanticMaxCutItemDistance)
             )
             allQueryResults.listQueryResults.append(oneQueryResultList)
 
@@ -841,8 +841,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 query = tokenList, 
                 folderName=self.bm25IndexFolder, 
                 queryLabel = "BM25SORIG", 
-                bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                bm25sMinCutOffScore = self.bm25sMinCutOffScore
+                bm25sRetrieveNumber = int(self.bm25sRetrieveNumber),
+                bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
             )
             if not oneQueryResultList:
                 self.workerSnapshot(err)
@@ -867,8 +867,8 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = multiQueryTexts, 
                     chromaCollection = chromaCollection, 
                     queryLabel = "MULTI",
-                    maxRetrieveNumber = self.semanticRetrieveNumber,
-                    maxCutItemDistance = self.semanticMaxCutItemDistance
+                    maxRetrieveNumber = int(self.semanticRetrieveNumber),
+                    maxCutItemDistance = float(self.semanticMaxCutItemDistance)
                 )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
 
@@ -893,8 +893,9 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = multiTokenList,
                     folderName = self.bm25IndexFolder, 
                     queryLabel = "BM25SMULTI", 
-                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                    bm25sRetrieveNumber = int(self.bm25sRetrieveNumber),
+                    bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
+                )
                 if not oneQueryResultList:
                     self.workerSnapshot(err)
                     return None
@@ -917,8 +918,9 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = rewriteQueryTexts, 
                     chromaCollection = chromaCollection, 
                     queryLabel = "REWRITE",
-                    maxRetrieveNumber = self.semanticRetrieveNumber,
-                    maxCutItemDistance = self.semanticMaxCutItemDistance)
+                    maxRetrieveNumber = int(self.semanticRetrieveNumber),
+                    maxCutItemDistance = float(self.semanticMaxCutItemDistance)
+                )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
@@ -942,8 +944,9 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = rewriteTokenList, 
                     folderName = self.bm25IndexFolder, 
                     queryLabel = "BM25SREWRITE", 
-                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                    bm25sRetrieveNumber = int(self.bm25sRetrieveNumber),
+                    bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
+                )
                 if not oneQueryResultList:
                     self.workerSnapshot(err)
                     return None
@@ -966,8 +969,9 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = hydeQueryText, 
                     chromaCollection = chromaCollection, 
                     queryLabel = "HYDE",
-                    maxRetrieveNumber = self.semanticRetrieveNumber,
-                    maxCutItemDistance = self.semanticMaxCutItemDistance)
+                    maxRetrieveNumber = int(self.semanticRetrieveNumber),
+                    maxCutItemDistance = float(self.semanticMaxCutItemDistance)
+                )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
@@ -991,8 +995,9 @@ class DiscoveryWorkflow(WorkflowBase):
                     query = hydeTokenList, 
                     folderName = self.bm25IndexFolder, 
                     queryLabel = "BM25SHYDE", 
-                    bm25sRetrieveNumber = self.bm25sRetrieveNumber,
-                    bm25sMinCutOffScore = self.bm25sMinCutOffScore)
+                    bm25sRetrieveNumber = int(self.bm25sRetrieveNumber),
+                    bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
+                )
                 if oneQueryResultList:
                     allQueryResults.listQueryResults.append(oneQueryResultList)    
                 else:
@@ -1024,7 +1029,7 @@ class DiscoveryWorkflow(WorkflowBase):
         """
 
         collectionChunkQueryResults = CollectionChunkQueryResults(
-            rrfCutOffValue = self.rrfCutOffValue,
+            rrfCutOffValue = float(self.rrfCutOffValue),
             rrfOutlierZScoreThreshold = self.rrfOutlierZScoreThreshold,
             rrfOutlierIQRCoefficient = self.rrfOutlierIQRCoefficient
         )
@@ -1064,7 +1069,7 @@ class DiscoveryWorkflow(WorkflowBase):
             )
             count = 0
             for key in queryResultList.result_dict.keys():
-                if count >= self.outputNumber:
+                if count >= int(self.outputNumber):
                     break
                 oneChunkQueryResultList.appendQueryResult(key, queryResultList.result_dict[key])
                 count += 1

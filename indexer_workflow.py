@@ -56,6 +56,7 @@ class IndexerWorkflow(WorkflowBase):
     documentFolder : str = Field(default = "", description="Source document folder")
     dataFolder : str = Field(default = "", description="interim data folder")
     bm25IndexFolder: str = Field(default = "", description="bm25s index folder path")
+    templateJSONName : str = Field(default = "", description="Document template filename")
 
     # file names : Original -> Raw Text -> Raw JSON -> Final JSON
     #
@@ -80,15 +81,10 @@ class IndexerWorkflow(WorkflowBase):
     vectorizeFinalJSON : bool = Field(default = True, description="vectorize final JSON")
     clear : bool = Field(default = False, description="Clear intermediate files")
 
-    # raw text parsing support
-    dictDocuments : Dict[str, Dict] = Field(default = {}, description="Template descriptions")
-
     issuePattern : str = Field(default = "", description="issue regexp pattern")
     issueTemplateName : str = Field(default = "", description="issue template name")
     extractPattern : str = Field(default = "", description="issue field extract regexp pattern")
     assignList : List[str] = Field(default = [], description="list of issue fields to assign")
-
-    corpus : List[str] = Field(default = [], description="corpus for bm25s")
 
 
     @model_validator(mode='after')
@@ -157,12 +153,7 @@ class IndexerWorkflow(WorkflowBase):
         Path(self.dataFolder).mkdir(parents=True, exist_ok=True)
 
         # template description
-        documentJSONName = self.documentFolder + "documents.json"
-        result, fileContentOrError = OpenFile.open(filePath = documentJSONName, readContent = True)
-        if not result:
-            raise ValueError(f'Cannot read template description file')
-        else:
-            self.dictDocuments = json.loads(fileContentOrError)
+        self.templateJSONName = self.documentFolder + "documents.json"
 
         if configCollection.keyExists("stripWhiteSpace"):
             self.stripWhiteSpace = configCollection["stripWhiteSpace"]
@@ -189,6 +180,36 @@ class IndexerWorkflow(WorkflowBase):
         # manually call model validator
         self.verify_configuration()
 
+
+    def openTemplateFile(self, templateName : str) -> BaseModel :
+        """
+        Open template definition file and read template for the document.
+        Raise exception on error.
+        
+        :param templateName: filename as key in template dict
+        :type templateName: str
+        :return: Object based on BaseModel
+        :rtype: BaseModel
+        """
+
+        dictDocuments : Dict[str, Dict] = {}
+        result, fileContentOrError = OpenFile.open(filePath = self.templateJSONName, readContent = True)
+        if not result:
+            raise ValueError(f'Cannot read template description file')
+        else:
+            dictDocuments = json.loads(fileContentOrError)
+
+        if templateName not in dictDocuments.keys():
+            raise ValueError(f'Cannot read template description')
+
+        # set raw text parsing configuration
+        self.issuePattern = dictDocuments[templateName]["pattern"]
+        self.issueTemplateName = dictDocuments[templateName]["templateName"]
+        self.extractPattern = dictDocuments[templateName]["extract"]
+        self.assignList = dictDocuments[templateName]["assign"]
+
+        templateInstance = ParserClassFactory.factory(self.issueTemplateName)
+        return templateInstance
 
 
     def processText(self, textIn : str) -> str:
@@ -608,13 +629,7 @@ class IndexerWorkflow(WorkflowBase):
             self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
             self.finalJSON = self.dataFolder + inputFileName + ".json"
 
-            # set raw text parsing configuration
-            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
-            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
-            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
-            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
-
-            templateInstance = ParserClassFactory.factory(self.issueTemplateName)
+            templateInstance = self.openTemplateFile(self.inputFileBaseName)
             self.vectorizeFinalJSONPhase(templateInstance)
 
 
@@ -682,12 +697,7 @@ class IndexerWorkflow(WorkflowBase):
             self.rawTextFromDoc = self.dataFolder + inputFileName + ".raw.txt"
             self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
 
-            # set raw text parsing configuration
-            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
-            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
-            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
-            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
-
+            self.openTemplateFile(self.inputFileBaseName)
             self.rawTextFromDocumentPhase()
             print(self.showStats(topKey = "Raw JSON", showKey = "Raw JSON", label="Raw JSON"))
         self.removeStats(topKey = "Raw JSON", removeKey = "Raw JSON")
@@ -739,13 +749,7 @@ class IndexerWorkflow(WorkflowBase):
             self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
             self.finalJSON = self.dataFolder + inputFileName + ".json"
 
-            # set raw text parsing configuration
-            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
-            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
-            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
-            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
-
-            templateInstance = ParserClassFactory.factory(self.issueTemplateName)
+            templateInstance = self.openTemplateFile(self.inputFileBaseName)
             self.finalJSONfromRawPhase(issueTemplate = templateInstance) 
 
             print(self.showStats(topKey = "Final JSON", showKey = "Final JSON", label="Final JSON"))
@@ -772,7 +776,7 @@ class IndexerWorkflow(WorkflowBase):
         if not result:
             msg = f"prepareBM25corpusPhase: {fileContentOrError} - perform '--finaljson' phase first"
             self.workerSnapshot(msg)
-            return
+            return corpus
         else:
             recordCollection = RecordCollection.model_validate_json(fileContentOrError)
 
@@ -807,14 +811,8 @@ class IndexerWorkflow(WorkflowBase):
             self.rawJSON = self.dataFolder + inputFileName + ".raw.json"
             self.finalJSON = self.dataFolder + inputFileName + ".json"
 
-            # set raw text parsing configuration
-            self.issuePattern = self.dictDocuments[self.inputFileBaseName]["pattern"]
-            self.issueTemplateName = self.dictDocuments[self.inputFileBaseName]["templateName"]
-            self.extractPattern = self.dictDocuments[self.inputFileBaseName]["extract"]
-            self.assignList = self.dictDocuments[self.inputFileBaseName]["assign"]
-
-            templateInstance = ParserClassFactory.factory(self.issueTemplateName)
-            corpus = self.prepareBM25corpusPhase(templateInstance, corpus)
+            templateInstance = self.openTemplateFile(self.inputFileBaseName)
+            corpus = self.prepareBM25corpusPhase(issueTemplate = templateInstance, corpus=corpus)
 
 #        stemmer = Stemmer.Stemmer("english")
 #        corpus_tokens = bm25s.tokenize(corpus, stopwords="en", stemmer=stemmer)
@@ -831,6 +829,7 @@ class IndexerWorkflow(WorkflowBase):
         print(f"Documents:\t{self.documentFolder}")
         print(f"RAG database:\t{self.ragDatapath}")
         print(f"Interim data:\t{self.dataFolder}")
+        print(f"Template file:\t{self.templateJSONName}")
         print(f"BM25s folder:\t{self.bm25IndexFolder}")
 
 

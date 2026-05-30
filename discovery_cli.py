@@ -336,8 +336,8 @@ def main():
 
     # other app-specific configuration
     context.setdefault("fileExtensions", ["*.txt", "*.pdf", "*.json"])
-    context.setdefault("chunkSize", 256)    
-    context.setdefault("chunkOverlap", 48)    
+    context.setdefault("chunkSize", "256")    
+    context.setdefault("chunkOverlap", "48")    
 
     # components of hybrid search
     context.setdefault("searchSemanticOriginal", True)
@@ -350,11 +350,11 @@ def main():
     context.setdefault("searchBM25sHyDE", True)
 
     # retrieval configuration
-    context.setdefault("semanticRetrieveNumber", 1000)        # maximum number of semantic items to retrieve
-    context.setdefault("semanticMaxCutItemDistance", 1.0)     # distance cut-off for semantic matches
-    context.setdefault("bm25sRetrieveNumber", 1000)           # maximum number of bm25s items to retrieve
-    context.setdefault("bm25sMinCutOffScore", 0.0)            # bm25s score cut-off
-    context.setdefault("rrfCutOffValue", 0.0)                 # minimal RRF score to cut-off
+    context.setdefault("semanticRetrieveNumber", "50")        # maximum number of semantic items to retrieve
+    context.setdefault("semanticMaxCutItemDistance", "1.0")   # distance cut-off for semantic matches
+    context.setdefault("bm25sRetrieveNumber", "50")           # maximum number of bm25s items to retrieve
+    context.setdefault("bm25sMinCutOffScore", "0.0")            # bm25s score cut-off
+    context.setdefault("rrfCutOffValue", "0.0")                 # minimal RRF score to cut-off
     context.setdefault("rrfOutlierZScoreThreshold", 15)       # Z-score threshold for outliers (typically 3)
     context.setdefault("rrfOutlierIQRCoefficient", 20.0)      # Interquartile Range (IQR) upper fence coefficient (typically 1.5)
 

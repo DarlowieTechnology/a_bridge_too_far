@@ -47,33 +47,36 @@ async def read_root():
 @app.get("/indexer")
 async def indexer():
     if hasattr(app.state, "INDEXER"):
+#        DebugUtils.logPydanticObject(app.state.INDEXER, "INDEXER FROM CACHE")
         return app.state.INDEXER
     else:
         configCollection = ConfigCollection()
         configCollection.configure()
         indexerWorkflow = IndexerWorkflow()
         indexerWorkflow.configure(configCollection)
+        app.state.INDEXER = indexerWorkflow
+#        DebugUtils.logPydanticObject(indexerWorkflow, "INDEXER CREATED NEW")
         return indexerWorkflow
 
 
-@app.get("/indexer/config")
-async def indexerconfiguration( updatedWorkflow : Dict[str, Any] ):
-    if hasattr(app.state, "INDEXER"):
-        indexerWorkflow = app.state.INDEXER
-        if not indexerWorkflow.needsUpdate(updatedWorkflow):
-            return indexerWorkflow
+@app.post("/indexer/config")
+async def indexer_configuration( request: Request ):
+    body = await request.body()
+    data_dict = json.loads(body.decode('utf-8'))
     configCollection = ConfigCollection()
     configCollection.configure()
-    configCollection.update(updatedWorkflow)
+    configCollection.update(data_dict)
     indexerWorkflow = IndexerWorkflow()
     indexerWorkflow.configure(configCollection)
-    app.state.QUERY = indexerWorkflow
+    app.state.INDEXER = indexerWorkflow
+#    DebugUtils.logPydanticObject(indexerWorkflow, "INDEXER UPDATED STATE")
     return indexerWorkflow
 
 
 @app.get("/query")
 async def query():
     if hasattr(app.state, "QUERY"):
+#        DebugUtils.logPydanticObject(app.state.QUERY, "QUERY FROM CACHE")
         return app.state.QUERY
     else:
         configCollection = ConfigCollection()
@@ -81,28 +84,27 @@ async def query():
         queryWorkflow = QueryWorkflow()
         queryWorkflow.configure(configCollection)
         app.state.QUERY = queryWorkflow
+#        DebugUtils.logPydanticObject(queryWorkflow, "QUERY CREATED NEW")
         return queryWorkflow
  
-@app.get("/query/config")
-async def queryconfiguration( updatedWorkflow : Dict[str, Any] ):
-    if hasattr(app.state, "QUERY"):
-        queryWorkflow = app.state.QUERY
-        if not queryWorkflow.needsUpdate(updatedWorkflow):
-            return queryWorkflow
+@app.post("/query/config")
+async def query_configuration( request: Request ):
+    body = await request.body()
+    data_dict = json.loads(body.decode('utf-8'))
     configCollection = ConfigCollection()
     configCollection.configure()
-    configCollection.update(updatedWorkflow)
+    configCollection.update(data_dict)
     queryWorkflow = QueryWorkflow()
     queryWorkflow.configure(configCollection)
     app.state.QUERY = queryWorkflow
+#    DebugUtils.logPydanticObject(queryWorkflow, "QUERY UPDATED STATE")
     return queryWorkflow
 
 
 @app.get("/discovery")
 async def discovery():
     if hasattr(app.state, "DISCOVERY"):
-#        DebugUtils.logPydanticObject(app.state.DISCOVERY, "FROM CACHE")
-        print("FROM CACHE")
+#        DebugUtils.logPydanticObject(app.state.DISCOVERY, "DISCOVERY FROM CACHE")
         return app.state.DISCOVERY
     else:
         configCollection = ConfigCollection()
@@ -110,15 +112,12 @@ async def discovery():
         discoveryWorkflow = DiscoveryWorkflow()
         discoveryWorkflow.configure(configCollection)
         app.state.DISCOVERY = discoveryWorkflow
-
-#        DebugUtils.logPydanticObject(discoveryWorkflow, "CREATED NEW")
-        print("CREATED NEW")
-
+#        DebugUtils.logPydanticObject(discoveryWorkflow, "DISCOVERY CREATED NEW")
         return discoveryWorkflow
 
 
 @app.post("/discovery/config")
-async def discoveryconfiguration( request: Request ):
+async def discovery_configuration( request: Request ):
     body = await request.body()
     data_dict = json.loads(body.decode('utf-8'))
     configCollection = ConfigCollection()
@@ -127,5 +126,5 @@ async def discoveryconfiguration( request: Request ):
     discoveryWorkflow = DiscoveryWorkflow()
     discoveryWorkflow.configure(configCollection)
     app.state.DISCOVERY = discoveryWorkflow
-    DebugUtils.logPydanticObject(discoveryWorkflow, "NEW STATE")
+#    DebugUtils.logPydanticObject(discoveryWorkflow, "DISCOVERY UPDATED STATE")
     return discoveryWorkflow

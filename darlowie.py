@@ -3,9 +3,6 @@
 # All applications should copy on start to avoid conflicts
 # Naming rules for keys:
 #   - prefix GLOBAL - common parameter like LLM name, URL for LLM host
-#   - prefix GENERA - specific to Generator app
-#   - prefix GENCLI - specific to Generator CLI version
-#   - prefix GENWEB - specific to Generator web version
 #   - prefix INDEXE - specific to Indexer app
 #   - prefix IDXCLI - specific to Indexer CLI version
 #   - prefix IDXWEB - specific to Indexer web version
@@ -31,15 +28,6 @@ context = {
     "GLOBALllm_Provider" : "lmstudio",
     "GLOBALloggerSessionKey" : "APPLOG",
 
-    # Generator app settings
-
-    "GENERAdocumentFolder" : "generatordocuments/",          # folder for source documents
-    "GENERArag_activity_cutoff" : 0.3,       # cut off distance for activity table match
-    "GENERArag_scenario_cutoff" : 0.35,      # cut off distance for scenario table match
-    "GENERAad_FileName": "jobDescriptions/2025-10-02-0001.txt", # file name of original text
-    "GENERAad_JSONName": "jobDescriptions/2025-10-02-0001.txt.json", # file name of JSON results
-    "GENERAword_FileName": "jobDescriptions/2025-10-02-0001.txt.resume.docx", # file name of Word results
-
     # Indexer app settings
 
     "INDEXEdocumentFolder" : GLOBALdataFolder + "indexerdocuments/",   # folder for indexer source documents
@@ -57,7 +45,7 @@ context = {
 
     # Query CLI settings
 
-    "QUECLIoutputCount": 50,     # default number of results in output
+    "QUECLIoutputCount": "50",     # default number of results in output
 
     # Discovery app settings
 
@@ -69,6 +57,6 @@ context = {
 
     # Discovery CLI settings
 
-    "DISCLIoutputCount": 50     # default number of results in output
+    "DISCLIoutputCount": "50"     # default number of results in output
 
 }

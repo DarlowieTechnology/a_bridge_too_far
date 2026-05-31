@@ -11,7 +11,7 @@ from pprint import pprint
 
 # local
 import darlowie
-from common import GLOBALPROVIDER, LLMNAMES, CommonCLIArguments, CommonHelper, QUERYTYPES, TOKENIZERTYPES, ConfigCollection, OpenFile, DebugUtils
+from common import GLOBALPROVIDER, LLMNAMES, CommonCLIArguments, CommonHelper, ConfigCollection, OpenFile, DebugUtils
 from query_workflow import QueryWorkflow
 
 
@@ -118,14 +118,14 @@ def main():
     # ------ other configuration parameter
     #
 
-    context.setdefault("semanticMaxCutItemDistance", 1.0)     # distance cut-off for semantic matches
-    context.setdefault("semanticRetrieveNumber", 1000)        # maximum number of semantic items to retrieve
+    context.setdefault("semanticMaxCutItemDistance", "1.0")     # distance cut-off for semantic matches
+    context.setdefault("semanticRetrieveNumber", "50")        # maximum number of semantic items to retrieve
 
-#    context.setdefault("queryBM25Options", TOKENIZERTYPES.STOPWORDSEN | TOKENIZERTYPES.STEMMER)
-    context.setdefault("queryBM25Options", TOKENIZERTYPES.STOPWORDSEN)
+    context.setdefault("tokenizerStopWordsEn", True)
+    context.setdefault("tokenizerStemmer", False)
 
-    context.setdefault("bm25sMinCutOffScore", 0.0)            # bm25s score cut-off
-    context.setdefault("bm25sRetrieveNumber", 1000)           # maximum number of bm25s items to retrieve
+    context.setdefault("bm25sMinCutOffScore", "0.0")            # bm25s score cut-off
+    context.setdefault("bm25sRetrieveNumber", "50")           # maximum number of bm25s items to retrieve
     context.setdefault("queryPreprocess", True)               # call preprocessQuery() after every query transform
 
     # output some info about command line arguments

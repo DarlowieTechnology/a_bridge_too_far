@@ -67,12 +67,15 @@ class QueryWorkflow(WorkflowBase):
     searchBM25sPrep : bool = Field(default = True, description="Prepare and perform bm25s query")
     searchBM25sPrepCompress : bool = Field(default = True, description="Prepare and perform bm25s query on rewrite transform with TSC")
 
-    semanticMaxCutItemDistance : float = Field(default = 0.5, description = "Maximum distance in semantic search")
-    semanticRetrieveNumber : int = Field(default = 50, description = "Number of items retrieved with semantic query")
-    queryBM25Options : TOKENIZERTYPES = Field(default = TOKENIZERTYPES.STOPWORDSEN, description = "Options for BM25 query tokenizer")
-    bm25sMinCutOffScore : float = Field(default = 0.0, description="Minimum bm25s score cut off")
-    bm25sRetrieveNumber : int = Field(default = 50, description="Number of items retrieved with bm25s query")
-    outputNumber : int = Field(default = 1, description="Maximum number of items to return")
+    semanticMaxCutItemDistance : str = Field(default = "1.0", description = "Maximum distance in semantic search")
+    semanticRetrieveNumber : str = Field(default = "50", description = "Number of items retrieved with semantic query")
+    bm25sMinCutOffScore : str = Field(default = "0.0", description="Minimum bm25s score cut off")
+    bm25sRetrieveNumber : str = Field(default = "50", description="Number of items retrieved with bm25s query")
+    
+    tokenizerStopWordsEn : bool = Field(default = True, description="BM25s tokenizer to use Stop Words English dictionary")
+    tokenizerStemmer : bool = Field(default = True, description="BM25s tokenizer to use English stemmer")
+
+    outputNumber : str = Field(default = "50", description="Maximum number of items to return")
     queryPreprocess : bool = Field(default = True, description="Call preprocessQuery() after every query transform")
 
     @model_validator(mode='after')
@@ -82,15 +85,15 @@ class QueryWorkflow(WorkflowBase):
             raise ValueError(f'Intermediate data folder is invalid')
         if not Path(self.bm25IndexFolder).is_dir:
             raise ValueError(f'bm25 index folder is invalid')
-        if not self.semanticRetrieveNumber in range(0, 2049):
+        if not int(self.semanticRetrieveNumber) in range(0, 2049):
             raise ValueError(f'Number of semantic search items is invalid')
-        if not (self.semanticMaxCutItemDistance >= 0 and self.semanticMaxCutItemDistance <= 1.0):
+        if not (float(self.semanticMaxCutItemDistance) >= 0 and float(self.semanticMaxCutItemDistance) <= 1.0):
             raise ValueError(f'Maximum distance of semantic search items is invalid')
-        if not (self.queryBM25Options >= 0 and self.queryBM25Options <= 1.0):
+        if not (float(self.bm25sMinCutOffScore) >= 0 and float(self.bm25sMinCutOffScore) <= 1.0):
             raise ValueError(f'Minimum bm25s score cut off is invalid')
-        if not self.bm25sRetrieveNumber in range(0, 2049):
+        if not int(self.bm25sRetrieveNumber) in range(0, 2049):
             raise ValueError(f'Number of bm25s search items is invalid')
-        if not self.outputNumber in range(1, 2049):
+        if not int(self.outputNumber) in range(1, 2049):
             raise ValueError(f'output number is invalid')
         if not Path(self.outputFileName).is_file:
             raise ValueError(f'Output file name is invalid')
@@ -177,8 +180,12 @@ class QueryWorkflow(WorkflowBase):
             self.semanticMaxCutItemDistance = configCollection["semanticMaxCutItemDistance"]
         if configCollection.keyExists("semanticRetrieveNumber"):
             self.semanticRetrieveNumber = configCollection["semanticRetrieveNumber"]
-        if configCollection.keyExists("queryBM25Options"):
-            self.queryBM25Options = configCollection["queryBM25Options"]
+
+        if configCollection.keyExists("tokenizerStopWordsEn"):
+            self.tokenizerStopWordsEn = configCollection["tokenizerStopWordsEn"]
+        if configCollection.keyExists("tokenizerStemmer"):
+            self.tokenizerStemmer = configCollection["tokenizerStemmer"]
+
         if configCollection.keyExists("bm25sMinCutOffScore"):
             self.bm25sMinCutOffScore = configCollection["bm25sMinCutOffScore"]
         if configCollection.keyExists("bm25sRetrieveNumber"):
@@ -258,24 +265,26 @@ class QueryWorkflow(WorkflowBase):
         return compressedQuery
 
     
-    def tokenizeQuery(self, queryList : list[str], tokenizerTypes: TOKENIZERTYPES) -> list[str]:
+    def tokenizeQuery(self, queryList : list[str], tokenizerStopWordsEn: bool, tokenizerStemmer: bool) -> list[str]:
         """
         create tokens from the BM25S search.
         
         :param queryList: original query
         :type queryList: list[str]
-        :param tokenizerTypes: flags for tokenizer
-        :type tokenizerTypes: TOKENIZERTYPES
+        :param tokenizerStopWordsEn: enable stop words english dictionary
+        :type tokenizerStopWordsEn: bool
+        :param tokenizerStemmer: enable english stemmer
+        :type tokenizerStemmer: bool
         :return: list of tokens
         :rtype: list[str]
         """
 
-        if TOKENIZERTYPES.STOPWORDSEN in tokenizerTypes:
+        if tokenizerStopWordsEn:
             stopWords = "english"
         else:
             stopWords = None
 
-        if TOKENIZERTYPES.STEMMER in tokenizerTypes:
+        if tokenizerStemmer:
             stemmer=Stemmer.Stemmer("english")
         else:
             stemmer = None
@@ -477,15 +486,15 @@ class QueryWorkflow(WorkflowBase):
             self.updateStats(topKey = "bm25s", keyValList = [("Exception", 1)])
             return None
 
-        max_items = self.bm25sRetrieveNumber
-        if retriever.scores["num_docs"] < self.bm25sRetrieveNumber:
+        max_items = int(self.bm25sRetrieveNumber)
+        if retriever.scores["num_docs"] < max_items:
             max_items = retriever.scores["num_docs"]
 
         results, scores = retriever.retrieve([queryList], k=max_items)
         for rankIdx in range(results.shape[1]):
             docN, score = results[0, rankIdx], scores[0, rankIdx]
             docN = docN["text"].splitlines()
-            if (score > self.bm25sMinCutOffScore):
+            if (score > float(self.bm25sMinCutOffScore)):
                 oneIndexerQueryResult = OneIndexerQueryResult(
                     score = score,
                     rank = rankIdx + 1,             # rank starts from 1
@@ -524,13 +533,13 @@ class QueryWorkflow(WorkflowBase):
 
 #        chromaCollection = self.collections["reportissues"]
 
-        queryResult = chromaCollection.query(query_texts = queryList, n_results = self.semanticRetrieveNumber)
+        queryResult = chromaCollection.query(query_texts = queryList, n_results = int(self.semanticRetrieveNumber))
 
         resultIdx = -1
 
         for distFloat in queryResult["distances"][0]:
             resultIdx += 1
-            if (distFloat > self.semanticMaxCutItemDistance) :
+            if (distFloat > float(self.semanticMaxCutItemDistance)) :
                 break
 
     #            print(f"------dist {distFloat}-------------------")
@@ -627,7 +636,7 @@ class QueryWorkflow(WorkflowBase):
             )
             count = 0
             for key in queryResultList.result_dict.keys():
-                if count >= self.outputNumber:
+                if count >= int(self.outputNumber):
                     break
                 oneIndexerQueryResultList.appendQueryResult(key, queryResultList.result_dict[key])
                 count += 1
@@ -769,7 +778,7 @@ class QueryWorkflow(WorkflowBase):
                 originalQuery = self.preprocessQuery(originalQuery)
                 msg = f"preprocessed for BM25s: {originalQuery}"
                 self.workerSnapshot(msg)
-            tokenizedQuery = self.tokenizeQuery(originalQuery, self.queryBM25Options)
+            tokenizedQuery = self.tokenizeQuery(originalQuery, self.tokenizerStopWordsEn, self.tokenizerStemmer)
             msg = f"tokenized: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIG")
@@ -784,7 +793,7 @@ class QueryWorkflow(WorkflowBase):
             compressedQuery = self.compressQuery(originalQuery)
             msg = f"compressed for BM25s: {compressedQuery}"
             self.workerSnapshot(msg)
-            tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
+            tokenizedQuery = self.tokenizeQuery(compressedQuery, self.tokenizerStopWordsEn, self.tokenizerStemmer)
             msg = f"tokenized compress: {json.dumps(tokenizedQuery)}"
             self.workerSnapshot(msg)
             oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SORIGCOMPRESS")
@@ -800,7 +809,7 @@ class QueryWorkflow(WorkflowBase):
                     bm25sQuery = self.preprocessQuery(bm25sQuery)
                     msg = f"preprocessed for BM25s: {bm25sQuery}"
                     self.workerSnapshot(msg)
-                tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.queryBM25Options)
+                tokenizedQuery = self.tokenizeQuery(bm25sQuery, self.tokenizerStopWordsEn, self.tokenizerStemmer)
                 msg = f"tokenized prepared: {json.dumps(tokenizedQuery)}"
                 self.workerSnapshot(msg)
                 oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREP")
@@ -819,7 +828,7 @@ class QueryWorkflow(WorkflowBase):
                 compressedQuery = self.compressQuery(bm25sQuery)
                 msg = f"bm25s prepared compressed: {compressedQuery}"
                 self.workerSnapshot(msg)
-                tokenizedQuery = self.tokenizeQuery(compressedQuery, self.queryBM25Options)
+                tokenizedQuery = self.tokenizeQuery(compressedQuery, self.tokenizerStopWordsEn, self.tokenizerStemmer)
                 msg = f"tokenized bm25s prepared compressed: {json.dumps(tokenizedQuery)}"
                 self.workerSnapshot(msg)
                 oneIndexQueryResultList = self.bm25sQuery(tokenizedQuery, self.bm25IndexFolder, "BM25SPREPCOMPRESS")

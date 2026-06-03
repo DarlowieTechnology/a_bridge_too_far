@@ -1,6 +1,4 @@
 import sys
-import logging
-from logging import Logger
 import time
 import json
 from pathlib import Path
@@ -141,7 +139,7 @@ def testRun(discoveryWorkflow : DiscoveryWorkflow) :
     if discoveryWorkflow.loadDocument:
         startTime = time.time()
         discoveryWorkflow.loadDocumentPhaseAllFiles(inputFileList = fileList)
-        discoveryWorkflow.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
+        discoveryWorkflow.updateStats(topKey = "Load", keyValList = [("Time", time.time() - startTime)])
 
     if discoveryWorkflow.parseChunks:
         startTime = time.time()
@@ -203,7 +201,7 @@ def main():
     parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--showconfiguration", action='store_const', const=True, help="Show workflow configuration")
-    parser.add_argument("--load", action='store_const', const=True, help=f"Load documents")
+    parser.add_argument("--load", action='store_const', const=True, help=f"Load source documents")
     parser.add_argument("--parsechunks", action='store_const', const=True, help=f"Parse chunks")
     parser.add_argument("--makerawvector", action='store_const', const=True, help=f"Create raw vector table")
     parser.add_argument("--bm25s", action='store_const', const=True, help=f"Create bm25s index")
@@ -306,9 +304,10 @@ def main():
             print("ERROR: Provide --query or --input parameters")
             return
 
-    if (len(context["query"]) and not context["search"]):
-        print("ERROR: Provide --search to perform search phase")
-        return
+    if "query" in context.keys():
+        if (len(context["query"]) and not context["search"]):
+            print("ERROR: Provide --search to perform search phase")
+            return
 
     if args.output:
         context['outputFileName'] = args.output
@@ -368,12 +367,13 @@ def main():
     discoverWorkflow.configure(configCollection)
 
     if showFlag:
-        discoverWorkflow.showConfiguration()
+        discoverWorkflow.showConfiguration(CliCall = True)
 
 
 #    testRun(discoverWorkflow)
 
-    thread = threading.Thread( target=discoverWorkflow.threadWorker)
+    discoverWorkflow.taskId = "CLI"
+    thread = threading.Thread( target=discoverWorkflow.threadWorker )
     thread.start()
     thread.join()
 

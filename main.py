@@ -1,5 +1,7 @@
 from typing import Dict, Any
 import json
+import threading
+import uuid
 from fastapi import FastAPI
 from fastapi import Body
 from fastapi import Request
@@ -104,7 +106,7 @@ async def query_configuration( request: Request ):
 @app.get("/discovery")
 async def discovery():
     if hasattr(app.state, "DISCOVERY"):
-#        DebugUtils.logPydanticObject(app.state.DISCOVERY, "DISCOVERY FROM CACHE")
+        # DebugUtils.logPydanticObject(app.state.DISCOVERY, "DISCOVERY FROM CACHE")
         return app.state.DISCOVERY
     else:
         configCollection = ConfigCollection()
@@ -112,8 +114,21 @@ async def discovery():
         discoveryWorkflow = DiscoveryWorkflow()
         discoveryWorkflow.configure(configCollection)
         app.state.DISCOVERY = discoveryWorkflow
-#        DebugUtils.logPydanticObject(discoveryWorkflow, "DISCOVERY CREATED NEW")
+        # DebugUtils.logPydanticObject(discoveryWorkflow, "DISCOVERY CREATED NEW")
         return discoveryWorkflow
+
+@app.get("/discovery/run")
+async def discovery_run():
+    if hasattr(app.state, "DISCOVERY"):
+        discoveryWorkflow = app.state.DISCOVERY
+        discoveryWorkflow.taskId = str(uuid.uuid4())
+        thread = threading.Thread( target=discoveryWorkflow.threadWorker )
+        thread.start()
+        thread.join()
+        return discoveryWorkflow.taskId 
+    else:
+        print("CAN ONLY RUN FROM CACHE")
+        return None
 
 
 @app.post("/discovery/config")

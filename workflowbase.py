@@ -45,13 +45,11 @@ class WorkflowBase(BaseModel):
     Base class for workflows
     """
 
-    logger : Logger = Field(default = None, description="Application logger", exclude=True)
     chromaClient : ClientAPI = Field(default = None, description="ChromaDB Persistent Client", exclude=True)
     embeddingFunction : OllamaEmbeddingFunction = Field(default = None, description="ChromaDB embedding Function", exclude=True)
     collections : dict[str, Collection] = Field(default = {}, description="dictionary of ChromaDB collections", exclude=True)
     usage : RunUsage = Field(default = None, description="LLM usage object", exclude=True)
-    statusLog : List[str] = Field(default = [], description="Status log of workflow", exclude=True)
-    stats : dict[str, dict[str, Union[int, str]]] = Field(default = {}, description="Run statistics", exclude=True)
+    stats : dict[str, dict[str, Union[int, str, float]]] = Field(default = {}, description="Run statistics", exclude=True)
     model_config = ConfigDict(arbitrary_types_allowed=True, exclude=True)
 
 
@@ -60,7 +58,7 @@ class WorkflowBase(BaseModel):
         self.usage = RunUsage()
 
 
-    def updateStats(self, topKey : str, keyValList : List[tuple[str, int|float]]) :
+    def updateStats(self, topKey : str, keyValList : List[tuple[ str, Union[int, str, float] ]]) :
         """
         Update internal statistics. Attempt to update first, create key second.
         
@@ -84,7 +82,12 @@ class WorkflowBase(BaseModel):
                 if type(prevVal) == str:
                     statsForKey[key] = value
                 else:
-                    statsForKey[key] = prevVal + value
+                    if (type(prevVal) == int):
+                        statsForKey[key] = prevVal + int(value)
+                    if (type(prevVal) == float):
+                        statsForKey[key] = prevVal + float(value)
+                    if (type(prevVal) == str):
+                        statsForKey[key] = prevVal + str(value)
             except Exception:
                 statsForKey[key] = value
 
@@ -129,6 +132,25 @@ class WorkflowBase(BaseModel):
             return ""
         return f"{label} : {showValue}"
 
+
+    def formatAllStats(self) -> List[str]:
+        """
+        Format all stats as List[str]
+        
+        :return: List of strings
+        :rtype: List[str]
+        """
+
+        outStrings : list[str] = []
+        for topKey in self.stats.keys():
+            subDict : dict[str, Union[int, str, float]] = self.stats[topKey]
+            for subKey in subDict.keys():
+                value  = subDict[subKey]
+                if type(value) == float:
+                    outStrings.append(f"{topKey} : {subKey} : {subDict[subKey]:.4f}")
+                else:
+                    outStrings.append(f"{topKey} : {subKey} : {subDict[subKey]}")
+        return outStrings
 
 
     def initRAGcomponents(self) -> bool :
@@ -417,6 +439,12 @@ class WorkflowBase(BaseModel):
 #        """        
 #        return Path(str(Path(__file__).parent.resolve()) + '/' + self.context[key]).resolve()
 
+    def getStatusLog(self) -> List[str]|None:
+        return None
+
+    def getStatusFileName(self) -> str|None:
+        return None
+
 
     def workerSnapshot(self, msg : str):
         """
@@ -430,10 +458,17 @@ class WorkflowBase(BaseModel):
         """
         if msg:
             self.logger.info(msg)
-            self.statusLog.append(msg)
-        with open(self.statusFileName, "w") as jsonOut:
-            formattedOut = json.dumps(self.statusLog, indent=2)
-            jsonOut.write(formattedOut)
+            statusLog = self.getStatusLog()
+            if statusLog:
+                statusLog.append(msg)
+            else:
+                self.logger.info("CANNOT FIND!!!")
+
+        statusFileName = self.getStatusFileName()
+        if statusFileName:
+            with open(statusFileName, "w") as jsonOut:
+                formattedOut = json.dumps(statusLog, indent=2)
+                jsonOut.write(formattedOut)
 
 
     def workerError(self, msg : str):
@@ -448,7 +483,11 @@ class WorkflowBase(BaseModel):
         """
         if msg:
             self.logger.warning(msg)    
-            self.statusLog.append(msg)
-        with open(self.statusFileName, "w") as jsonOut:
-            formattedOut = json.dumps(self.statusLog, indent=2)
-            jsonOut.write(formattedOut)
+            statusLog = self.getStatusLog()
+            if statusLog:
+                statusLog.append(msg)
+        statusFileName = self.getStatusFileName()
+        if statusFileName:
+            with open(statusFileName, "w") as jsonOut:
+                formattedOut = json.dumps(statusLog, indent=2)
+                jsonOut.write(formattedOut)

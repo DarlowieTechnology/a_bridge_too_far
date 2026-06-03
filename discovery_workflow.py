@@ -3,7 +3,6 @@
 #
 from typing import List, Dict, Any
 from typing_extensions import Self
-import logging
 import json
 import sys
 import time
@@ -77,9 +76,8 @@ class DiscoveryWorkflow(WorkflowBase):
     GLOBALembedding_URL : str = Field(default = "", description="Embedding LLM")
     gemini_key : str = Field(default = "", description="Global Google Gemini API Key")
 
-    logginglevel : int = Field(default = logging.WARN, description="Logging level")
-
     # app specific configuration
+    statusLog : List[str] = Field(default = [], description="Status log of workflow")
     statusFileName : str = Field(default = "DISCOVERYLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     documentFolder : str = Field(default = "", description="Source document folder")
@@ -90,6 +88,8 @@ class DiscoveryWorkflow(WorkflowBase):
     fileExtensions : List[str] = Field(default = ["*.txt", "*.pdf", "*.json"], description="List of source file allowed file name extensions")
     chunkSize : str = Field(default = "256", description="Chunk size for source documents")
     chunkOverlap : str = Field(default = "48", description="Chunk overlap for source documents")
+
+    taskId : str = Field(default = "", description="UUID4 of the task")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
@@ -197,12 +197,6 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.GLOBALllm_Provider == GLOBALPROVIDER.GEMINI.value:
             self.gemini_key = configCollection['gemini_key']
 
-        if configCollection.keyExists("logginglevel"):
-            self.logginglevel = configCollection["logginglevel"]
-        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
-
-        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
-
         if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
 
@@ -266,14 +260,19 @@ class DiscoveryWorkflow(WorkflowBase):
 
         if configCollection.keyExists("source"):
             fileList = configCollection["source"]
-            self.source = []
-            for fileName in fileList:
-                res, err = OpenFile.open(fileName, False)
-                if not res:
-                    fileName = self.documentFolder + fileName
+            if len(fileList):
+                self.source = []
+                for fileName in fileList:
                     res, err = OpenFile.open(fileName, False)
-                if res:
-                    self.source.append(fileName)        
+                    if not res:
+                        fileName = self.documentFolder + fileName
+                        res, err = OpenFile.open(fileName, False)
+                    if res:
+                        self.source.append(fileName)
+            else:
+                self.source = self.formFileList()    
+        else:
+            self.source = self.formFileList()
 
         if configCollection.keyExists("fileExtensions"):
             self.fileExtensions = configCollection["fileExtensions"]
@@ -363,8 +362,7 @@ class DiscoveryWorkflow(WorkflowBase):
         try:
             docs = loader.load()
         except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
+            self.logMessage(f"Exception: {e}")
             return None       
 
         textCombined = ""
@@ -389,8 +387,7 @@ class DiscoveryWorkflow(WorkflowBase):
         try:
             docs = pymupdf4llm.to_text(inputFile)
         except Exception as e:
-            msg = f"Exception: {e}"
-            self.workerSnapshot(msg)
+            self.logMessage(f"Exception: {e}")
             return None       
         
         docs = self.processText(docs)
@@ -528,36 +525,38 @@ class DiscoveryWorkflow(WorkflowBase):
         :return: Length of extracted text 
         :rtype: int
         """
-
+        
+        self.updateStats(topKey = "Load", keyValList = [("Filename", inputFileName)])
         mime_type, encoding = mimetypes.guess_type(inputFileName)
         if mime_type not in acceptedMimeTypes:
-            msg = f" Error: File type not supported: {mime_type}"
-            self.workerSnapshot(msg)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
+            self.logMessage(f" Error: {inputFileName} File type not supported: {mime_type}")
+            self.updateStats(topKey = "Load", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
             return 0
 
         if mime_type == "application/pdf":
             textCombined = self.loadPDFPyPDFLoader(inputFileName)
             if not textCombined:
                 textCombined = self.loadPDFpymupdf4llm(inputFileName)
-                self.updateStats(topKey = "Load Documents", keyValList = [("pymupdf4llm", 1)])
+                self.updateStats(topKey = "Load", keyValList = [("pymupdf4llm", 1)])
             else:
-                self.updateStats(topKey = "Load Documents", keyValList = [("PyPDFLoader", 1)])
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("PDF", 1), ("PDF Length", len(textCombined))])
+                self.updateStats(topKey = "Load", keyValList = [("PyPDFLoader", 1)])
+            if textCombined:
+                self.updateStats(topKey = "Load", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type PDF", 1), ("Type PDF Total Length", len(textCombined))])
 
         if mime_type in ["application/json"]:
             textCombined = self.loadJSON(inputFileName)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("JSON", 1), ("JSON Length", len(textCombined))])
+            self.updateStats(topKey = "Load", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type JSON", 1), ("Type JSON Total Length", len(textCombined))])
 
         if mime_type in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
             textCombined = self.loadText(inputFileName)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Other text", 1), ("Other text Length", len(textCombined))])
+            self.updateStats(topKey = "Load", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type Other Text", 1), ("Other Text Total Length", len(textCombined))])
 
         fullOutputFileName = dataFolder + outputFileName
-        with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
-            rawOut.write(textCombined)
-
-        return len(textCombined)
+        if textCombined:
+            with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
+                rawOut.write(textCombined)
+            return len(textCombined)
+        return 0
 
 
     def loadDocumentPhaseAllFiles(self, inputFileList : List[str]) : 
@@ -607,9 +606,8 @@ class DiscoveryWorkflow(WorkflowBase):
             rawTextFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.txt"
             result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
             if not result:
-                msg = f"parseChunks: {fileContentOrError} - perform '--load' phase first"
-                self.workerSnapshot(msg)
-                return
+                # record error and attempt to process next file
+                self.logMessage(f"parseChunks: {fileContentOrError} - perform '--load' phase first")
             else:
                 chunksList = self.parseChunksPhase(fileContentOrError)
                 chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
@@ -703,8 +701,8 @@ class DiscoveryWorkflow(WorkflowBase):
             chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
-                msg = f"makeRawVector: {fileContentOrError} - perform '--parsechunks' phase first"
-                self.workerSnapshot(msg)
+                # record error and attempt to process next file
+                self.logMessage(f"makeRawVector: {fileContentOrError} - perform '--parsechunks' phase first")
             else:
                 chunksList = json.loads(fileContentOrError)
                 accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
@@ -739,8 +737,8 @@ class DiscoveryWorkflow(WorkflowBase):
             chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
-                msg = f"bm25Process: {fileContentOrError} - perform '--parsechunks' phase first"
-                self.workerSnapshot(msg)
+                # record error and return, bm25s index should contain all files
+                self.logMessage(f"bm25Process: {fileContentOrError} - perform '--parsechunks' phase first")
                 return
             else:
                 chunksList = json.loads(fileContentOrError)
@@ -845,7 +843,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
             )
             if not oneQueryResultList:
-                self.workerSnapshot(err)
+                # record bm25s index error and return
+                self.logMessage(err)
                 return None
 
             allQueryResults.listQueryResults.append(oneQueryResultList)
@@ -857,8 +856,8 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.searchSemanticMulti:
             multiQueryTextsOrError, usage = queryService.multiQuery(queryText, model)
             if not usage:
-                # exception in LLM interface
-                self.workerSnapshot(multiQueryTextsOrError)
+                # record exception in LLM interface and continue
+                self.logMessage(multiQueryTextsOrError)
                 self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
             else:
                 multiQueryTexts = multiQueryTextsOrError
@@ -880,8 +879,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 # Semantic Multi is False OR previous error, BM25s Multi is True - need to attempt Semantic Multi first
                 multiQueryTextsOrError, usage = queryService.multiQuery(queryText, model)
                 if not usage:
-                    # exception in LLM interface
-                    self.workerSnapshot(multiQueryTextsOrError)
+                    # record exception in LLM interface and continue
+                    self.logMessage(multiQueryTextsOrError)
                     self.updateStats(topKey = "Multi", keyValList = [("Exception", 1)])
                 else:
                     multiQueryTexts = multiQueryTextsOrError
@@ -897,7 +896,8 @@ class DiscoveryWorkflow(WorkflowBase):
                     bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
                 )
                 if not oneQueryResultList:
-                    self.workerSnapshot(err)
+                    # record bm25s index error and return
+                    self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
 
@@ -908,8 +908,8 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.searchSemanticRewrite:
             rewriteQueryTextsOrError, usage = queryService.rewriteQuery(queryText, model)
             if not usage:
-                # exception in LLM interface
-                self.workerSnapshot(rewriteQueryTextsOrError)
+                # record exception in LLM interface and continue
+                self.logMessage(rewriteQueryTextsOrError)
                 self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
             else:
                 rewriteQueryTexts = rewriteQueryTextsOrError
@@ -931,8 +931,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 # Semantic Rewrite is False OR previous error, BM25s Rewrite is True - need to attempt Semantic Rewrite first
                 rewriteQueryTextsOrError, usage = queryService.rewriteQuery(queryText, model)
                 if not usage:
-                    # exception in LLM interface
-                    self.workerSnapshot(rewriteQueryTextsOrError)
+                    # record exception in LLM interface and continue
+                    self.logMessage(rewriteQueryTextsOrError)
                     self.updateStats(topKey = "Rewrite", keyValList = [("Exception", 1)])
                 else:
                     rewriteQueryTexts = rewriteQueryTextsOrError
@@ -948,7 +948,8 @@ class DiscoveryWorkflow(WorkflowBase):
                     bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
                 )
                 if not oneQueryResultList:
-                    self.workerSnapshot(err)
+                    # record bm25s index error and return
+                    self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
 
@@ -959,8 +960,8 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.searchSemanticHyDE:
             hydeQueryTextsOrError, usage = queryService.hydeQuery(queryText, model)
             if not usage:
-                # exception in LLM interface
-                self.workerSnapshot(hydeQueryTextsOrError)
+                # record exception in LLM interface and continue
+                self.logMessage(hydeQueryTextsOrError)
                 self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
             else:
                 hydeQueryText = hydeQueryTextsOrError
@@ -982,8 +983,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 # Semantic HyDE is False OR previous error, BM25s HyDE is True - need to attempt Semantic HyDE first
                 hydeQueryTextsOrError, usage = queryService.hydeQuery(queryText, model)
                 if not usage:
-                    # exception in LLM interface
-                    self.workerSnapshot(hydeQueryTextsOrError)
+                    # record exception in LLM interface and continue
+                    self.logMessage(hydeQueryTextsOrError)
                     self.updateStats(topKey = "HyDE", keyValList = [("Exception", 1)])
                 else:
                     self.addUsage(usage)
@@ -998,11 +999,11 @@ class DiscoveryWorkflow(WorkflowBase):
                     bm25sRetrieveNumber = int(self.bm25sRetrieveNumber),
                     bm25sMinCutOffScore = float(self.bm25sMinCutOffScore)
                 )
-                if oneQueryResultList:
-                    allQueryResults.listQueryResults.append(oneQueryResultList)    
-                else:
-                    self.workerSnapshot(err)
+                if not oneQueryResultList:
+                    # record bm25s index error and return
+                    self.logMessage(err)
                     return None
+                allQueryResults.listQueryResults.append(oneQueryResultList)    
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -1077,14 +1078,42 @@ class DiscoveryWorkflow(WorkflowBase):
         return allChunkQueryResultsNew
 
 
-    def showConfiguration(self) :
-        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
-        print(f"Status file:\t{self.statusFileName}")
-        print(f"Documents:\t{self.documentFolder}")
-        print(f"RAG database:\t{self.ragDatapath}")
-        print(f"Interim data:\t{self.dataFolder}")
-        print(f"BM25s folder:\t{self.bm25IndexFolder}")
-        print(f"Output file:\t{self.outputFileName}")
+    def showConfiguration(self, CliCall : bool) :
+        if CliCall:
+            print(f"Status file:\t{self.statusFileName}")
+            print(f"Documents:\t{self.documentFolder}")
+            print(f"RAG database:\t{self.ragDatapath}")
+            print(f"Interim data:\t{self.dataFolder}")
+            print(f"BM25s folder:\t{self.bm25IndexFolder}")
+            print(f"Output file:\t{self.outputFileName}")
+        else:
+            self.logMessage(f"Status file: {self.statusFileName}")
+            self.logMessage(f"Documents: {self.documentFolder}")
+            self.logMessage(f"RAG database: {self.ragDatapath}")
+            self.logMessage(f"Interim data: {self.dataFolder}")
+            self.logMessage(f"BM25s folder: {self.bm25IndexFolder}")
+            self.logMessage(f"Output file: {self.outputFileName}")
+
+
+    def logMessage(self, msg : str | List[str]):
+        """
+        Logs status and updates status file
+
+        Args:
+            msg (str) - message string 
+
+        Returns:
+            None
+        """
+        if msg:
+            if type(msg) == str:
+                self.statusLog.append(msg)
+            else:
+                for strOut in msg:
+                    self.statusLog.append(strOut)
+            with open(self.statusFileName, "w") as jsonOut:
+                formattedOut = json.dumps(self.statusLog, indent=2)
+                jsonOut.write(formattedOut)
 
 
     def threadWorker(self):
@@ -1101,18 +1130,22 @@ class DiscoveryWorkflow(WorkflowBase):
 
         totalStart = time.time()
 
-        fileList = self.source
-#        fileList = self.formFileList()
+        self.logMessage(f"Workflow started: {self.taskId}")
 
-        msg = f"Discovered {len(fileList)} files for processing."
-        self.workerSnapshot(msg)
+        if len(self.source):
+            fileList = self.source
+        else:
+            self.source = self.formFileList()
+#        fileList = self.formFileList()
+        self.logMessage(f"Discovered {len(fileList)} files for processing.")
+
 
         #------------------loadDocument---------------------
 
         if self.loadDocument:
             startTime = time.time()
             self.loadDocumentPhaseAllFiles(inputFileList = fileList)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
+            self.updateStats(topKey = "Load", keyValList = [("Time", time.time() - startTime)])
 
         # ---------------parseChunks ---------------
 
@@ -1149,7 +1182,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
 #            msgList = self.outputRRFInfo(allQueryResults.rrfScores)
 #            print(msgList)
-#            self.workerSnapshot(msgList)
+#            self.logMessage(msgList)
 
             self.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 
@@ -1163,6 +1196,5 @@ class DiscoveryWorkflow(WorkflowBase):
 
         self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
 
-        pprint(self.stats)
-        return
-
+        self.logMessage(self.formatAllStats())
+        self.logMessage(f"Workflow completed: {self.taskId}")

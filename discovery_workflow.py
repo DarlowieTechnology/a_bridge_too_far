@@ -126,7 +126,7 @@ class DiscoveryWorkflow(WorkflowBase):
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     outputNumber : str = Field(default = "50", description="Maximum number of items to return")
 
-    outputFileName : str = Field(default = "", description="File name for results")
+    outputFileName : str = Field(default = "../testdata/discoverydocuments/discoverydata/DISCOVERY.results.json", description="File name for results")
 
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
@@ -526,10 +526,10 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: int
         """
         
-        self.updateStats(topKey = "Load", keyValList = [("Filename", inputFileName)])
+        self.logMessage(f"Load: {inputFileName}")
         mime_type, encoding = mimetypes.guess_type(inputFileName)
         if mime_type not in acceptedMimeTypes:
-            self.logMessage(f" Error: {inputFileName} File type not supported: {mime_type}")
+            self.logMessage(f"Error: {inputFileName} File type not supported: {mime_type}")
             self.updateStats(topKey = "Load", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
             return 0
 
@@ -609,6 +609,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 # record error and attempt to process next file
                 self.logMessage(f"parseChunks: {fileContentOrError} - perform '--load' phase first")
             else:
+                self.logMessage(f"parseChunks: {inputFileName}")
                 chunksList = self.parseChunksPhase(fileContentOrError)
                 chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
 
@@ -659,8 +660,6 @@ class DiscoveryWorkflow(WorkflowBase):
                 rejected += 1
                 continue
             else:
-                accepted += 1
-
                 ids.append(recordHash)
                 docs.append(chunk)
                 metadataDict = {}
@@ -668,8 +667,13 @@ class DiscoveryWorkflow(WorkflowBase):
                 metadataDict["runid"] = runId
                 metadataDict["chunkid"] = str(chunkId)
                 docMetadata.append( metadataDict )
-                embedding = self.embeddingFunction([chunk])
+                try:
+                    embedding = self.embeddingFunction([chunk])
+                except Exception as e:
+                    self.logMessage(f"makeRawVector: {e}")
+                    return -1, -1            
                 embeddings.append(embedding[0])
+                accepted += 1
 
         if len(ids):
             chromaCollection.add(
@@ -704,8 +708,11 @@ class DiscoveryWorkflow(WorkflowBase):
                 # record error and attempt to process next file
                 self.logMessage(f"makeRawVector: {fileContentOrError} - perform '--parsechunks' phase first")
             else:
+                self.logMessage(f"makeRawVector: {inputFileName}")
                 chunksList = json.loads(fileContentOrError)
                 accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
+                if (accepted < 0) and (rejected < 0):
+                    return accepted, rejected
                 acceptedTotal += accepted
                 rejectedTotal += rejected
 
@@ -741,6 +748,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 self.logMessage(f"bm25Process: {fileContentOrError} - perform '--parsechunks' phase first")
                 return
             else:
+                self.logMessage(f"bm25Process: {inputFileName}")
                 chunksList = json.loads(fileContentOrError)
                 chunkId = 0
                 for chunk in chunksList:
@@ -1136,9 +1144,12 @@ class DiscoveryWorkflow(WorkflowBase):
             fileList = self.source
         else:
             self.source = self.formFileList()
-#        fileList = self.formFileList()
-        self.logMessage(f"Discovered {len(fileList)} files for processing.")
+            fileList = self.source
 
+        if len(fileList) == 1:
+            self.logMessage(f"Discovered {len(fileList)} file for processing.")
+        else:
+            self.logMessage(f"Discovered {len(fileList)} files for processing.")
 
         #------------------loadDocument---------------------
 
@@ -1159,6 +1170,9 @@ class DiscoveryWorkflow(WorkflowBase):
         if self.makeRawVector:
             startTime = time.time()
             accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
+            if (accepted < 0) and (rejected < 0):
+                self.logMessage(f"Workflow completed with errors: {self.taskId}")        
+                return
             self.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
 
         # ------------bm25Process----------------------
@@ -1176,7 +1190,6 @@ class DiscoveryWorkflow(WorkflowBase):
             collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.query, queryService = queryService)
 
             # output results files
-            print(f"Output file name: {self.outputFileName}")
             with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
                 jsonOut.writelines(collectionChunkQueryResults.model_dump_json(indent=2))
 

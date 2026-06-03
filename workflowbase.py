@@ -457,12 +457,9 @@ class WorkflowBase(BaseModel):
             None
         """
         if msg:
-            self.logger.info(msg)
             statusLog = self.getStatusLog()
             if statusLog:
                 statusLog.append(msg)
-            else:
-                self.logger.info("CANNOT FIND!!!")
 
         statusFileName = self.getStatusFileName()
         if statusFileName:
@@ -482,7 +479,6 @@ class WorkflowBase(BaseModel):
             None
         """
         if msg:
-            self.logger.warning(msg)    
             statusLog = self.getStatusLog()
             if statusLog:
                 statusLog.append(msg)

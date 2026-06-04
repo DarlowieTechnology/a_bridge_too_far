@@ -124,12 +124,12 @@ async def discovery_run():
         discoveryWorkflow.taskId = str(uuid.uuid4())
         thread = threading.Thread( target=discoveryWorkflow.threadWorker )
         thread.start()
-        thread.join()
-        return discoveryWorkflow.taskId 
+        #thread.join()
+        discoveryWorkflow.inWorkflow = True
+        return discoveryWorkflow
     else:
         print("CAN ONLY RUN FROM CACHE")
         return None
-
 
 @app.post("/discovery/config")
 async def discovery_configuration( request: Request ):

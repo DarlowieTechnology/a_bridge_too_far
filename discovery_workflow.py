@@ -90,6 +90,7 @@ class DiscoveryWorkflow(WorkflowBase):
     chunkOverlap : str = Field(default = "48", description="Chunk overlap for source documents")
 
     taskId : str = Field(default = "", description="UUID4 of the task")
+    inWorkflow : bool = Field(default = False, description="Flag is True when Workflow is active")
 
     # text processing flags
     stripWhiteSpace : bool = Field(default = True, description="Strip excessive whitespace characters from source text")
@@ -1139,6 +1140,7 @@ class DiscoveryWorkflow(WorkflowBase):
         totalStart = time.time()
 
         self.logMessage(f"Workflow started: {self.taskId}")
+        self.inWorkflow = True
 
         if len(self.source):
             fileList = self.source
@@ -1172,6 +1174,7 @@ class DiscoveryWorkflow(WorkflowBase):
             accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
             if (accepted < 0) and (rejected < 0):
                 self.logMessage(f"Workflow completed with errors: {self.taskId}")        
+                self.inWorkflow = False
                 return
             self.updateStats(topKey = "Vectorizing", keyValList = [("Time", time.time() - startTime), ("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
 
@@ -1211,3 +1214,4 @@ class DiscoveryWorkflow(WorkflowBase):
 
         self.logMessage(self.formatAllStats())
         self.logMessage(f"Workflow completed: {self.taskId}")
+        self.inWorkflow = False

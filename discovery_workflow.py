@@ -650,7 +650,6 @@ class DiscoveryWorkflow(WorkflowBase):
         if not chromaCollection:
             return accepted, rejected
 
-        runId = str(uuid4())
         chunkId = -1
         ids : list[str] = []
         docs : list[str] = []
@@ -672,13 +671,13 @@ class DiscoveryWorkflow(WorkflowBase):
                 docs.append(chunk)
                 metadataDict = {}
                 metadataDict["document"] = str(inputFileName)
-                metadataDict["runid"] = runId
+                metadataDict["runid"] = self.taskId
                 metadataDict["chunkid"] = str(chunkId)
                 docMetadata.append( metadataDict )
                 try:
                     embedding = self.embeddingFunction([chunk])
                 except Exception as e:
-                    self.logMessage(f"makeRawVector: {e}")
+                    self.logMessage(f"makeRawVector: Exception {e}")
                     return -1, -1            
                 embeddings.append(embedding[0])
                 accepted += 1
@@ -844,6 +843,8 @@ class DiscoveryWorkflow(WorkflowBase):
                 maxCutItemDistance = float(self.semanticMaxCutItemDistance)
             )
             allQueryResults.listQueryResults.append(oneQueryResultList)
+            self.logMessage(f"Semantic: {len(oneQueryResultList.result_dict)} results")
+
 
 #            self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -864,6 +865,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 return None
 
             allQueryResults.listQueryResults.append(oneQueryResultList)
+            self.logMessage(f"Keyword: {len(oneQueryResultList.result_dict)} results")
 
  #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -886,6 +888,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     maxCutItemDistance = float(self.semanticMaxCutItemDistance)
                 )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
+                self.logMessage(f"Semantic Multi: {len(oneQueryResultList.result_dict)} results")
 
   #          self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -916,6 +919,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
+                self.logMessage(f"Keyword Multi: {len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -938,6 +942,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     maxCutItemDistance = float(self.semanticMaxCutItemDistance)
                 )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
+                self.logMessage(f"Semantic Rewrite: {len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -968,6 +973,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
+                self.logMessage(f"Keyword Rewrite: {len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -990,6 +996,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     maxCutItemDistance = float(self.semanticMaxCutItemDistance)
                 )
                 allQueryResults.listQueryResults.append(oneQueryResultList)
+                self.logMessage(f"Semantic HyDE: {len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -1020,6 +1027,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)    
+                self.logMessage(f"Keyword HyDE: {len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -1053,7 +1061,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         for oneQuery in queryTexts:
 
-            print(f"Processing query: {oneQuery}")
+            #print(f"Processing query: {oneQuery}")
 
             allChunkQueryResults = self.matchChunksPhase(queryText = oneQuery, queryService = queryService)
             if allChunkQueryResults:
@@ -1155,10 +1163,11 @@ class DiscoveryWorkflow(WorkflowBase):
             self.source = self.formFileList()
             fileList = self.source
 
-        if len(fileList) == 1:
-            self.logMessage(f"Discovered {len(fileList)} file for processing.")
-        else:
-            self.logMessage(f"Discovered {len(fileList)} files for processing.")
+        if self.loadDocument or self.parseChunks or self.makeRawVector or self.bm25Process or self.clear:
+            if len(fileList) == 1:
+                self.logMessage(f"Discovered {len(fileList)} file for processing.")
+            else:
+                self.logMessage(f"Discovered {len(fileList)} files for processing.")
 
         #------------------loadDocument---------------------
 

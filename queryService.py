@@ -100,8 +100,6 @@ class QueryService(BaseModel):
 
         queryResult = chromaCollection.query(query_texts = query, n_results = maxRetrieveNumber)
 
-#        print(f"SEMANTIC=====\n'{queryLabel}' : {query}\n===================")
-
         resultIdx = -1
         for distFloat in queryResult["distances"][0]:
             resultIdx += 1                              # index starts from 0
@@ -116,15 +114,12 @@ class QueryService(BaseModel):
                 document = queryResult["metadatas"][0][resultIdx]["document"],
                 searchTypeName = SEARCH.SEMANTIC.value
             )
-            documentFileName = Path(queryResult["metadatas"][0][resultIdx]["document"]).name
+            documentFileName = queryResult["metadatas"][0][resultIdx]["document"]
             ident = documentFileName + "|" + queryResult["metadatas"][0][resultIdx]["chunkid"]
             oneChunkQueryResultList.appendQueryResult(
                 identifier = ident,
                 queryResult = oneQueryChunkResult
             )
-
-#            print(f"Rank:{resultIdx+1}   score: {distFloat}    doc: {queryResult["metadatas"][0][resultIdx]["document"]}   chunk ID: {queryResult["metadatas"][0][resultIdx]["chunkid"]}")
-#            print(f"chunk:\n{queryResult["documents"][0][resultIdx]}")
 
         return oneChunkQueryResultList
 
@@ -155,8 +150,6 @@ class QueryService(BaseModel):
             query = combinedQuery,
             label = queryLabel        
         )
-
-#        print(f"BM25S=========\n'{queryLabel}' : {query}\n===================")
 
         try:
             retriever = bm25s.BM25.load(save_dir=str(folderName), mmap=True, load_corpus=True)
@@ -192,9 +185,6 @@ class QueryService(BaseModel):
                 identifier = ident,
                 queryResult = oneQueryChunkResult
             )
-
-#            print(f"Rank:{rankIdx+1}  score: {score}    doc: {documentName}   chunk ID: {chunkID}")
-#            print(f"chunk:\n{chunkText}")
 
         return oneChunkQueryResultList, ""
 
@@ -243,8 +233,6 @@ class QueryService(BaseModel):
         allChunkQueryResults.rrfScores = RRFScores(
             scoresDict = scoresDict
         )
-
-#        print(f"=====\n{allQueryResults.rrfScores.model_dump_json(indent=2)}\n================")
 
         return allChunkQueryResults
 
@@ -451,11 +439,12 @@ class QueryService(BaseModel):
         """
 
         inData: List[float] = []
-        for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
-            inData.append(round(identifierQueryResults.rrfRank, 10))
-        
-        inData = sorted(inData)
+        if allChunkQueryResults.rrfScores:
+            for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
+                identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
+                inData.append(round(identifierQueryResults.rrfRank, 10))
+            inData = sorted(inData)
+
         outDict : Dict[str, IdentifierQueryResults] = {}
 
         if not len(inData):
@@ -476,14 +465,14 @@ class QueryService(BaseModel):
             z_scores = [(y - mean_val) / std_dev for y in inData]
         outliers = [y for y, z_score in zip(inData, z_scores) if z_score > zScoreThreshold]
 
-        for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
-            identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
-            val = round(identifierQueryResults.rrfRank, 10)
-            if val > upperFence:
-                identifierQueryResults.outlierIQR = True
-            if val in outliers:
-                identifierQueryResults.outlierZScore = True
-            if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
-                outDict[ident] = identifierQueryResults
-
+        if allChunkQueryResults.rrfScores:
+            for ident in allChunkQueryResults.rrfScores.scoresDict.keys():
+                identifierQueryResults = allChunkQueryResults.rrfScores.scoresDict[ident]
+                val = round(identifierQueryResults.rrfRank, 10)
+                if val > upperFence:
+                    identifierQueryResults.outlierIQR = True
+                if val in outliers:
+                    identifierQueryResults.outlierZScore = True
+                if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
+                    outDict[ident] = identifierQueryResults
         return outDict

@@ -151,17 +151,28 @@ export default function Discovery({
     }, [refreshIsRunning]);
 
 
-
     const MessagesDoc = Array.from(discoveryState.source);
 
-    const TestMessagesSearch = Array.from({ length: 50 }).map(
-      (_, i, a) => `LOG v1.2.0-beta.${a.length - i}`,
-    );
+    const MessagesSearch = Array.from(discoveryState.searchResults);
 
 
     const handleStart = async (event) => {
       event.preventDefault();
       const formData = new FormData(event.target);
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/discovery/config", {
+          method: "POST",
+          body: JSON.stringify(discoveryState),
+
+        });
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        event.target.reset();
+      } catch (error) {
+        console.error(error);
+      }
 
       try {
         const response = await fetch("http://127.0.0.1:8000/discovery/run", {
@@ -183,6 +194,14 @@ export default function Discovery({
     };
    
 
+    const updateQuery = (e) => {
+      setDiscoveryState(previousState => {
+        return { ...previousState, query: e.target.value }
+      });
+    }
+
+
+
     return (
       <main>
 				<Theme accentColor="plum" grayColor="sand" appearance="dark" radius="full" scaling="100%" panelBackground="translucent">
@@ -195,10 +214,12 @@ export default function Discovery({
             <Flex gap="3" mb="2">
               <Box flexGrow="1">
                 <TextField.Root
-                  tabIndex={tabIndex}
-                  size="1"
-                  name="searchtext"
-                  placeholder="Search query"
+                  tabIndex={tabIndex} 
+                  size="1" 
+                  name="searchtext" 
+                  placeholder="Search query" 
+                  value = {discoveryState.query} 
+                  onChange={updateQuery}
                 />
               </Box>
               <Form.Submit>
@@ -277,7 +298,7 @@ export default function Discovery({
                     ref={logViewportRef}
                     style={{ padding: 4, height: "600px", background : "grey" }}
                   >
-                    {TestMessagesSearch.map((tag) => (
+                    {MessagesSearch.map((tag) => (
                       <div className="Tag" key={tag}>
                         {tag}
                       </div>

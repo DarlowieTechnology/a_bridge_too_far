@@ -74,8 +74,8 @@ class RRFScores(BaseModel):
 class AllChunkQueryResults(BaseModel):
     """represents collection of all query results for Discovery"""
     query : list[str] = Field(default = [], description="Original query as a list of strings")
-    rrfScores : RRFScores = Field(default=None, description="RRF ranks in descending order")
-    listQueryResults: List[ OneChunkQueryResultList ] = Field(default=None, description="List of OneChunkQueryResultList")
+    rrfScores : RRFScores|None = Field(default=None, description="RRF ranks in descending order")
+    listQueryResults: List[ OneChunkQueryResultList ] = Field(default=[], description="List of OneChunkQueryResultList")
 
 
 class AllIndexerQueryResults(BaseModel):

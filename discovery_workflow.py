@@ -126,8 +126,9 @@ class DiscoveryWorkflow(WorkflowBase):
     rrfOutlierZScoreThreshold : float = Field(default = 3.0, description="Threshold for outlier z-score")
     rrfOutlierIQRCoefficient : float = Field(default = 1.5, description="Interquartile Range (IQR) upper fence coefficient")
     outputNumber : str = Field(default = "50", description="Maximum number of items to return")
-
     outputFileName : str = Field(default = "../testdata/discoverydocuments/discoverydata/DISCOVERY.results.json", description="File name for results")
+    searchResults : List[str] = Field(default = [], description="List of search results")
+
 
     @model_validator(mode='after')
     def verify_configuration(self) -> Self:
@@ -284,7 +285,11 @@ class DiscoveryWorkflow(WorkflowBase):
 
         # search configuration
         if configCollection.keyExists("query"):
-            self.query = configCollection["query"]
+
+            if type(configCollection["query"]) == str:
+                self.query = [configCollection["query"]]
+            else:
+                self.query = configCollection["query"]
 
         if configCollection.keyExists("searchSemanticOriginal"):
             self.searchSemanticOriginal = configCollection["searchSemanticOriginal"]
@@ -490,26 +495,28 @@ class DiscoveryWorkflow(WorkflowBase):
         return outText
 
 
-    def outputRRFInfo(self, rrfScores : RRFScores, onlyOutliers : bool) -> List[str]:
+    def outputRRFInfo(self, rrfScores : RRFScores|None, onlyOutliers : bool) -> List[str]:
         """
         Output RRF scores. Stop at RRF cut off value. 
 
         :param rrfScores:  RRFScores object
-        :type rrfScores:  RRFScores
+        :type rrfScores:  RRFScores or None
         :return: list of output strings
         :rtype: List[str]
         """
 
         outStrings = []
+        if not rrfScores:
+            return outStrings
         for ident in rrfScores.scoresDict.keys():
             identifierQueryResults = rrfScores.scoresDict[ident]
             if identifierQueryResults.rrfRank < float(self.rrfCutOffValue):
                 break
             if onlyOutliers:
                 if identifierQueryResults.outlierIQR or identifierQueryResults.outlierZScore:
-                    print(f"{identifierQueryResults.model_dump(mode = 'python')},")
-#            outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))
-
+                    outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))
+            else:
+                outStrings.append((f"{identifierQueryResults.model_dump(mode = 'python')},"))              
         return outStrings
 
 
@@ -1189,16 +1196,15 @@ class DiscoveryWorkflow(WorkflowBase):
 
         if self.search:
             startTime = time.time()
+            self.logMessage(f"Processing query: {self.query}")
             queryService = QueryService()
             collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.query, queryService = queryService)
-
             # output results files
             with open(self.outputFileName, "w", encoding="utf-8", errors="ignore") as jsonOut:
                 jsonOut.writelines(collectionChunkQueryResults.model_dump_json(indent=2))
 
-#            msgList = self.outputRRFInfo(allQueryResults.rrfScores)
-#            print(msgList)
-#            self.logMessage(msgList)
+            for listResults in collectionChunkQueryResults.listAllQueryResults:
+                self.searchResults = self.outputRRFInfo(listResults.rrfScores, False)
 
             self.updateStats(topKey = "Matching", keyValList = [("Time", time.time() - startTime)])
 

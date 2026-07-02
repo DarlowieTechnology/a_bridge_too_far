@@ -141,7 +141,7 @@ class WorkflowBase(BaseModel):
         :rtype: List[str]
         """
 
-        outStrings : list[str] = []
+        outStrings : list[str] = ["--- Statistics"]
         for topKey in self.stats.keys():
             subDict : dict[str, Union[int, str, float]] = self.stats[topKey]
             for subKey in subDict.keys():

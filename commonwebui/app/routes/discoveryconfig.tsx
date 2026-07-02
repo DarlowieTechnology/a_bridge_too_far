@@ -237,12 +237,29 @@ export default function Discovery({
       });
     }
 
+    const updateGLOBALllm_Provider = (e) => {
+      setDiscoveryState(previousState => {
+        return { ...previousState, GLOBALllm_Provider: e.target.value }
+      });
+    }
+
+    const updateGLOBALllm_Version = (e) => {
+      setDiscoveryState(previousState => {
+        return { ...previousState, GLOBALllm_Version: e.target.value }
+      });
+    }
+
+    const updateGLOBALllm_Embed = (e) => {
+      setDiscoveryState(previousState => {
+        return { ...previousState, GLOBALllm_Embed: e.target.value }
+      });
+    }
+
     const updateDocumentFolder = (e) => {
       discoveryState.source = []
       setDiscoveryState(previousState => {
         return { ...previousState, documentFolder: e.target.value }
       });
-
     }
 
     const updateRagDatapath = (e) => {
@@ -310,9 +327,9 @@ export default function Discovery({
 
           <Flex flexShrink="0" gap="4" direction="row">
 
-              <Card size="4" id ="TextProcessingCard">
+              <Card size="2" id ="TextProcessingCard">
                 <Heading as="h4" size="3" trim="start" mb="2" color="plum">Text Processing</Heading>
-                <Box><Separator size="4" my="5" /></Box>
+                <Box><Separator size="4" my="2" /></Box>
                   <Flex direction="column" gap="3" mt="1">
 
                     <Flex asChild gap="2">
@@ -345,9 +362,9 @@ export default function Discovery({
                 </Flex>
               </Card>
 
-              <Card size="4" id ="SearchConfigurationCard">
-                <Heading as="h4" size="3" trim="start" mb="2" color="plum">Search Configuration</Heading>
-                <Box><Separator size="4" my="5" /></Box>
+              <Card size="2" id ="SearchConfigurationCard">
+                <Heading as="h4" size="3" trim="start" mb="1" color="plum">Search Configuration</Heading>
+                <Box><Separator size="4" my="2" /></Box>
 
                 <Flex direction="column" gap="3" mt="1">
                   <Flex asChild gap="2">
@@ -418,9 +435,9 @@ export default function Discovery({
                 </Flex>
               </Card>
 
-              <Card size="4" id ="PhasesCard">
+              <Card size="2" id ="PhasesCard">
                 <Heading as="h4" size="3" trim="start" mb="2" color="plum">Workflow Phases</Heading>
-                <Box><Separator size="4" my="5" /></Box>
+                <Box><Separator size="4" my="2" /></Box>
 
                 <Flex direction="column" gap="3" mt="1">
 
@@ -469,16 +486,16 @@ export default function Discovery({
                 </Flex>
               </Card>
 
-              <Card size="4" id ="AdvancedConfigurationCard">
+              <Card size="2" id ="AdvancedConfigurationCard">
                 <Heading as="h4" size="3" trim="start" mb="2" color="plum">Advanced Configuration</Heading>
-                <Box><Separator size="4" my="5" /></Box>
+                <Box><Separator size="4" my="2" /></Box>
 
                 <Flex direction="column" gap="2" mt="1">
 
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>Chunk Size</Text>
-                      <Tooltip content="Chunk Size represents number of characters in each text chunk. Chunk size value ranges from 128 to 512. Default is 512">
+                      <Tooltip content="Chunk Size represents number of characters in each text chunk. Value ranges from 128 to 512. Default is 512">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.chunkSize} placeholder="128-512" step="1" onChange={updateChunkSize} />
                       </Tooltip>
                     </Text>
@@ -487,7 +504,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>Chunk Overlap</Text>
-                      <Tooltip content="Chunk Overlap represents number of overlapping characters between two chunks. Chunk overlap value ranges from 0 to 64. Default is 48">
+                      <Tooltip content="Chunk Overlap represents number of overlapping characters between two chunks. Value ranges from 0 to 64. Default is 48">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.chunkOverlap} placeholder="0-64" step="1" onChange={updateChunkOverlap} />
                       </Tooltip>
                     </Text>
@@ -496,7 +513,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>Semantic Retrieve</Text>
-                      <Tooltip content="Semantic retrieve establishes maximum number of semantic search results. Semantic retrieve value ranges from 0 (no search results are included) to 2048. Default is 50">
+                      <Tooltip content="Semantic retrieve establishes maximum number of semantic search results. Value ranges from 0 (no search results are included) to 2048. Default is 50">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.semanticRetrieveNumber} placeholder="0-2048" step="1" onChange={updateSemanticRetrieveNumber} />
                       </Tooltip>
                     </Text>
@@ -505,7 +522,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>Semantic Cut Off</Text>
-                      <Tooltip content="Semantic cut off establishes maximum semantic distance for search results. Semantic cut off value ranges from 0.0 (no all search results are included) to 1.0 (all search results). Default is 1.0">
+                      <Tooltip content="Semantic cut off establishes maximum semantic distance for search results. Value ranges from 0.0 (no all search results are included) to 1.0 (all search results). Default is 1.0">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.semanticMaxCutItemDistance} placeholder="0.0-1.0" onChange={updateSemanticMaxCutItemDistance} />
                       </Tooltip>
                     </Text>
@@ -514,7 +531,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>BM25s Retrieve</Text>
-                      <Tooltip content="BM25s retrieve establishes maximum number of BM25s search results. BM25s retrieve value ranges from 0 (no search results are included) to 2048. Default is 50">
+                      <Tooltip content="BM25s Retrieve establishes maximum number of BM25s search results. Value ranges from 0 (no search results are included) to 2048. Default is 50">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.bm25sRetrieveNumber} placeholder="0-2048" step="1" onChange={updateBm25sRetrieveNumber} />
                       </Tooltip>
                     </Text>
@@ -523,7 +540,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>BM25s Cut Off</Text>
-                      <Tooltip content="BM25s cut off establishes minimum BM25s score for search results. BM25s cut off value is a positive float. Default is 0.0">
+                      <Tooltip content="BM25s Cut Off establishes minimum BM25s score for search results. Value is a positive float. Default is 0.0">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.bm25sMinCutOffScore} placeholder=" >= 0" onChange={updateBm25sMinCutOffScore} />
                       </Tooltip>
                     </Text>
@@ -532,7 +549,7 @@ export default function Discovery({
                   <Flex asChild gap="4" direction="row" align="center" >
                     <Text as="label" size="2" weight="bold">
                       <Text>RRF Cut Off</Text>
-                      <Tooltip content="Reciprocal Rank Fusion (RRF) cut off establishes minimum RRF score for search results. RRF cut off value ranges from 0.0 (all search results are included) to 1.0 (no search results). Default is 0.0">
+                      <Tooltip content="Reciprocal Rank Fusion (RRF) Cut Off establishes minimum RRF score for search results. Value ranges from 0.0 (all search results are included) to 1.0 (no search results). Default is 0.0">
                         <TextField.Root style={{ width: "80px" }} type="number" value = {discoveryState.rrfCutOffValue} placeholder="0.0-1.0" onChange={updateRrfCutOffValue} />
                       </Tooltip>
                     </Text>
@@ -542,11 +559,67 @@ export default function Discovery({
               </Card>
             </Flex>
 
-            <Flex flexShrink="0" gap="4" direction="row" py="2">
+            <Flex flexShrink="0" gap="4" direction="row" py="1">
 
-              <Card size="4"  id ="FoldersConfigurationCard">
-                <Heading as="h4" size="3" trim="start" mb="2" color="plum">Folders Configuration</Heading>
-                <Box><Separator size="4" my="5" /></Box>
+              <Card size="2"  id ="LLMSettingsCard">
+                <Heading as="h4" size="3" trim="start" mb="2" color="plum">LLM Settings</Heading>
+                <Box><Separator size="4" my="2" /></Box>
+                <Flex direction="column" gap="2" mt="1">
+        
+                  <Flex asChild gap="4" direction="row" align="center" >
+                    <Text as="label" size="2" weight="bold">
+                      <Text style={{ width: "100px" }} >Host</Text>
+                      <Tooltip content="LLM Host (lmstudio, ollama)">
+                        <TextField.Root style={{ width: "200px" }} value = {discoveryState.GLOBALllm_Provider} onChange={updateGLOBALllm_Provider} />
+                      </Tooltip>
+                    </Text>
+                  </Flex>
+
+                  <Flex asChild gap="4" direction="row" align="center" >
+                    <Text as="label" size="2" weight="bold">
+                      <Text style={{ width: "100px" }} >LLM</Text>
+                      <Tooltip content="General LLM">
+                        <TextField.Root style={{ width: "200px" }} value = {discoveryState.GLOBALllm_Version} onChange={updateGLOBALllm_Version} />
+                      </Tooltip>
+                    </Text>
+                  </Flex>
+
+                </Flex>
+              </Card>
+
+              <Card size="2"  id ="EmbedSettingsCard">
+                <Heading as="h4" size="3" trim="start" mb="2" color="plum">Embedding Settings</Heading>
+                <Box><Separator size="4" my="2" /></Box>
+                <Flex direction="column" gap="2" mt="1">
+        
+                  <Flex asChild gap="4" direction="row" align="center" >
+                    <Text as="label" size="2" weight="bold">
+                      <Text style={{ width: "100px" }} >Host</Text>
+                      <Tooltip content="Embedding Host (ollama)">
+                        <TextField.Root style={{ width: "200px" }} value = "ollama" />
+                      </Tooltip>
+                    </Text>
+                  </Flex>
+
+                  <Flex asChild gap="4" direction="row" align="center" >
+                    <Text as="label" size="2" weight="bold">
+                      <Text style={{ width: "100px" }} >LLM</Text>
+                      <Tooltip content="Embedding LLM (nomic)">
+                        <TextField.Root style={{ width: "200px" }} value = {discoveryState.GLOBALllm_Embed} onChange={updateGLOBALllm_Embed} />
+                      </Tooltip>
+                    </Text>
+                  </Flex>
+
+                </Flex>
+              </Card>
+
+            </Flex>
+
+            <Flex flexShrink="0" gap="4" direction="row" py="1">
+
+              <Card size="2"  id ="FoldersConfigurationCard">
+                <Heading as="h4" size="3" trim="start" mb="2" color="plum">Folder Configuration</Heading>
+                <Box><Separator size="4" my="2" /></Box>
   
                 <Flex direction="column" gap="2" mt="1">
 
@@ -598,7 +671,7 @@ export default function Discovery({
                 </Flex>
               </Card>
 
-              <Card size="4">
+              <Card size="3">
                 <Form.Root className="FormRoot" onSubmit={handleSubmit} >
                     <Button tabIndex={tabIndex} size="2">
                       <Form.Submit>Submit</Form.Submit>

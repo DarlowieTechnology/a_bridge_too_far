@@ -3,7 +3,6 @@
 #
 import time
 import threading
-import logging
 import argparse
 import json
 from pprint import pprint
@@ -49,7 +48,6 @@ def main():
     parser = argparse.ArgumentParser(description="Query CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list pass \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list pass \"---llm ?\"")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--query", help="User query (for example \"xss issues\" or \"credentials issues\")")
     parser.add_argument("--output", help=f"Output file with search results, default \"{context['INDEXEOutFile']}\"")
@@ -65,9 +63,6 @@ def main():
         context = CommonCLIArguments.processProvider(args.provider, context)
     if args.llm:
         context = CommonCLIArguments.processLLM(args.llm, context)
-
-    if args.verbose:
-        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
     if args.query:
         # combine --query, --advanced values
@@ -139,7 +134,7 @@ def main():
     queryWorkflow.configure(configCollection)
 
     if showFlag:
-        queryWorkflow.showConfiguration()
+        queryWorkflow.showConfiguration(CliCall = True)
 
 #    testRun(queryWorkflow=queryWorkflow)
 

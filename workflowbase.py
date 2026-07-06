@@ -2,8 +2,6 @@
 # base class for workflows
 #
 import sys
-import logging
-from logging import Logger
 import json
 from typing import List, Union, Dict, Any
 from typing_extensions import Self

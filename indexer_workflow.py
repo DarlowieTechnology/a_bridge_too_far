@@ -4,7 +4,6 @@
 from typing import List, Dict, Any
 from typing_extensions import Self
 import sys
-import logging
 import threading
 import json
 import re
@@ -49,8 +48,7 @@ class IndexerWorkflow(WorkflowBase):
     GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
     GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
 
-    logginglevel : int = Field(default = logging.WARN, description="Logging level")
-
+    statusLog : List[str] = Field(default = [], description="Status log of workflow")
     statusFileName : str = Field(default = "INDEXERLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     documentFolder : str = Field(default = "", description="Source document folder")
@@ -108,12 +106,6 @@ class IndexerWorkflow(WorkflowBase):
         self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
         self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
         self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
-
-        if configCollection.keyExists("logginglevel"):
-            self.logginglevel = configCollection["logginglevel"]
-        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
-
-        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 
         if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
@@ -823,14 +815,43 @@ class IndexerWorkflow(WorkflowBase):
         retriever.save(self.bm25IndexFolder)
 
 
-    def showConfiguration(self) :
-        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
-        print(f"Status file:\t{self.statusFileName}")
-        print(f"Documents:\t{self.documentFolder}")
-        print(f"RAG database:\t{self.ragDatapath}")
-        print(f"Interim data:\t{self.dataFolder}")
-        print(f"Template file:\t{self.templateJSONName}")
-        print(f"BM25s folder:\t{self.bm25IndexFolder}")
+    def showConfiguration(self, CliCall : bool) :
+        if CliCall:
+            print(f"Status file:\t{self.statusFileName}")
+            print(f"Documents:\t{self.documentFolder}")
+            print(f"RAG database:\t{self.ragDatapath}")
+            print(f"Interim data:\t{self.dataFolder}")
+            print(f"Template file:\t{self.templateJSONName}")
+            print(f"BM25s folder:\t{self.bm25IndexFolder}")
+        else:
+            self.logMessage(f"Status file: {self.statusFileName}")
+            self.logMessage(f"Documents: {self.documentFolder}")
+            self.logMessage(f"RAG database: {self.ragDatapath}")
+            self.logMessage(f"Interim data: {self.dataFolder}")
+            self.logMessage(f"Template file:{self.templateJSONName}")
+            self.logMessage(f"BM25s folder: {self.bm25IndexFolder}")
+
+
+    def logMessage(self, msg : str | List[str]):
+        """
+        Logs status and updates status file
+
+        Args:
+            msg (str) - message string 
+
+        Returns:
+            None
+        """
+        if msg:
+            if type(msg) == str:
+                self.statusLog.append(msg)
+            else:
+                for strOut in msg:
+                    self.statusLog.append(strOut)
+            with open(self.statusFileName, "w") as jsonOut:
+                formattedOut = json.dumps(self.statusLog, indent=2)
+                jsonOut.write(formattedOut)
+
 
 
     def threadWorker(self, fileList : List[str]):

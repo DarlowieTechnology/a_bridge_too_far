@@ -3,8 +3,6 @@
 #
 
 import sys
-import logging
-from logging import Logger
 import threading
 import json
 import re
@@ -61,7 +59,6 @@ def main():
     parser = argparse.ArgumentParser(prog = "indexer_cli.py", description="Indexer CLI")
     parser.add_argument("--provider", help=f"LLM service provider, for full list: \"--provider ?\"")
     parser.add_argument("--llm", help=f"LLM name, for full list:  \"---llm ?\"")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--input", help="File with reports to process, new line delimited")
     parser.add_argument("--showconfiguration", action='store_const', const=True, help="Show workflow configuration")
@@ -81,9 +78,6 @@ def main():
         context = CommonCLIArguments.processProvider(args.provider, context)
     if args.llm:
         context = CommonCLIArguments.processLLM(args.llm, context)
-
-    if args.verbose:
-        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
     # phases
     if args.load:
@@ -154,7 +148,7 @@ def main():
     indexerWorkflow.configure(configCollection)
 
     if showFlag:
-        indexerWorkflow.showConfiguration()
+        indexerWorkflow.showConfiguration(CliCall = True)
 
 #    testRun(indexerWorkflow = indexerWorkflow, fileList = [fileList])
 

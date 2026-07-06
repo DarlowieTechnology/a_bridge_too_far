@@ -198,7 +198,6 @@ def main():
     parser.add_argument("--input", help="User queries in text file, new line delimited")
     parser.add_argument("--output", help=f"Output file with search results, default \"{context['DISCOVOutFile']}\"")
     parser.add_argument("--count", help=f"Count of results in output, default {context['DISCLIoutputCount']}")
-    parser.add_argument("--verbose", help=f"Verbosity, one of [DEBUG, INFO, WARN, ERROR, CRITICAL]")
     parser.add_argument("--advanced", help=f"Advanced configuration JSON file")
     parser.add_argument("--showconfiguration", action='store_const', const=True, help="Show workflow configuration")
     parser.add_argument("--load", action='store_const', const=True, help=f"Load source documents")
@@ -241,9 +240,6 @@ def main():
     if ("source" not in context.keys()) and (args.load or args.parsechunks or args.makerawvector or args.bm25s):
         print("ERROR: Provide --source or --sourcefiles parameters")
         return
-
-    if args.verbose:
-        context.setdefault('logginglevel', CommonHelper.convertName2LoggingLevel(args.verbose))
 
     # phases
     if args.load:

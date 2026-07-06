@@ -3,7 +3,6 @@
 #
 import sys
 import json
-import logging
 from typing import List, Dict
 from typing_extensions import Self
 from pathlib import Path
@@ -44,8 +43,7 @@ class QueryWorkflow(WorkflowBase):
     GLOBALllm_Version : str = Field(default = "", strict=True, description="General LLM")
     GLOBALllm_URL : str = Field(default = "", description="Global LLM service base URL")
 
-    logginglevel : int = Field(default = logging.WARN, description="Logging level")
-
+    statusLog : List[str] = Field(default = [], description="Status log of workflow")
     statusFileName : str = Field(default = "QUERYLOG", description="Name of status log file")
     ragDatapath : str = Field(default = "chromadb", description="Path to RAG database")
     dataFolder : str = Field(default = "", description="Intermediate data folder")
@@ -110,12 +108,6 @@ class QueryWorkflow(WorkflowBase):
         self.GLOBALembedding_URL = configCollection["GLOBALembedding_URL"]
         self.GLOBALllm_Version = configCollection["GLOBALllm_Version"]
         self.GLOBALllm_URL = configCollection["GLOBALllm_URL"]
-
-        if configCollection.keyExists("logginglevel"):
-            self.logginglevel = configCollection["logginglevel"]
-        logging.basicConfig(stream=sys.stdout, level=self.logginglevel)
-
-        self.logger = logging.getLogger(configCollection["GLOBALloggerSessionKey"])
 
         if configCollection.keyExists("statusFileName"):
             self.statusFileName = configCollection["statusFileName"]
@@ -843,13 +835,40 @@ class QueryWorkflow(WorkflowBase):
         return allQueryResults
 
 
-    def showConfiguration(self) :
-        print(f"Verbosity:\t{CommonHelper.convertLoggingLevel2Name(self.logginglevel)}")
-        print(f"Status file:\t{self.statusFileName}")
-        print(f"RAG database:\t{self.ragDatapath}")
-        print(f"Interim data:\t{self.dataFolder}")
-        print(f"BM25s folder:\t{self.bm25IndexFolder}")
-        print(f"Output file:\t{self.outputFileName}")
+    def showConfiguration(self, CliCall : bool) :
+        if CliCall:
+            print(f"Status file:\t{self.statusFileName}")
+            print(f"RAG database:\t{self.ragDatapath}")
+            print(f"Interim data:\t{self.dataFolder}")
+            print(f"BM25s folder:\t{self.bm25IndexFolder}")
+            print(f"Output file:\t{self.outputFileName}")
+        else:
+            self.logMessage(f"Status file: {self.statusFileName}")
+            self.logMessage(f"RAG database: {self.ragDatapath}")
+            self.logMessage(f"Interim data: {self.dataFolder}")
+            self.logMessage(f"BM25s folder: {self.bm25IndexFolder}")
+            self.logMessage(f"Output file: {self.outputFileName}")
+
+
+    def logMessage(self, msg : str | List[str]):
+        """
+        Logs status and updates status file
+
+        Args:
+            msg (str) - message string 
+
+        Returns:
+            None
+        """
+        if msg:
+            if type(msg) == str:
+                self.statusLog.append(msg)
+            else:
+                for strOut in msg:
+                    self.statusLog.append(strOut)
+            with open(self.statusFileName, "w") as jsonOut:
+                formattedOut = json.dumps(self.statusLog, indent=2)
+                jsonOut.write(formattedOut)
 
 
     def threadWorker(self):

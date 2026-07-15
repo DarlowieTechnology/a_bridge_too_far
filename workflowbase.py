@@ -142,12 +142,14 @@ class WorkflowBase(BaseModel):
         outStrings : list[str] = ["--- Statistics"]
         for topKey in self.stats.keys():
             subDict : dict[str, Union[int, str, float]] = self.stats[topKey]
+            strOut = f"{topKey} : "
             for subKey in subDict.keys():
                 value  = subDict[subKey]
                 if type(value) == float:
-                    outStrings.append(f"{topKey} : {subKey} : {subDict[subKey]:.4f}")
+                    strOut += f"[{subKey}:{subDict[subKey]:.4f}]   "
                 else:
-                    outStrings.append(f"{topKey} : {subKey} : {subDict[subKey]}")
+                    strOut += f"[{subKey}:{subDict[subKey]}]   "
+            outStrings.append(strOut)
         return outStrings
 
 

@@ -538,36 +538,47 @@ class DiscoveryWorkflow(WorkflowBase):
         :rtype: int
         """
         
-        self.logMessage(f"Load Documents: {inputFileName}")
+        startTime = time.time()
+#        self.logMessage(f"Load Documents: {inputFileName}")
         mime_type, encoding = mimetypes.guess_type(inputFileName)
         if mime_type not in acceptedMimeTypes:
             self.logMessage(f"Error: {inputFileName} File type not supported: {mime_type}")
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Unknown MIME type", 1)])
+            self.updateStats(topKey = "Load Unknown MIME Type", keyValList = [("Files", 1)])
             return 0
 
         if mime_type == "application/pdf":
             textCombined = self.loadPDFPyPDFLoader(inputFileName)
             if not textCombined:
                 textCombined = self.loadPDFpymupdf4llm(inputFileName)
-                self.updateStats(topKey = "Load Documents", keyValList = [("pymupdf4llm", 1)])
+                self.updateStats(topKey = "Load PDF", keyValList = [("pymupdf4llm", 1)])
             else:
-                self.updateStats(topKey = "Load Documents", keyValList = [("PyPDFLoader", 1)])
+                self.updateStats(topKey = "Load PDF", keyValList = [("PyPDFLoader", 1)])
+            endTime = time.time()
             if textCombined:
-                self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type PDF", 1), ("PDF Total Length", len(textCombined))])
+                self.updateStats(topKey = "Load PDF", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
+            else:
+                self.updateStats(topKey = "Load PDF", keyValList = [("Errors", 1), ("Time", endTime - startTime)])
+            self.logMessage(f"Load PDF: {inputFileName} [Time: {endTime - startTime}:.4f]")
 
         if mime_type in ["application/json"]:
             textCombined = self.loadJSON(inputFileName)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type JSON", 1), ("JSON Total Length", len(textCombined))])
+            endTime = time.time()
+            self.updateStats(topKey = "Load JSON", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
+            self.logMessage(f"Load JSON: {inputFileName} [Time: {endTime - startTime}:.4f]")
 
         if mime_type in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
             textCombined = self.loadText(inputFileName)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Type Text", 1), ("Text Total Length", len(textCombined))])
+            endTime = time.time()
+            self.updateStats(topKey = "Load Text", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
+            self.logMessage(f"Load Text: {inputFileName} [Time: {endTime - startTime}:.4f]")
 
         fullOutputFileName = dataFolder + outputFileName
         if textCombined:
             with open(fullOutputFileName, "w" , encoding="utf-8", errors="ignore") as rawOut:
                 rawOut.write(textCombined)
             return len(textCombined)
+
+        # on error return zero length
         return 0
 
 
@@ -1191,9 +1202,9 @@ class DiscoveryWorkflow(WorkflowBase):
         #------------------loadDocument---------------------
 
         if self.loadDocument:
-            startTime = time.time()
+#            startTime = time.time()
             self.loadDocumentPhaseAllFiles(inputFileList = fileList)
-            self.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
+#            self.updateStats(topKey = "Load Documents", keyValList = [("Time", time.time() - startTime)])
 
         # ---------------parseChunks ---------------
 

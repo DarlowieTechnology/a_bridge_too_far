@@ -254,11 +254,18 @@ export default function Discovery({
                     ref={logViewportRef}
                     style={{ padding: 4, height: "600px", background : "grey" }}
                   >
-                    {MessagesLog.map((tag) => (
-                      <div className="Tag" key={tag}>
-                        {tag}
-                      </div>
+
+                    {MessagesLog.map((oneRow) => (
+                      <Flex direction="row"  gap="5" display="flex" >
+                          {(Array.from(oneRow.split("|"))).map((colVal) => (
+                              <Box style={{ minWidth: "150px", maxWidth: "400px" }} >
+                                {colVal}
+                              </Box>
+                          ))}
+                      </Flex>
                     ))}
+
+
                   </ScrollArea.Viewport>
                   <ScrollArea.Scrollbar orientation="vertical">
                     <ScrollArea.Thumb />

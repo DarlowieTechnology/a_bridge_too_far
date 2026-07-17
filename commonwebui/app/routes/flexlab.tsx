@@ -173,7 +173,7 @@ export default function Discovery({
 
 
 
-        <Flex direction="column" gap="3" p="4">
+        <Flex direction="column" gap="3" p="4" style={{ background: "yellow" }}>
           {/* Toggle button */}
           <Button onClick={() => setVisible((v) => !v)}>
             {visible ? "Hide" : "Show"} Flex Box

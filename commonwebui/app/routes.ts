@@ -12,5 +12,6 @@ export default [
     route("query/config", "routes/queryconfig.tsx"),    
     route("discovery", "routes/discovery.tsx"),
     route("discovery/config", "routes/discoveryconfig.tsx"),
-    route("flexlab", "routes/flexlab.tsx")
+    route("flexlab", "routes/flexlab.tsx"),
+    route("columnlab", "routes/columnlab.jsx")
 ] satisfies RouteConfig;

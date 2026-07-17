@@ -139,16 +139,16 @@ class WorkflowBase(BaseModel):
         :rtype: List[str]
         """
 
-        outStrings : list[str] = ["--- Statistics"]
+        outStrings : list[str] = []
         for topKey in self.stats.keys():
             subDict : dict[str, Union[int, str, float]] = self.stats[topKey]
-            strOut = f"{topKey} : "
+            strOut = f"{topKey}"
             for subKey in subDict.keys():
                 value  = subDict[subKey]
                 if type(value) == float:
-                    strOut += f"[{subKey}:{subDict[subKey]:.4f}]   "
+                    strOut += f"|{subKey}:{subDict[subKey]:.4f}"
                 else:
-                    strOut += f"[{subKey}:{subDict[subKey]}]   "
+                    strOut += f"|{subKey}:{subDict[subKey]}"
             outStrings.append(strOut)
         return outStrings
 

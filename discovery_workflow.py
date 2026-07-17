@@ -368,7 +368,7 @@ class DiscoveryWorkflow(WorkflowBase):
         try:
             docs = loader.load()
         except Exception as e:
-            self.logMessage(f"Exception: {e}")
+            self.logMessage(f"Exception|{e}")
             return None       
 
         textCombined = ""
@@ -393,7 +393,7 @@ class DiscoveryWorkflow(WorkflowBase):
         try:
             docs = pymupdf4llm.to_text(inputFile)
         except Exception as e:
-            self.logMessage(f"Exception: {e}")
+            self.logMessage(f"Exception|{e}")
             return None
         
         if type(docs) == str:
@@ -539,10 +539,9 @@ class DiscoveryWorkflow(WorkflowBase):
         """
         
         startTime = time.time()
-#        self.logMessage(f"Load Documents: {inputFileName}")
         mime_type, encoding = mimetypes.guess_type(inputFileName)
         if mime_type not in acceptedMimeTypes:
-            self.logMessage(f"Error: {inputFileName} File type not supported: {mime_type}")
+            self.logMessage(f"Error|{inputFileName}|File type not supported|{mime_type}")
             self.updateStats(topKey = "Load Unknown MIME Type", keyValList = [("Files", 1)])
             return 0
 
@@ -553,24 +552,24 @@ class DiscoveryWorkflow(WorkflowBase):
                 self.updateStats(topKey = "Load PDF", keyValList = [("pymupdf4llm", 1)])
             else:
                 self.updateStats(topKey = "Load PDF", keyValList = [("PyPDFLoader", 1)])
-            endTime = time.time()
+            processTime = time.time() - startTime
             if textCombined:
-                self.updateStats(topKey = "Load PDF", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
+                self.updateStats(topKey = "Load PDF", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", processTime)])
             else:
-                self.updateStats(topKey = "Load PDF", keyValList = [("Errors", 1), ("Time", endTime - startTime)])
-            self.logMessage(f"Load PDF: {inputFileName} [Time: {endTime - startTime}:.4f]")
+                self.updateStats(topKey = "Load PDF", keyValList = [("Errors", 1), ("Time", processTime)])
+            self.logMessage(f"Load PDF|{inputFileName}|Time:{processTime:.4f}")
 
         if mime_type in ["application/json"]:
             textCombined = self.loadJSON(inputFileName)
-            endTime = time.time()
-            self.updateStats(topKey = "Load JSON", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
-            self.logMessage(f"Load JSON: {inputFileName} [Time: {endTime - startTime}:.4f]")
+            processTime = time.time() - startTime
+            self.updateStats(topKey = "Load JSON", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", processTime)])
+            self.logMessage(f"Load JSON|{inputFileName}|Time:{processTime:.4f}")
 
         if mime_type in ["text/css", "text/csv", "text/html", "text/markdown", "text/plain"]:
             textCombined = self.loadText(inputFileName)
-            endTime = time.time()
-            self.updateStats(topKey = "Load Text", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", endTime - startTime)])
-            self.logMessage(f"Load Text: {inputFileName} [Time: {endTime - startTime}:.4f]")
+            processTime = time.time() - startTime
+            self.updateStats(topKey = "Load Text Summary", keyValList = [("Files", 1), ("Length", len(textCombined)), ("Time", processTime)])
+            self.logMessage(f"Load Text|{inputFileName}|Time:{processTime:.4f}")
 
         fullOutputFileName = dataFolder + outputFileName
         if textCombined:
@@ -630,9 +629,9 @@ class DiscoveryWorkflow(WorkflowBase):
             result, fileContentOrError = OpenFile.open(filePath = rawTextFileName, readContent = True)
             if not result:
                 # record error and attempt to process next file
-                self.logMessage(f"Parse Chunks: {fileContentOrError} - perform '--load' phase first")
+                self.logMessage(f"Parse Error|{fileContentOrError}|perform load phase first")
             else:
-                self.logMessage(f"Parse Chunks: {inputFileName}")
+                self.logMessage(f"Parse|{inputFileName}")
                 chunksList = self.parseChunksPhase(fileContentOrError)
                 chunkListFileName = self.dataFolder + Path(inputFileName).name + "-data/raw.chunks.txt"
 
@@ -692,7 +691,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 try:
                     embedding = self.embeddingFunction([chunk])
                 except Exception as e:
-                    self.logMessage(f"Make Vectors: Exception {e}")
+                    self.logMessage(f"Vectors Exception|{e}")
                     return -1, -1            
                 embeddings.append(embedding[0])
                 accepted += 1
@@ -728,9 +727,9 @@ class DiscoveryWorkflow(WorkflowBase):
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
                 # record error and attempt to process next file
-                self.logMessage(f"Make Vectors: {fileContentOrError} - perform '--parsechunks' phase first")
+                self.logMessage(f"Vectors Error|{fileContentOrError}|perform parse phase first")
             else:
-                self.logMessage(f"Make Vectors: {inputFileName}")
+                self.logMessage(f"Vectors|{inputFileName}")
                 chunksList = json.loads(fileContentOrError)
                 accepted, rejected = self.makeRawVectorPhase(chunksList, inputFileName)
                 if (accepted < 0) and (rejected < 0):
@@ -767,10 +766,10 @@ class DiscoveryWorkflow(WorkflowBase):
             result, fileContentOrError = OpenFile.open(filePath = chunkListFileName, readContent = True)
             if not result:
                 # record error and return, bm25s index should contain all files
-                self.logMessage(f"Make Keywords: {fileContentOrError} - perform '--parsechunks' phase first")
+                self.logMessage(f"Keywords Error|{fileContentOrError}|perform parse phase first")
                 return
             else:
-                self.logMessage(f"Make Keywords: {inputFileName}")
+                self.logMessage(f"Keywords|{inputFileName}")
                 chunksList = json.loads(fileContentOrError)
                 chunkId = 0
                 for chunk in chunksList:
@@ -862,7 +861,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 return None
             else:
                 allQueryResults.listQueryResults.append(oneQueryResultList)
-                self.logMessage(f"Semantic: {len(oneQueryResultList.result_dict)} results")
+                self.logMessage(f"Semantic|{len(oneQueryResultList.result_dict)} results")
 
 #            self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -883,7 +882,7 @@ class DiscoveryWorkflow(WorkflowBase):
                 return None
 
             allQueryResults.listQueryResults.append(oneQueryResultList)
-            self.logMessage(f"Keyword: {len(oneQueryResultList.result_dict)} results")
+            self.logMessage(f"Keyword|{len(oneQueryResultList.result_dict)} results")
 
  #           self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -910,7 +909,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     return None
                 else:
                     allQueryResults.listQueryResults.append(oneQueryResultList)
-                    self.logMessage(f"Semantic Multi: {len(oneQueryResultList.result_dict)} results")
+                    self.logMessage(f"Semantic Multi|{len(oneQueryResultList.result_dict)} results")
 
   #          self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -941,7 +940,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
-                self.logMessage(f"Keyword Multi: {len(oneQueryResultList.result_dict)} results")
+                self.logMessage(f"Keyword Multi|{len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -968,7 +967,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     return None
                 else:
                     allQueryResults.listQueryResults.append(oneQueryResultList)
-                    self.logMessage(f"Semantic Rewrite: {len(oneQueryResultList.result_dict)} results")
+                    self.logMessage(f"Semantic Rewrite|{len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -999,7 +998,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)
-                self.logMessage(f"Keyword Rewrite: {len(oneQueryResultList.result_dict)} results")
+                self.logMessage(f"Keyword Rewrite|{len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -1026,7 +1025,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     return None
                 else:
                     allQueryResults.listQueryResults.append(oneQueryResultList)
-                    self.logMessage(f"Semantic HyDE: {len(oneQueryResultList.result_dict)} results")
+                    self.logMessage(f"Semantic HyDE|{len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = False)
 
@@ -1057,7 +1056,7 @@ class DiscoveryWorkflow(WorkflowBase):
                     self.logMessage(err)
                     return None
                 allQueryResults.listQueryResults.append(oneQueryResultList)    
-                self.logMessage(f"Keyword HyDE: {len(oneQueryResultList.result_dict)} results")
+                self.logMessage(f"Keyword HyDE|{len(oneQueryResultList.result_dict)} results")
 
    #         self.dumpOutliersForOneQuery(queryService, oneQueryResultList, upperFlag = True)
 
@@ -1141,12 +1140,12 @@ class DiscoveryWorkflow(WorkflowBase):
             print(f"BM25s folder:\t{self.bm25IndexFolder}")
             print(f"Output file:\t{self.outputFileName}")
         else:
-            self.logMessage(f"Status file: {self.statusFileName}")
-            self.logMessage(f"Documents: {self.documentFolder}")
-            self.logMessage(f"RAG database: {self.ragDatapath}")
-            self.logMessage(f"Interim data: {self.dataFolder}")
-            self.logMessage(f"BM25s folder: {self.bm25IndexFolder}")
-            self.logMessage(f"Output file: {self.outputFileName}")
+            self.logMessage(f"Status file|{self.statusFileName}")
+            self.logMessage(f"Documents|{self.documentFolder}")
+            self.logMessage(f"RAG database|{self.ragDatapath}")
+            self.logMessage(f"Interim data|{self.dataFolder}")
+            self.logMessage(f"BM25s folder|{self.bm25IndexFolder}")
+            self.logMessage(f"Output file|{self.outputFileName}")
 
 
     def logMessage(self, msg : str | List[str]):
@@ -1184,7 +1183,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         totalStart = time.time()
 
-        self.logMessage(f"Workflow started: {self.taskId}")
+        self.logMessage(f"Workflow started|{self.taskId}")
         self.inWorkflow = True
 
         if len(self.source):
@@ -1193,11 +1192,11 @@ class DiscoveryWorkflow(WorkflowBase):
             self.source = self.formFileList()
             fileList = self.source
 
-        if self.loadDocument or self.parseChunks or self.makeRawVector or self.bm25Process or self.clear:
-            if len(fileList) == 1:
-                self.logMessage(f"Discovered {len(fileList)} file for processing.")
-            else:
-                self.logMessage(f"Discovered {len(fileList)} files for processing.")
+#        if self.loadDocument or self.parseChunks or self.makeRawVector or self.bm25Process or self.clear:
+#            if len(fileList) == 1:
+#                self.logMessage(f"Discovered {len(fileList)} file for processing.")
+#            else:
+#                self.logMessage(f"Discovered {len(fileList)} files for processing.")
 
         #------------------loadDocument---------------------
 
@@ -1219,7 +1218,7 @@ class DiscoveryWorkflow(WorkflowBase):
             startTime = time.time()
             accepted, rejected = self.makeRawVectorPhaseAllFiles(inputFileList = fileList)
             if (accepted < 0) and (rejected < 0):
-                self.logMessage(f"Workflow completed with errors: {self.taskId}")        
+                self.logMessage(f"Workflow Error|{self.taskId}")        
                 self.inWorkflow = False
                 return
             self.updateStats(topKey = "Make Vectors", keyValList = [("Time", time.time() - startTime), ("Vectors Accepted", accepted), ("Vectors Rejected", rejected)])
@@ -1235,7 +1234,7 @@ class DiscoveryWorkflow(WorkflowBase):
 
         if self.search:
             startTime = time.time()
-            self.logMessage(f"Processing query: {self.query}")
+            self.logMessage(f"Processing Query|{self.query}")
             queryService = QueryService()
             collectionChunkQueryResults = self.matchChunksPhaseAllQueries(queryTexts = self.query, queryService = queryService)
             # output results files
@@ -1254,9 +1253,8 @@ class DiscoveryWorkflow(WorkflowBase):
             self.clearPhaseAllFiles(inputFileList = fileList)
             self.updateStats(topKey = "Clean Temp Files", keyValList = [("Time", time.time() - startTime)])
 
-
-        self.updateStats(topKey = "Total", keyValList = [("Time", time.time() - totalStart)])
-
         self.logMessage(self.formatAllStats())
-        self.logMessage(f"Workflow completed: {self.taskId}")
+        processTime = time.time() - totalStart
+        self.logMessage(f"Total Time|{processTime:.4f}")        
+        self.logMessage(f"Workflow completed|{self.taskId}")
         self.inWorkflow = False

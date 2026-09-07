@@ -140,6 +140,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+venv-old/
 ENV/
 env.bak/
 venv.bak/
@@ -217,5 +218,12 @@ status.INDEXER.json
 status.QUERY.json
 status.JIRAEXPORT.json
 .gitignore
+.gitattributes
+.dockerignore
+.editorconfig
+.pnp.cjs
 node_modules/
 oldcode/
+ExcelTest/
+HTMLTest/
+PDFtests/
